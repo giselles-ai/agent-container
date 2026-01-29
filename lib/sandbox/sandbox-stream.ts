@@ -14,11 +14,6 @@ export type SandboxStreamRunner = (options: {
 	signal: AbortSignal;
 }) => Promise<SandboxRunResult> | SandboxRunResult;
 
-type SandboxStreamController = {
-	close: () => void;
-	enqueue: (chunk?: Uint8Array) => void;
-};
-
 export function extractLatestUserText(
 	messages: UIMessage[] | undefined,
 ): string | null {
@@ -194,14 +189,9 @@ export function createSandboxSsePassthroughResponse(
 	runSandbox: SandboxStreamRunner,
 ) {
 	const abortController = new AbortController();
-	let abortListenerAttached = false;
 	let abortNotified = false;
 	let closed = false;
-	let sentDone = false;
-	let bufferedDone = false;
-	let stdoutMode: "sse" | "json" | null = null;
-	let stdoutBuffer = "";
-	let controller: SandboxStreamController | null = null;
+	let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
 
 	const encoder = new TextEncoder();
 
@@ -216,70 +206,12 @@ export function createSandboxSsePassthroughResponse(
 		enqueueText(`data: ${JSON.stringify(data)}\n\n`);
 	};
 
-	const detectStdoutMode = () => {
-		if (stdoutMode) {
-			return;
-		}
-		const trimmed = stdoutBuffer.trimStart();
-		if (!trimmed) {
-			return;
-		}
-		stdoutMode = trimmed.startsWith("data:") ? "sse" : "json";
-	};
-
-	const flushStdoutBufferAsSse = () => {
-		let separatorIndex = stdoutBuffer.indexOf("\n\n");
-		while (separatorIndex !== -1) {
-			const event = stdoutBuffer.slice(0, separatorIndex);
-			stdoutBuffer = stdoutBuffer.slice(separatorIndex + 2);
-			if (event.trim() === "data: [DONE]") {
-				bufferedDone = true;
-			} else {
-				enqueueText(`${event}\n\n`);
-			}
-			separatorIndex = stdoutBuffer.indexOf("\n\n");
-		}
-	};
-
-	const flushStdoutBufferAsJson = () => {
-		stdoutBuffer = stdoutBuffer.replace(/\r\n/g, "\n");
-		let newlineIndex = stdoutBuffer.indexOf("\n");
-		while (newlineIndex !== -1) {
-			const line = stdoutBuffer.slice(0, newlineIndex).trim();
-			stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
-			if (line.length > 0) {
-				enqueueText(`data: ${line}\n\n`);
-			}
-			newlineIndex = stdoutBuffer.indexOf("\n");
-		}
-	};
-
-	const flushStdoutBuffer = () => {
-		detectStdoutMode();
-		if (stdoutMode === "json") {
-			flushStdoutBufferAsJson();
-			return;
-		}
-		if (stdoutMode === "sse") {
-			flushStdoutBufferAsSse();
-		}
-	};
-
-	const sendDone = () => {
-		if (sentDone) {
-			return;
-		}
-		sentDone = true;
-		enqueueText("data: [DONE]\n\n");
-	};
-
 	const closeStream = () => {
 		if (closed) {
 			return;
 		}
 		closed = true;
-		const active = controller as { close?: () => void } | null;
-		active?.close?.();
+		controller?.close();
 	};
 
 	const onAbort = () => {
@@ -299,40 +231,25 @@ export function createSandboxSsePassthroughResponse(
 	};
 
 	const detachAbortListener = () => {
-		if (abortListenerAttached) {
-			req.signal.removeEventListener("abort", onAbort);
-			abortListenerAttached = false;
-		}
+		req.signal.removeEventListener("abort", onAbort);
 	};
 
 	if (req.signal.aborted) {
 		onAbort();
 	} else {
 		req.signal.addEventListener("abort", onAbort);
-		abortListenerAttached = true;
 	}
 
 	const stdout = new Writable({
 		write(chunk, _encoding, callback) {
 			const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-			stdoutBuffer += text;
-			flushStdoutBuffer();
+			enqueueText(text);
 			callback();
 		},
 	});
 
 	const stderr = new Writable({
-		write(chunk, _encoding, callback) {
-			if (sentDone) {
-				callback();
-				return;
-			}
-			const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-			enqueueEvent({
-				type: "data-stderr",
-				data: { text },
-				transient: true,
-			});
+		write(_chunk, _encoding, callback) {
 			callback();
 		},
 	});
@@ -358,7 +275,6 @@ export function createSandboxSsePassthroughResponse(
 				signal: abortController.signal,
 			});
 			const exitCode = resolveExitCode(result) ?? 0;
-			flushStdoutBuffer();
 			if (!abortController.signal.aborted) {
 				enqueueEvent({
 					type: "data-exit",
@@ -367,7 +283,6 @@ export function createSandboxSsePassthroughResponse(
 				});
 			}
 		} catch (error) {
-			flushStdoutBuffer();
 			if (!abortController.signal.aborted) {
 				const message = error instanceof Error ? error.message : String(error);
 				enqueueEvent({ type: "error", errorText: message });
@@ -376,21 +291,6 @@ export function createSandboxSsePassthroughResponse(
 				enqueueEvent({ type: "abort" });
 			}
 		} finally {
-			detectStdoutMode();
-			if (stdoutBuffer.length > 0) {
-				if (stdoutMode === "json") {
-					const line = stdoutBuffer.trim();
-					if (line.length > 0) {
-						enqueueText(`data: ${line}\n\n`);
-					}
-				} else {
-					enqueueText(stdoutBuffer);
-				}
-				stdoutBuffer = "";
-			}
-			if (bufferedDone || stdoutMode === "json") {
-				sendDone();
-			}
 			closeStream();
 			detachAbortListener();
 		}
