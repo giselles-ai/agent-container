@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 llms-furl/
 .env*.local
+
+# opensrc - source code for packages
+opensrc/

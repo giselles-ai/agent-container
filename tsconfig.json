@@ -30,5 +30,5 @@
 		".next/dev/types/**/*.ts",
 		"**/*.mts"
 	],
-	"exclude": ["node_modules", "llms-furl"]
+	"exclude": ["node_modules", "llms-furl", "opensrc"]
 }
