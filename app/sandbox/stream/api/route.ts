@@ -10,9 +10,14 @@ import {
 const fallbackText =
 	"Today we stream a longer message in chunks so the SSE client can render partial output as it arrives. This is useful for progress logs, summaries, or any output that benefits from incremental updates. Each chunk is printed with a short delay to simulate work being done inside the sandbox. Adjust the chunk size or delay to match your UX needs.";
 
-function extractLatestUserText(
-	messages: UIMessage[] | undefined,
-): string | null {
+type SandboxRunResult = { exitCode?: number } | number | void;
+type SandboxStreamRunner = (options: {
+	stdout: Writable;
+	stderr: Writable;
+	signal: AbortSignal;
+}) => Promise<SandboxRunResult> | SandboxRunResult;
+
+function extractLatestUserText(messages: UIMessage[] | undefined): string | null {
 	if (!messages?.length) {
 		return null;
 	}
@@ -35,11 +40,20 @@ function extractLatestUserText(
 	return null;
 }
 
-async function createSandboxStreamResponse(
+function resolveExitCode(result: SandboxRunResult): number | undefined {
+	if (typeof result === "number") {
+		return result;
+	}
+	if (result && typeof result === "object" && "exitCode" in result) {
+		return typeof result.exitCode === "number" ? result.exitCode : undefined;
+	}
+	return undefined;
+}
+
+function createSandboxStreamResponse(
 	req: Request,
-	inputText?: string | null,
+	runSandbox: SandboxStreamRunner,
 ) {
-	const sandbox = await Sandbox.create();
 	const abortController = new AbortController();
 	let abortListenerAttached = false;
 	let abortNotified = false;
@@ -133,26 +147,17 @@ async function createSandboxStreamResponse(
 			});
 
 			try {
-				const result = await sandbox.runCommand({
-					cmd: "node",
-					args: [
-						"-e",
-						"const text = process.env.LONG_TEXT ?? ''; const size = 120; let i = 0; const interval = setInterval(() => { if (i >= text.length) { clearInterval(interval); return; } console.log(text.slice(i, i + size)); i += size; }, 200);",
-					],
-					env: {
-						LONG_TEXT: inputText
-							? `You said: ${inputText}\n\n${fallbackText}`
-							: fallbackText,
-					},
+				const result = await runSandbox({
 					stdout,
 					stderr,
 					signal: abortController.signal,
 				});
+				const exitCode = resolveExitCode(result) ?? 0;
 
 				endText();
 				writer.write({
 					type: "data-exit",
-					data: { code: result.exitCode ?? 0 },
+					data: { code: exitCode },
 					transient: true,
 				});
 				finish("stop");
@@ -181,13 +186,49 @@ async function createSandboxStreamResponse(
 }
 
 export async function GET(req: Request) {
-	return createSandboxStreamResponse(req, null);
+	return createSandboxStreamResponse(req, async ({ stdout, stderr, signal }) => {
+		const sandbox = await Sandbox.create();
+		return sandbox.runCommand({
+			cmd: "node",
+			args: [
+				"-e",
+				"const text = process.env.LONG_TEXT ?? ''; const size = 120; let i = 0; const interval = setInterval(() => { if (i >= text.length) { clearInterval(interval); return; } console.log(text.slice(i, i + size)); i += size; }, 200);",
+			],
+			env: {
+				LONG_TEXT: fallbackText,
+			},
+			stdout,
+			stderr,
+			signal,
+		});
+	});
 }
 
 export async function POST(req: Request) {
-	const body = (await req.json().catch(() => null)) as {
-		messages?: UIMessage[];
-	} | null;
+	const body = (await req.json().catch(() => null)) as
+		| { messages?: UIMessage[] }
+		| null;
 	const inputText = extractLatestUserText(body?.messages);
-	return createSandboxStreamResponse(req, inputText);
+
+	return createSandboxStreamResponse(
+		req,
+		async ({ stdout, stderr, signal }) => {
+			const sandbox = await Sandbox.create();
+			return sandbox.runCommand({
+				cmd: "node",
+				args: [
+					"-e",
+					"const text = process.env.LONG_TEXT ?? ''; const size = 120; let i = 0; const interval = setInterval(() => { if (i >= text.length) { clearInterval(interval); return; } console.log(text.slice(i, i + size)); i += size; }, 200);",
+				],
+				env: {
+					LONG_TEXT: inputText
+						? `You said: ${inputText}\n\n${fallbackText}`
+						: fallbackText,
+				},
+				stdout,
+				stderr,
+				signal,
+			});
+		},
+	);
 }
