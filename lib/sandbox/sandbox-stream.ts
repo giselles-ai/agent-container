@@ -284,7 +284,13 @@ export function createSandboxSsePassthroughResponse(
 
 	const onAbort = () => {
 		if (!abortController.signal.aborted) {
-			abortController.abort();
+			try {
+				abortController.abort();
+			} catch (error) {
+				if (!(error instanceof DOMException && error.name === "AbortError")) {
+					throw error;
+				}
+			}
 		}
 		if (!abortNotified) {
 			abortNotified = true;

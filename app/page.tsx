@@ -6,12 +6,20 @@ export default function Home() {
 				<p className="mt-2 text-sm text-slate-400">
 					UIMessage streaming demo for the sandbox endpoint.
 				</p>
-				<a
-					href="/sandbox/stream"
-					className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-				>
-					Open sandbox chat
-				</a>
+				<div className="flex gap-4">
+					<a
+						href="/sandbox/stream"
+						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+					>
+						Open sandbox chat
+					</a>
+					<a
+						href="/sandbox/tool-loop-agent"
+						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+					>
+						Open tool-loop-agent chat
+					</a>
+				</div>
 			</div>
 		</main>
 	);

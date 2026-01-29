@@ -15,7 +15,9 @@ async function main() {
 	});
 
 	const uiStream = stream.toUIMessageStream();
-	const sseStream = uiStream.pipeThrough(new TextEncoderStream());
+	const sseStream = uiStream
+		.pipeThrough(new JsonToSseTransformStream())
+		.pipeThrough(new TextEncoderStream());
 
 	const reader = sseStream.getReader();
 	while (true) {
