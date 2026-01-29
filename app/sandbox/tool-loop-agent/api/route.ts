@@ -3,6 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { createSandboxSsePassthroughResponse } from "@/lib/sandbox/sandbox-stream";
 
 export async function POST(req: Request) {
+	const oidcToken = req.headers.get("x-vercel-oidc-token");
 	return createSandboxSsePassthroughResponse(
 		req,
 		async ({ stdout, stderr, signal }) => {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
 				stderr,
 				signal,
 				env: {
-					VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN ?? "",
+					VERCEL_OIDC_TOKEN: oidcToken ?? process.env.VERCEL_OIDC_TOKEN ?? "",
 				},
 			});
 		},
