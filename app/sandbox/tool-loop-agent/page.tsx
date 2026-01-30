@@ -95,29 +95,94 @@ export default function SandboxStreamPage() {
 									Type a message to start streaming.
 								</p>
 							) : (
-								messages.map((message) => {
-									const text = message.parts
-										.filter((part) => part.type === "text")
-										.map((part) => part.text)
-										.join("");
-									return (
-										<div
-											key={message.id}
-											className={`rounded-xl border px-4 py-3 text-sm ${
-												message.role === "user"
-													? "border-slate-700 bg-slate-800/60"
-													: "border-indigo-500/40 bg-indigo-500/10"
-											}`}
-										>
-											<p className="text-xs uppercase tracking-wide text-slate-400">
-												{message.role}
-											</p>
-											<p className="mt-2 whitespace-pre-wrap text-slate-100">
-												{text || "..."}
-											</p>
+								messages.map((message) => (
+									<div
+										key={message.id}
+										className={`rounded-xl border px-4 py-3 text-sm ${
+											message.role === "user"
+												? "border-slate-700 bg-slate-800/60"
+												: "border-indigo-500/40 bg-indigo-500/10"
+										}`}
+									>
+										<p className="text-xs uppercase tracking-wide text-slate-400">
+											{message.role}
+										</p>
+										<div className="mt-2 space-y-2">
+											{message.parts.map((part, index) => {
+												if (part.type === "text") {
+													return (
+														<p
+															key={`text-${index}`}
+															className="whitespace-pre-wrap text-slate-100"
+														>
+															{part.text}
+														</p>
+													);
+												}
+												if (part.type === "step-start") {
+													return (
+														<hr
+															key={`step-${index}`}
+															className="border-slate-700"
+														/>
+													);
+												}
+												if (
+													part.type === "dynamic-tool" ||
+													part.type.startsWith("tool-")
+												) {
+													const toolPart = part as {
+														type: string;
+														toolCallId: string;
+														toolName?: string;
+														state: string;
+														input?: unknown;
+														output?: unknown;
+													};
+													const toolName =
+														toolPart.toolName ??
+														toolPart.type.replace(/^tool-/, "");
+													return (
+														<div
+															key={toolPart.toolCallId}
+															className="rounded-lg border border-slate-700 bg-slate-800/50 p-3"
+														>
+															<p className="text-xs font-medium text-emerald-400">
+																Tool: {toolName}
+															</p>
+															<p className="mt-1 text-xs text-slate-400">
+																State: {toolPart.state}
+															</p>
+															{toolPart.state !== "input-streaming" &&
+															toolPart.input != null ? (
+																<details className="mt-2">
+																	<summary className="cursor-pointer text-xs text-slate-400">
+																		Input
+																	</summary>
+																	<pre className="mt-1 overflow-x-auto text-xs text-slate-300">
+																		{JSON.stringify(toolPart.input, null, 2)}
+																	</pre>
+																</details>
+															) : null}
+															{toolPart.state === "output-available" &&
+															toolPart.output != null ? (
+																<details className="mt-2">
+																	<summary className="cursor-pointer text-xs text-slate-400">
+																		Output
+																	</summary>
+																	<pre className="mt-1 overflow-x-auto text-xs text-slate-300">
+																		{JSON.stringify(toolPart.output, null, 2)}
+																	</pre>
+																</details>
+															) : null}
+														</div>
+													);
+												}
+												return null;
+											})}
 										</div>
-									);
-								})
+									</div>
+								))
 							)}
 						</div>
 
