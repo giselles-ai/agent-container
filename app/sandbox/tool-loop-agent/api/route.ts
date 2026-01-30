@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { Sandbox } from "@vercel/sandbox";
+import { readTemplateFiles } from "@/lib/sandbox/read-template-files";
 import { createSandboxSsePassthroughResponse } from "@/lib/sandbox/sandbox-stream";
 
 export async function POST(req: Request) {
@@ -9,17 +9,11 @@ export async function POST(req: Request) {
 		async ({ stdout, stderr, signal }) => {
 			const sandbox = await Sandbox.create();
 
-			const [indexTs, packageJson, toolsTs] = await Promise.all([
-				readFile(new URL("./sandbox-template/index.ts", import.meta.url)),
-				readFile(new URL("./sandbox-template/package.json", import.meta.url)),
-				readFile(new URL("./sandbox-template/tools.ts", import.meta.url)),
-			]);
+			const files = await readTemplateFiles(
+				"app/sandbox/tool-loop-agent/api/sandbox-template",
+			);
 
-			await sandbox.writeFiles([
-				{ path: "index.ts", content: indexTs },
-				{ path: "package.json", content: packageJson },
-				{ path: "tools.ts", content: toolsTs },
-			]);
+			await sandbox.writeFiles(files);
 			await sandbox.runCommand({
 				cmd: "pnpm",
 				args: ["install"],
