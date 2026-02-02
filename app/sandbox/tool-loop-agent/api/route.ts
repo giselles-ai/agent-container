@@ -40,10 +40,6 @@ export async function POST(req: Request) {
 					VERCEL_OIDC_TOKEN: oidcToken ?? process.env.VERCEL_OIDC_TOKEN ?? "",
 				},
 			});
-			await sandbox.downloadFile(
-				{ path: "messages.json", cwd: "/vercel/sandbox" },
-				{ path: "messages.json", cwd: "./" },
-			);
 		},
 	);
 }

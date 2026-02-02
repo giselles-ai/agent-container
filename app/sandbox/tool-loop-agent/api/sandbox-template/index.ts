@@ -46,7 +46,7 @@ async function main() {
 			skill,
 			bash: tools.bash,
 		},
-		instructions: `You are a data processing assistant with access to skills.
+		instructions: `You are a helpful assistant with access to skills.
   Use the skill tool to discover how to use a skill, then use bash to run its scripts.
   Skills are located at ./skills/<skill-name>/.`,
 		onStepFinish: ({ toolCalls, toolResults }) => {

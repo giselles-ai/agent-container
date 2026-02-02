@@ -31,7 +31,7 @@ async function main() {
 			skill,
 			bash: tools.bash,
 		},
-		instructions: `You are a data processing assistant with access to skills.
+		instructions: `You are a helpful assistant with access to skills.
   Use the skill tool to discover how to use a skill, then use bash to run its scripts.
   Skills are located at ./skills/<skill-name>/.`,
 		onStepFinish: ({ toolCalls, toolResults }) => {
@@ -66,21 +66,7 @@ async function main() {
 
 	// Example prompt - the AI will discover and use skills as needed
 	const prompt = `
-      I have a CSV file with sales data. Here's the content:
-
-      date,product,quantity,price,region
-      2024-01-15,Widget A,100,29.99,North
-      2024-01-15,Widget B,50,49.99,South
-      2024-01-16,Widget A,75,29.99,East
-      2024-01-16,Widget C,200,19.99,North
-      2024-01-17,Widget B,30,49.99,West
-      2024-01-17,Widget A,150,29.99,North
-
-      Please:
-      1. First, write this data to a file called sales.csv
-      2. Use the csv skill to analyze the file
-      3. Filter to show only North region sales
-      4. Sort by quantity (highest first)
+      ampcodeを使うためのCDRを作成したいです
     `;
 
 	console.log("Sending prompt to agent...\n");
