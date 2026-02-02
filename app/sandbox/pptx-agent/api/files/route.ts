@@ -23,5 +23,5 @@ export async function GET() {
 	headers.set("Content-Length", buffer.byteLength.toString());
 	headers.set("Cache-Control", "no-store");
 
-	return new Response(buffer, { status: 200, headers });
+	return new Response(new Uint8Array(buffer), { status: 200, headers });
 }
