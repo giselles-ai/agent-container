@@ -7,12 +7,11 @@ import {
 	type UIMessageStreamWriter,
 } from "ai";
 
-type SandboxRunResult = { exitCode?: number } | number;
 export type SandboxStreamRunner = (options: {
 	stdout: Writable;
 	stderr: Writable;
 	signal: AbortSignal;
-}) => Promise<SandboxRunResult> | SandboxRunResult;
+}) => Promise<void>;
 
 export function extractLatestUserText(
 	messages: UIMessage[] | undefined,
@@ -37,16 +36,6 @@ export function extractLatestUserText(
 	}
 
 	return null;
-}
-
-function resolveExitCode(result: SandboxRunResult): number | undefined {
-	if (typeof result === "number") {
-		return result;
-	}
-	if (result && typeof result === "object" && "exitCode" in result) {
-		return typeof result.exitCode === "number" ? result.exitCode : undefined;
-	}
-	return undefined;
 }
 
 export function createSandboxStreamResponse(
@@ -146,20 +135,11 @@ export function createSandboxStreamResponse(
 			});
 
 			try {
-				const result = await runSandbox({
+				await runSandbox({
 					stdout,
 					stderr,
 					signal: abortController.signal,
 				});
-				const exitCode = resolveExitCode(result) ?? 0;
-
-				endText();
-				writer.write({
-					type: "data-exit",
-					data: { code: exitCode },
-					transient: true,
-				});
-				finish("stop");
 			} catch (error) {
 				if (!abortController.signal.aborted) {
 					const message =
@@ -269,19 +249,11 @@ export function createSandboxSsePassthroughResponse(
 
 	(async () => {
 		try {
-			const result = await runSandbox({
+			await runSandbox({
 				stdout,
 				stderr,
 				signal: abortController.signal,
 			});
-			const exitCode = resolveExitCode(result) ?? 0;
-			if (!abortController.signal.aborted) {
-				enqueueEvent({
-					type: "data-exit",
-					data: { code: exitCode },
-					transient: true,
-				});
-			}
 		} catch (error) {
 			if (!abortController.signal.aborted) {
 				const message = error instanceof Error ? error.message : String(error);

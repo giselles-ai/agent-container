@@ -112,6 +112,7 @@ export default function SandboxStreamPage() {
 												if (part.type === "text") {
 													return (
 														<p
+															// biome-ignore lint/suspicious/noArrayIndexKey: text parts lack stable IDs and are render-only
 															key={`text-${index}`}
 															className="whitespace-pre-wrap text-slate-100"
 														>
@@ -122,6 +123,7 @@ export default function SandboxStreamPage() {
 												if (part.type === "step-start") {
 													return (
 														<hr
+															// biome-ignore lint/suspicious/noArrayIndexKey: step-start parts lack stable IDs
 															key={`step-${index}`}
 															className="border-slate-700"
 														/>
@@ -217,7 +219,7 @@ export default function SandboxStreamPage() {
 									<p className="text-slate-500">No stderr yet.</p>
 								) : (
 									stderrLines.map((line, index) => (
-										// biome-ignore lint/suspicious/noArrayIndexKey: stderrLines in append-only
+										// biome-ignore lint/suspicious/noArrayIndexKey: stderrLines is append-only
 										<p key={index} className="whitespace-pre-wrap">
 											{line}
 										</p>

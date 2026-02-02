@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { JsonToSseTransformStream, ToolLoopAgent } from "ai";
 import {
@@ -25,7 +26,7 @@ async function main() {
 
 	// Create the agent with skills
 	const agent = new ToolLoopAgent({
-		model: "anthropic/claude-haiku-4.5",
+		model: "openai/gpt-5",
 		tools: {
 			skill,
 			bash: tools.bash,
@@ -87,7 +88,7 @@ async function main() {
 	const stream = await agent.stream({ prompt });
 
 	const uiStream = stream.toUIMessageStream({
-		onFinish: async () => {
+		onFinish: async ({ messages, responseMessage }) => {
 			const usage = await stream.totalUsage;
 			const steps = await stream.steps;
 			const text = await stream.text;
@@ -97,6 +98,13 @@ async function main() {
 			console.log("\n=== Agent Stats ===");
 			console.log(`Steps: ${steps.length}`);
 			console.log(`Usage: ${usage}`);
+
+			const allMessages = [...messages, responseMessage];
+			await fs.writeFile(
+				path.join(import.meta.dirname, "messages.json"),
+				JSON.stringify(allMessages, null, 2),
+			);
+			console.log("Messages saved to agent/messages.json");
 		},
 	});
 	const sseStream = uiStream
@@ -108,6 +116,7 @@ async function main() {
 		const { done, value } = await reader.read();
 		if (done) break;
 		process.stdout.write(Buffer.from(value));
+		await new Promise((resolve) => setTimeout(resolve, 10000));
 	}
 }
 
