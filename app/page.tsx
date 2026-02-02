@@ -17,7 +17,13 @@ export default function Home() {
 						href="/sandbox/tool-loop-agent"
 						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
 					>
-						Open tool-loop-agent chat
+						Open pptx-agent chat
+					</a>
+					<a
+						href="/sandbox/pptx-agent"
+						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+					>
+						Open pptx-agent chat
 					</a>
 				</div>
 			</div>
