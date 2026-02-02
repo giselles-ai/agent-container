@@ -1,13 +1,14 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { Sandbox } from "@vercel/sandbox";
 import { convertToModelMessages, ToolLoopAgent, type UIMessage } from "ai";
 import {
 	createBashTool,
 	experimental_createSkillTool as createSkillTool,
 } from "bash-tool";
-import simpleGit from "simple-git";
+import { x as extractTar } from "tar";
 
 interface PostRequest {
 	messages: UIMessage[];
@@ -82,19 +83,44 @@ function parseSource(input: string): ParsedSource {
 }
 
 /**
- * Clone repository to temp directory
+ * Download repository tarball to temp directory (no git required)
  */
-async function cloneRepo(url: string): Promise<string> {
+async function downloadRepo(url: string): Promise<string> {
 	const tempDir = await mkdtemp(path.join(tmpdir(), "skills-"));
-	const git = simpleGit({ timeout: { block: 60000 } });
+
+	// Convert git URL to tarball URL
+	// https://github.com/owner/repo.git -> https://github.com/owner/repo/tarball/main
+	const tarballUrl =
+		url.replace(/\.git$/, "").replace("github.com", "api.github.com/repos") +
+		"/tarball/main";
 
 	try {
-		await git.clone(url, tempDir, ["--depth", "1"]);
+		const response = await fetch(tarballUrl, {
+			headers: { Accept: "application/vnd.github+json" },
+			redirect: "follow",
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const arrayBuffer = await response.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+
+		// Extract tarball, stripping the top-level directory
+		await new Promise<void>((resolve, reject) => {
+			const stream = Readable.from(buffer);
+			stream
+				.pipe(extractTar({ cwd: tempDir, strip: 1 }))
+				.on("finish", resolve)
+				.on("error", reject);
+		});
+
 		return tempDir;
 	} catch (error) {
 		await rm(tempDir, { recursive: true, force: true }).catch(() => {});
 		throw new Error(
-			`Failed to clone ${url}: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to download ${url}: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 }
@@ -112,8 +138,8 @@ export async function POST(req: Request) {
 	requestedSkill = parsed.skillName;
 
 	if (parsed.type === "github" || parsed.type === "url") {
-		console.log(`Cloning skills from ${skillsSource}...`);
-		tempDir = await cloneRepo(parsed.url);
+		console.log(`Downloading skills from ${skillsSource}...`);
+		tempDir = await downloadRepo(parsed.url);
 		console.log(tempDir);
 		skillsDirectory = `${tempDir}/skills`;
 	}
