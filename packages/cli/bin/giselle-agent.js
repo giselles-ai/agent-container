@@ -251,7 +251,7 @@ async function agentRun(slug, prompt) {
 	}
 
 	const apiBase = getApiBase();
-	const runRes = await fetch(`${apiBase}/api/agents/${slug}/run?format=sse`, {
+	const runRes = await fetch(`${apiBase}/api/agents/${slug}/run`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
@@ -274,31 +274,68 @@ async function agentRun(slug, prompt) {
 	const reader = runRes.body.getReader();
 	const decoder = new TextDecoder();
 	let buffered = "";
+	const handleEvent = (rawEvent) => {
+		const lines = rawEvent.split("\n");
+		const dataLines = [];
+		for (const line of lines) {
+			if (line.startsWith("data:")) {
+				dataLines.push(line.slice(5).trimStart());
+			}
+		}
+		if (dataLines.length === 0) return;
+		const data = dataLines.join("\n");
+		if (data === "[DONE]") return;
+		try {
+			const payload = JSON.parse(data);
+			switch (payload?.type) {
+				case "text-delta": {
+					if (typeof payload.delta === "string" && payload.delta.length > 0) {
+						process.stdout.write(payload.delta);
+					}
+					break;
+				}
+				case "data-stderr": {
+					const text = payload?.data?.text;
+					if (typeof text === "string" && text.length > 0) {
+						process.stderr.write(text);
+					}
+					break;
+				}
+				case "data-exit": {
+					const code = payload?.data?.code ?? 0;
+					process.stderr.write(`\n[exit ${code}]\n`);
+					break;
+				}
+				case "error": {
+					if (payload?.errorText) {
+						process.stderr.write(`${payload.errorText}\n`);
+					}
+					break;
+				}
+				default:
+					break;
+			}
+		} catch {
+			process.stdout.write(`${data}\n`);
+		}
+	};
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) break;
 		buffered += decoder.decode(value, { stream: true });
-		let index = buffered.indexOf("\n");
-		while (index >= 0) {
-			const line = buffered.slice(0, index);
-			buffered = buffered.slice(index + 1);
-			if (line.startsWith("data: ")) {
-				try {
-					const payload = JSON.parse(line.slice(6));
-					if (payload?.type === "error") {
-						console.error(payload.errorText);
-					}
-					if (payload?.type === "data-exit") {
-						console.log(`\n[exit ${payload.data?.code ?? 0}]`);
-					}
-				} catch {
-					process.stdout.write(`${line}\n`);
-				}
-			} else {
-				process.stdout.write(`${line}\n`);
+		buffered = buffered.replace(/\r\n/g, "\n");
+		let eventIndex = buffered.indexOf("\n\n");
+		while (eventIndex >= 0) {
+			const rawEvent = buffered.slice(0, eventIndex);
+			buffered = buffered.slice(eventIndex + 2);
+			if (rawEvent.trim().length > 0) {
+				handleEvent(rawEvent);
 			}
-			index = buffered.indexOf("\n");
+			eventIndex = buffered.indexOf("\n\n");
 		}
+	}
+	if (buffered.trim().length > 0) {
+		handleEvent(buffered);
 	}
 }
 

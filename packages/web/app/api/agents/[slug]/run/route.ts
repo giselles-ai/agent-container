@@ -5,6 +5,7 @@ import { requireApiToken } from "@/lib/agent/auth";
 import { getBundle, getManifest } from "@/lib/agent/storage";
 import {
 	createSandboxSsePassthroughResponse,
+	createSandboxStreamResponse,
 	extractLatestUserText,
 } from "@/lib/sandbox/sandbox-stream";
 
@@ -38,7 +39,6 @@ export async function POST(req: Request, props: Params) {
 	if (!manifest) {
 		return NextResponse.json({ error: "Not found" }, { status: 404 });
 	}
-	console.log(`manifest`, manifest);
 	const bundle = await getBundle(params.slug);
 	const bundleBuffer = Buffer.from(await bundle.arrayBuffer());
 
@@ -51,12 +51,17 @@ export async function POST(req: Request, props: Params) {
 		stderr: Writable;
 		signal: AbortSignal;
 	}) => {
-		const sandbox = await Sandbox.create();
+		const sandbox = await Sandbox.create({
+			source: {
+				type: "snapshot",
+				snapshotId: "snap_Jhmuk7xWcnrQGk1czArYhzgtODcj",
+			},
+		});
 		// await sandbox.writeFiles([{ path: "bundle.tar", content: bundleBuffer }]);
 
 		// await sandbox.runCommand({
-		// 	cmd: "tar",
-		// 	args: ["-xf", "bundle.tar"],
+		// 	cmd: "npm",
+		// 	args: ["install", "-g", "@google/gemini-cli"],
 		// });
 
 		// for (const install of manifest.install) {
@@ -67,14 +72,22 @@ export async function POST(req: Request, props: Params) {
 		// 	});
 		// }
 
-		return sandbox.runCommand({
-			cmd: "echo",
-			args: ["hello world"],
+		await sandbox.runCommand({
+			cmd: "gemini",
+			args: [
+				"-p",
+				"Please tell me joke about React.js",
+				"--output-format",
+				"stream-json",
+			],
+			env: {
+				GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
+			},
 			stdout,
 			stderr,
 			signal,
 		});
 	};
 
-	return createSandboxSsePassthroughResponse(req, runner);
+	return createSandboxStreamResponse(req, runner);
 }
