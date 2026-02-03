@@ -21,6 +21,7 @@ export async function putManifest(
 		access: "public",
 		addRandomSuffix: false,
 		token,
+		allowOverwrite: true,
 		contentType: "application/json",
 	});
 }

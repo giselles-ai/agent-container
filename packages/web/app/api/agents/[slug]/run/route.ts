@@ -10,7 +10,7 @@ import {
 } from "@/lib/sandbox/sandbox-stream";
 
 type Params = {
-	params: { slug: string };
+	params: Promise<{ slug: string }>;
 };
 
 function buildEnv(requiredKeys: string[]) {
@@ -24,23 +24,24 @@ function buildEnv(requiredKeys: string[]) {
 	return env;
 }
 
-export async function POST(req: Request, { params }: Params) {
-	const authError = requireApiToken(req);
-	if (authError) return authError;
+export async function POST(req: Request, props: Params) {
+    const params = await props.params;
+    const authError = requireApiToken(req);
+    if (authError) return authError;
 
-	const body = (await req.json().catch(() => null)) as { messages?: unknown };
-	const prompt =
+    const body = (await req.json().catch(() => null)) as { messages?: unknown };
+    const prompt =
 		body && typeof body === "object"
 			? extractLatestUserText((body as { messages?: never }).messages)
 			: null;
 
-	const token = process.env.BLOB_READ_WRITE_TOKEN;
-	const manifest = await getManifest(params.slug, token);
-	if (!manifest) {
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    const manifest = await getManifest(params.slug, token);
+    if (!manifest) {
 		return NextResponse.json({ error: "Not found" }, { status: 404 });
 	}
 
-	const runner = async ({
+    const runner = async ({
 		stdout,
 		stderr,
 		signal,
@@ -84,9 +85,9 @@ export async function POST(req: Request, { params }: Params) {
 		});
 	};
 
-	const format = new URL(req.url).searchParams.get("format");
-	if (format === "sse") {
+    const format = new URL(req.url).searchParams.get("format");
+    if (format === "sse") {
 		return createSandboxSsePassthroughResponse(req, runner);
 	}
-	return createSandboxStreamResponse(req, runner);
+    return createSandboxStreamResponse(req, runner);
 }
