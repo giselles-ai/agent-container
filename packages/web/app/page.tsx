@@ -8,6 +8,12 @@ export default function Home() {
 				</p>
 				<div className="flex gap-4">
 					<a
+						href="/agents"
+						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+					>
+						Open agents
+					</a>
+					<a
 						href="/sandbox/stream"
 						className="mt-6 inline-flex w-fit items-center rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
 					>

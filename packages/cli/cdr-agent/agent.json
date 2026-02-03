@@ -1,0 +1,14 @@
+{
+  "name": "cdr-agent",
+  "slug": "cdr-agent",
+  "description": "Support cdr creation",
+  "entrypoint": {
+    "cmd": "node",
+    "args": [
+      "index.js"
+    ]
+  },
+  "install": [],
+  "runtime": "node20",
+  "env": []
+}

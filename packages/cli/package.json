@@ -1,0 +1,15 @@
+{
+	"name": "@giselles-ai/agent",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"bin": {
+		"agent": "./bin/giselle-agent.js",
+		"giselle-agent": "./bin/giselle-agent.js"
+	},
+	"dependencies": {
+		"ignore": "7.0.5",
+		"prompts": "2.4.2",
+		"tar": "7.4.3"
+	}
+}
