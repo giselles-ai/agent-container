@@ -1,6 +1,6 @@
 const prompt = process.env.GISSELLE_PROMPT ?? "";
 if (!prompt) {
-  console.log("No prompt provided.");
+	console.log("No prompt provided.");
 } else {
-  console.log("You said:\n" + prompt);
+	console.log("You said:\n" + prompt);
 }

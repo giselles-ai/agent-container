@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { type DataUIPart, DefaultChatTransport, type UIMessage } from "ai";
-import { type FormEvent, useCallback, useMemo, useState, use } from "react";
+import { type FormEvent, use, useCallback, useMemo, useState } from "react";
 
 type AgentDataParts = {
 	stderr: { text: string };
@@ -16,12 +16,12 @@ type Props = {
 };
 
 export default function AgentRunPage(props: Props) {
-    const params = use(props.params);
-    const [input, setInput] = useState("");
-    const [stderrLines, setStderrLines] = useState<string[]>([]);
-    const [exitCode, setExitCode] = useState<number | null>(null);
+	const params = use(props.params);
+	const [input, setInput] = useState("");
+	const [stderrLines, setStderrLines] = useState<string[]>([]);
+	const [exitCode, setExitCode] = useState<number | null>(null);
 
-    const transport = useMemo(
+	const transport = useMemo(
 		() =>
 			new DefaultChatTransport<AgentUIMessage>({
 				api: `/api/agents/${params.slug}/run`,
@@ -29,7 +29,7 @@ export default function AgentRunPage(props: Props) {
 		[params.slug],
 	);
 
-    const onData = useCallback((dataPart: DataUIPart<AgentDataParts>) => {
+	const onData = useCallback((dataPart: DataUIPart<AgentDataParts>) => {
 		if (dataPart.type === "data-stderr") {
 			setStderrLines((prev) => [...prev, dataPart.data.text]);
 		}
@@ -38,13 +38,13 @@ export default function AgentRunPage(props: Props) {
 		}
 	}, []);
 
-    const { messages, sendMessage, status, stop, error } =
+	const { messages, sendMessage, status, stop, error } =
 		useChat<AgentUIMessage>({
 			transport,
 			onData,
 		});
 
-    const handleSubmit = useCallback(
+	const handleSubmit = useCallback(
 		async (event: FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
 			const trimmed = input.trim();
@@ -59,9 +59,9 @@ export default function AgentRunPage(props: Props) {
 		[input, sendMessage],
 	);
 
-    return (
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-            <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8">
+	return (
+		<div className="min-h-screen bg-slate-950 text-slate-100">
+			<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8">
 				<header className="mb-6">
 					<p className="text-xs uppercase tracking-[0.3em] text-slate-400">
 						Agent
@@ -157,9 +157,9 @@ export default function AgentRunPage(props: Props) {
 								) : (
 									stderrLines.map((line, index) => (
 										// biome-ignore lint/suspicious/noArrayIndexKey: stderrLines in append-only
-										(<p key={index} className="whitespace-pre-wrap">
-                                            {line}
-                                        </p>)
+										<p key={index} className="whitespace-pre-wrap">
+											{line}
+										</p>
 									))
 								)}
 							</div>
@@ -173,6 +173,6 @@ export default function AgentRunPage(props: Props) {
 					</aside>
 				</div>
 			</div>
-        </div>
-    );
+		</div>
+	);
 }

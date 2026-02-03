@@ -1,14 +1,23 @@
-import {  list, put } from "@vercel/blob";
+import { list, put } from "@vercel/blob";
 import { type AgentManifest, agentManifestSchema } from "@/lib/agent/schema";
 
 const MANIFEST_FILENAME = "manifest.json";
+const BLOB_HOST = process.env.BLOB_HOST ?? "";
 
 function resolveManifestPath(slug: string) {
 	return `agents/${slug}/${MANIFEST_FILENAME}`;
 }
 
+export function resolveManifestFullPath(slug: string) {
+	return `${BLOB_HOST}/agents/${slug}/${MANIFEST_FILENAME}`;
+}
+
 export function resolveBundlePath(slug: string) {
 	return `agents/${slug}/bundle.tar`;
+}
+
+export function resolveBundleFullPath(slug: string) {
+	return `${BLOB_HOST}/agents/${slug}/bundle.tar`;
 }
 
 export async function putManifest(
@@ -27,7 +36,7 @@ export async function putManifest(
 }
 
 export async function getManifest(slug: string) {
-	const pathname = resolveManifestPath(slug);
+	const pathname = resolveManifestFullPath(slug);
 	const blob = await fetch(pathname);
 	if (!blob) {
 		return null;
@@ -57,4 +66,9 @@ export async function listManifests(token?: string) {
 		}
 	}
 	return manifests;
+}
+
+export async function getBundle(slug: string) {
+	const pathname = resolveBundleFullPath(slug);
+	return await fetch(pathname);
 }

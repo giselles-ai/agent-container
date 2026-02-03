@@ -44,3 +44,4 @@ llms-furl/
 
 # opensrc - source code for packages
 opensrc/
+.mise.*
