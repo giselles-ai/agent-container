@@ -2,6 +2,14 @@
 
 import { use, useCallback, useMemo, useRef, useState } from "react";
 
+type UploadedFile = {
+	name: string;
+	type: string;
+	size: number;
+	pathname: string;
+	url: string;
+};
+
 type ChatMessage = {
 	id: string;
 	role: "user" | "assistant";
@@ -106,6 +114,8 @@ const createMessage = (
 export default function AgentChatPage(props: Props) {
 	const params = use(props.params);
 	const [input, setInput] = useState("");
+	const [attachments, setAttachments] = useState<File[]>([]);
+	const [isUploading, setIsUploading] = useState(false);
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [status, setStatus] = useState<"idle" | "streaming" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
@@ -122,6 +132,10 @@ export default function AgentChatPage(props: Props) {
 
 	const endpoint = useMemo(
 		() => `/agents/${params.slug}/chat/api`,
+		[params.slug],
+	);
+	const uploadEndpoint = useMemo(
+		() => `/agents/${params.slug}/chat/api/upload`,
 		[params.slug],
 	);
 
@@ -196,7 +210,7 @@ export default function AgentChatPage(props: Props) {
 	);
 
 	const streamResponse = useCallback(
-		async (message: string) => {
+		async (message: string, files?: UploadedFile[]) => {
 			assistantIdRef.current = null;
 			assistantContentRef.current = "";
 			const controller = new AbortController();
@@ -210,6 +224,7 @@ export default function AgentChatPage(props: Props) {
 					message,
 					session_id: sessionId,
 					sandbox_id: sandboxId,
+					files,
 				}),
 				signal: controller.signal,
 			});
@@ -263,21 +278,70 @@ export default function AgentChatPage(props: Props) {
 		[endpoint, handleStreamEvent, sessionId, sandboxId],
 	);
 
+	const uploadFiles = useCallback(
+		async (files: File[]) => {
+			const formData = new FormData();
+			for (const file of files) {
+				formData.append("files", file);
+			}
+			const response = await fetch(uploadEndpoint, {
+				method: "POST",
+				body: formData,
+			});
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as
+					| { error?: string }
+					| null;
+				throw new Error(payload?.error ?? "Upload failed.");
+			}
+			const payload = (await response.json()) as {
+				files: UploadedFile[];
+			};
+			return payload.files ?? [];
+		},
+		[uploadEndpoint],
+	);
+
 	const handleSubmit = useCallback(
 		async (event: React.SyntheticEvent<HTMLFormElement>) => {
 			event.preventDefault();
 			const trimmed = input.trim();
-			if (!trimmed || status === "streaming") {
+			if (!trimmed || status === "streaming" || isUploading) {
 				return;
 			}
 			setInput("");
 			setError(null);
-			setStatus("streaming");
 			setStderrLines([]);
 			appendMessage(createMessage("user", trimmed));
-			void streamResponse(trimmed);
+			let uploaded: UploadedFile[] | undefined;
+			try {
+				if (attachments.length > 0) {
+					setIsUploading(true);
+					uploaded = await uploadFiles(attachments);
+				}
+				setAttachments([]);
+				setStatus("streaming");
+				void streamResponse(trimmed, uploaded);
+			} catch (uploadError) {
+				setError(
+					uploadError instanceof Error
+						? uploadError.message
+						: "Upload failed.",
+				);
+				setStatus("error");
+			} finally {
+				setIsUploading(false);
+			}
 		},
-		[appendMessage, input, status, streamResponse],
+		[
+			appendMessage,
+			attachments,
+			input,
+			isUploading,
+			status,
+			streamResponse,
+			uploadFiles,
+		],
 	);
 
 	const handleStop = useCallback(() => {
@@ -351,23 +415,62 @@ export default function AgentChatPage(props: Props) {
 							)}
 						</div>
 
-						<form
-							onSubmit={handleSubmit}
-							className="mt-4 flex items-center gap-2"
-						>
-							<input
-								value={input}
-								onChange={(event) => setInput(event.target.value)}
-								placeholder="Send a message..."
-								className="flex-1 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
-							/>
-							<button
-								type="submit"
-								disabled={!input.trim() || status === "streaming"}
-								className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								Send
-							</button>
+						<form onSubmit={handleSubmit} className="mt-4 space-y-3">
+							<div className="flex items-center gap-2">
+								<label className="cursor-pointer rounded-full border border-slate-700 px-3 py-2 text-xs text-slate-200 transition hover:border-slate-500">
+									<input
+										type="file"
+										multiple
+										className="hidden"
+										onChange={(event) => {
+											const next = Array.from(event.target.files ?? []);
+											setAttachments(next);
+											event.currentTarget.value = "";
+										}}
+									/>
+									Attach
+								</label>
+								<input
+									value={input}
+									onChange={(event) => setInput(event.target.value)}
+									placeholder="Send a message..."
+									className="flex-1 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-400"
+								/>
+								<button
+									type="submit"
+									disabled={
+										!input.trim() || status === "streaming" || isUploading
+									}
+									className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+								>
+									{isUploading ? "Uploading..." : "Send"}
+								</button>
+							</div>
+							{attachments.length > 0 ? (
+								<div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs text-slate-300">
+									{attachments.map((file, index) => (
+										<div
+											key={`${file.name}-${file.size}-${index}`}
+											className="flex items-center justify-between gap-2"
+										>
+											<p className="truncate">
+												{file.name} ({Math.round(file.size / 1024)} KB)
+											</p>
+											<button
+												type="button"
+												onClick={() =>
+													setAttachments((prev) =>
+														prev.filter((_, itemIndex) => itemIndex !== index),
+													)
+												}
+												className="text-rose-300 transition hover:text-rose-200"
+											>
+												Remove
+											</button>
+										</div>
+									))}
+								</div>
+							) : null}
 						</form>
 						{error ? (
 							<p className="mt-2 text-xs text-rose-400">{error}</p>
