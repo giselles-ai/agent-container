@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { listManifests } from "@/lib/agent/storage";
+// import { listManifests } from "@/lib/agent/storage";
 
 export default async function AgentsPage() {
-	const token = process.env.BLOB_READ_WRITE_TOKEN;
-	const agents = await listManifests(token);
+	// const token = process.env.BLOB_READ_WRITE_TOKEN;
+	// const agents = await listManifests(token);
 
 	return (
 		<main className="min-h-screen bg-slate-950 text-slate-100">
@@ -29,7 +29,7 @@ export default async function AgentsPage() {
 					</Link>
 				</div>
 
-				<div className="mt-6 grid gap-4 md:grid-cols-2">
+				{/*<div className="mt-6 grid gap-4 md:grid-cols-2">
 					{agents.length === 0 ? (
 						<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-400">
 							No agents yet. Create one with the CLI first.
@@ -53,7 +53,7 @@ export default async function AgentsPage() {
 							</Link>
 						))
 					)}
-				</div>
+				</div>*/}
 			</div>
 		</main>
 	);
