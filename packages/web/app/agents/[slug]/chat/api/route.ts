@@ -38,7 +38,14 @@ export async function POST(req: Request) {
 	};
 
 	let prompt = input;
-	const args = ["--prompt", prompt, "--output-format", "stream-json"];
+	const args = [
+		"--prompt",
+		prompt,
+		"--output-format",
+		"stream-json",
+		"--approval-mode",
+		"yolo",
+	];
 	if (sessionId) {
 		args.push("--resume", sessionId);
 	}
