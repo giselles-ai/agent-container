@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 		req,
 		async ({ stdout, stderr, signal }) => {
 			const sandbox = await Sandbox.create();
-			return sandbox.runCommand({
+			sandbox.runCommand({
 				cmd: "node",
 				args: [
 					"-e",
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 		req,
 		async ({ stdout, stderr, signal }) => {
 			const sandbox = await Sandbox.create();
-			return sandbox.runCommand({
+			sandbox.runCommand({
 				cmd: "node",
 				args: [
 					"-e",

@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 				cmd: "pnpm",
 				args: ["install"],
 			});
-			return sandbox.runCommand({
+			sandbox.runCommand({
 				cmd: "pnpm",
 				args: ["tsx", "index.ts"],
 				stdout,
