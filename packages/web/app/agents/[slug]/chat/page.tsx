@@ -30,6 +30,10 @@ type StreamEvent =
 			model: string;
 	  }
 	| {
+			type: "sandbox";
+			sandbox_id: string;
+	  }
+	| {
 			type: "stderr";
 			content: string;
 	  }
@@ -106,6 +110,7 @@ export default function AgentChatPage(props: Props) {
 	const [status, setStatus] = useState<"idle" | "streaming" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
 	const [sessionId, setSessionId] = useState<string | null>(null);
+	const [sandboxId, setSandboxId] = useState<string | null>(null);
 	const [stats, setStats] = useState<StreamStats | null>(null);
 	const [model, setModel] = useState<string | null>(null);
 	const [stderrLines, setStderrLines] = useState<string[]>([]);
@@ -162,6 +167,10 @@ export default function AgentChatPage(props: Props) {
 				setModel(event.model);
 				return;
 			}
+			if (event.type === "sandbox") {
+				setSandboxId(event.sandbox_id);
+				return;
+			}
 			if (event.type === "stderr") {
 				setStderrLines((prev) => [...prev, event.content]);
 				return;
@@ -200,6 +209,7 @@ export default function AgentChatPage(props: Props) {
 				body: JSON.stringify({
 					message,
 					session_id: sessionId,
+					sandbox_id: sandboxId,
 				}),
 				signal: controller.signal,
 			});
@@ -250,7 +260,7 @@ export default function AgentChatPage(props: Props) {
 				abortRef.current = null;
 			}
 		},
-		[endpoint, handleStreamEvent, sessionId],
+		[endpoint, handleStreamEvent, sessionId, sandboxId],
 	);
 
 	const handleSubmit = useCallback(
@@ -369,6 +379,9 @@ export default function AgentChatPage(props: Props) {
 							<p className="text-sm font-medium">Session</p>
 							<p className="mt-2 text-xs text-slate-400">
 								ID: {sessionId ?? "—"}
+							</p>
+							<p className="mt-1 text-xs text-slate-400">
+								Sandbox: {sandboxId ?? "—"}
 							</p>
 							<p className="mt-1 text-xs text-slate-400">
 								Model: {model ?? "—"}
