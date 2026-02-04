@@ -224,6 +224,7 @@ export function createSandboxSsePassthroughResponse(
 	const stdout = new Writable({
 		write(chunk, _encoding, callback) {
 			const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+			console.log(text);
 			enqueueText(text);
 			callback();
 		},
