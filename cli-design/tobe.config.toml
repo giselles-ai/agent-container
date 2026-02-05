@@ -1,0 +1,44 @@
+# type: number
+# required: true
+# description: コンフィグのVersion番号
+version = 1
+
+# type: string
+# required: true
+# description: エージェント名（ウィザードで入力したもの）
+name = "agent-container"
+
+# type: string
+# required: false
+# description: エージェント共通のプロンプト
+instruction = """
+You are a helpfull assistant.
+"""
+
+[setup]
+# type: string(multiline)
+# required: false
+# description: エージェントbuild時に実行する
+script = """
+node install playwright
+pip install playwright
+"""
+
+[[skills]]
+# type: string
+# required: false
+# description: スキルのディレクトリ
+path="skills/pptx"
+
+[[skills]]
+path="skills/xlsx"
+
+
+[[files]]
+# type: string
+# required: false
+# description: ファイルのディレクトリ
+path="files/knowledge.md"
+
+[[files]]
+path="files/react-best-practice.md"
