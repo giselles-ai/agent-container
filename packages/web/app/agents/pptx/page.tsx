@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { type DataUIPart, DefaultChatTransport, type UIMessage } from "ai";
-import { type FormEvent, use, useCallback, useMemo, useState } from "react";
+import { type SubmitEventHandler, useCallback, useMemo, useState } from "react";
 
 type AgentDataParts = {
 	stderr: { text: string };
@@ -11,12 +11,7 @@ type AgentDataParts = {
 
 type AgentUIMessage = UIMessage<never, AgentDataParts>;
 
-type Props = {
-	params: Promise<{ slug: string }>;
-};
-
-export default function AgentRunPage(props: Props) {
-	const params = use(props.params);
+export default function AgentRunPage() {
 	const [input, setInput] = useState("");
 	const [stderrLines, setStderrLines] = useState<string[]>([]);
 	const [exitCode, setExitCode] = useState<number | null>(null);
@@ -24,9 +19,9 @@ export default function AgentRunPage(props: Props) {
 	const transport = useMemo(
 		() =>
 			new DefaultChatTransport<AgentUIMessage>({
-				api: `/api/agents/${params.slug}/run`,
+				api: `/api/agents/pptx/run`,
 			}),
-		[params.slug],
+		[],
 	);
 
 	const onData = useCallback((dataPart: DataUIPart<AgentDataParts>) => {
@@ -44,8 +39,8 @@ export default function AgentRunPage(props: Props) {
 			onData,
 		});
 
-	const handleSubmit = useCallback(
-		async (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = useCallback<SubmitEventHandler<HTMLFormElement>>(
+		async (event) => {
 			event.preventDefault();
 			const trimmed = input.trim();
 			if (!trimmed) {
@@ -66,9 +61,6 @@ export default function AgentRunPage(props: Props) {
 					<p className="text-xs uppercase tracking-[0.3em] text-slate-400">
 						Agent
 					</p>
-					<h1 className="mt-2 text-3xl font-semibold text-slate-50">
-						Run {params.slug}
-					</h1>
 					<p className="mt-2 text-sm text-slate-400">
 						Send prompts to the agent and stream stdout back.
 					</p>

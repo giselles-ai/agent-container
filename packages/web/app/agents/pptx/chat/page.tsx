@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 type UploadedFile = {
 	name: string;
@@ -24,10 +24,6 @@ type StreamStats = {
 	input: number;
 	duration_ms: number;
 	tool_calls: number;
-};
-
-type Props = {
-	params: Promise<{ slug: string }>;
 };
 
 type StreamEvent =
@@ -111,8 +107,7 @@ const createMessage = (
 	content,
 });
 
-export default function AgentChatPage(props: Props) {
-	const params = use(props.params);
+export default function AgentChatPage() {
 	const [input, setInput] = useState("");
 	const [attachments, setAttachments] = useState<File[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
@@ -130,14 +125,8 @@ export default function AgentChatPage(props: Props) {
 	const assistantContentRef = useRef<string>("");
 	const abortRef = useRef<AbortController | null>(null);
 
-	const endpoint = useMemo(
-		() => `/agents/${params.slug}/chat/api`,
-		[params.slug],
-	);
-	const uploadEndpoint = useMemo(
-		() => `/agents/${params.slug}/chat/api/upload`,
-		[params.slug],
-	);
+	const endpoint = useMemo(() => `/agents/pptx/chat/api`, []);
+	const uploadEndpoint = useMemo(() => `/agents/pptx/chat/api/upload`, []);
 
 	const syncMessages = useCallback(() => {
 		setMessages([...messagesRef.current]);
@@ -289,9 +278,9 @@ export default function AgentChatPage(props: Props) {
 				body: formData,
 			});
 			if (!response.ok) {
-				const payload = (await response.json().catch(() => null)) as
-					| { error?: string }
-					| null;
+				const payload = (await response.json().catch(() => null)) as {
+					error?: string;
+				} | null;
 				throw new Error(payload?.error ?? "Upload failed.");
 			}
 			const payload = (await response.json()) as {
@@ -324,9 +313,7 @@ export default function AgentChatPage(props: Props) {
 				void streamResponse(trimmed, uploaded);
 			} catch (uploadError) {
 				setError(
-					uploadError instanceof Error
-						? uploadError.message
-						: "Upload failed.",
+					uploadError instanceof Error ? uploadError.message : "Upload failed.",
 				);
 				setStatus("error");
 			} finally {
@@ -360,7 +347,7 @@ export default function AgentChatPage(props: Props) {
 						Gemini CLI
 					</p>
 					<h1 className="mt-2 text-3xl font-semibold text-slate-50">
-						Chat with {params.slug}
+						Chat with pptx Agent
 					</h1>
 					<p className="mt-2 text-sm text-slate-400">
 						Streamed JSON events over NDJSON (mocked Gemini CLI).
