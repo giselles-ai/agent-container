@@ -147,7 +147,12 @@ export async function POST(req: Request) {
 		}
 	}
 
-	const sandbox = await Sandbox.create();
+	const sandbox = await Sandbox.create({
+		source: {
+			type: "snapshot",
+			snapshotId: "snap_Jhmuk7xWcnrQGk1czArYhzgtODcj",
+		},
+	});
 	if (agentFiles.length > 0) {
 		await sandbox.writeFiles(agentFiles);
 	}

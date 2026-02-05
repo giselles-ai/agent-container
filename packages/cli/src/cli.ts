@@ -224,7 +224,9 @@ async function runBuild() {
 	if (!data.snapshotId) {
 		fail("snapshotId missing in response.");
 	}
-	process.stdout.write(`${data.snapshotId}\n`);
+	process.stdout.write(
+		new URL(`/agents/${data.snapshotId}/chat`, baseUrl).toString().trim(),
+	);
 }
 
 async function runCreate() {
