@@ -16,6 +16,26 @@ type ChatMessage = {
 	content: string;
 };
 
+type ToolCard = {
+	id: string;
+	toolId: string;
+	toolName: string;
+	status?: "success" | "error";
+	parameters?: unknown;
+	output?: unknown;
+	timestamp?: string;
+};
+
+type ChatItem =
+	| {
+			type: "message";
+			message: ChatMessage;
+	  }
+	| {
+			type: "tool";
+			tool: ToolCard;
+	  };
+
 type StreamStats = {
 	total_tokens: number;
 	input_tokens: number;
@@ -47,6 +67,26 @@ type StreamEvent =
 			role: "user" | "assistant";
 			content: string;
 			delta?: boolean;
+	  }
+	| {
+			type: "tool_use";
+			timestamp: string;
+			tool_name: string;
+			tool_id: string;
+			parameters?: unknown;
+	  }
+	| {
+			type: "tool_result";
+			timestamp: string;
+			tool_id: string;
+			status: "success" | "error";
+			output?: unknown;
+	  }
+	| {
+			type: "artifact";
+			timestamp?: string;
+			path: string;
+			status?: "success" | "error";
 	  }
 	| {
 			type: "result";
@@ -107,11 +147,38 @@ const createMessage = (
 	content,
 });
 
+const createToolCard = (input: {
+	toolId: string;
+	toolName: string;
+	status?: "success" | "error";
+	parameters?: unknown;
+	output?: unknown;
+	timestamp?: string;
+}): ToolCard => ({
+	id: crypto.randomUUID(),
+	toolId: input.toolId,
+	toolName: input.toolName,
+	status: input.status,
+	parameters: input.parameters,
+	output: input.output,
+	timestamp: input.timestamp,
+});
+
+const formatToolDetail = (detail: unknown) => {
+	if (detail === null || detail === undefined) return "—";
+	if (typeof detail === "string") return detail;
+	try {
+		return JSON.stringify(detail, null, 2);
+	} catch {
+		return String(detail);
+	}
+};
+
 export default function AgentChatPage() {
 	const [input, setInput] = useState("");
 	const [attachments, setAttachments] = useState<File[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const [items, setItems] = useState<ChatItem[]>([]);
 	const [status, setStatus] = useState<"idle" | "streaming" | "error">("idle");
 	const [error, setError] = useState<string | null>(null);
 	const [sessionId, setSessionId] = useState<string | null>(null);
@@ -119,25 +186,35 @@ export default function AgentChatPage() {
 	const [stats, setStats] = useState<StreamStats | null>(null);
 	const [model, setModel] = useState<string | null>(null);
 	const [stderrLines, setStderrLines] = useState<string[]>([]);
+	const [fileArtifacts, setFileArtifacts] = useState<
+		Array<{ path: string; status?: "success" | "error" }>
+	>([]);
 
-	const messagesRef = useRef<ChatMessage[]>([]);
+	const itemsRef = useRef<ChatItem[]>([]);
 	const assistantIdRef = useRef<string | null>(null);
 	const assistantContentRef = useRef<string>("");
 	const abortRef = useRef<AbortController | null>(null);
+	const toolIdToItemIdRef = useRef<Map<string, string>>(new Map());
+	const fileArtifactsRef = useRef<
+		Map<string, { path: string; status?: "success" | "error" }>
+	>(new Map());
 
 	const endpoint = useMemo(() => `/agents/pptx/chat/api`, []);
 	const uploadEndpoint = useMemo(() => `/agents/pptx/chat/api/upload`, []);
 
-	const syncMessages = useCallback(() => {
-		setMessages([...messagesRef.current]);
+	const syncItems = useCallback(() => {
+		setItems([...itemsRef.current]);
 	}, []);
 
 	const appendMessage = useCallback(
 		(message: ChatMessage) => {
-			messagesRef.current = [...messagesRef.current, message];
-			syncMessages();
+			itemsRef.current = [
+				...itemsRef.current,
+				{ type: "message", message },
+			];
+			syncItems();
 		},
-		[syncMessages],
+		[syncItems],
 	);
 
 	const appendAssistantDelta = useCallback(
@@ -150,17 +227,54 @@ export default function AgentChatPage() {
 				const next = createMessage("assistant", nextContent);
 				assistantId = next.id;
 				assistantIdRef.current = assistantId;
-				messagesRef.current = [...messagesRef.current, next];
+				itemsRef.current = [
+					...itemsRef.current,
+					{ type: "message", message: next },
+				];
 			} else {
-				messagesRef.current = messagesRef.current.map((message) =>
-					message.id === assistantId
-						? { ...message, content: nextContent }
-						: message,
-				);
+				itemsRef.current = itemsRef.current.map((item) => {
+					if (item.type !== "message") return item;
+					if (item.message.id !== assistantId) return item;
+					return {
+						type: "message",
+						message: { ...item.message, content: nextContent },
+					};
+				});
 			}
-			syncMessages();
+			syncItems();
 		},
-		[syncMessages],
+		[syncItems],
+	);
+
+	const appendToolCard = useCallback(
+		(tool: ToolCard) => {
+			itemsRef.current = [...itemsRef.current, { type: "tool", tool }];
+			syncItems();
+		},
+		[syncItems],
+	);
+
+	const updateToolCard = useCallback(
+		(toolId: string, update: Partial<ToolCard>) => {
+			itemsRef.current = itemsRef.current.map((item) => {
+				if (item.type !== "tool") return item;
+				if (item.tool.toolId !== toolId) return item;
+				return { type: "tool", tool: { ...item.tool, ...update } };
+			});
+			syncItems();
+		},
+		[syncItems],
+	);
+
+	const recordFileArtifact = useCallback(
+		(path: string, status?: "success" | "error") => {
+			const map = fileArtifactsRef.current;
+			const existing = map.get(path);
+			const next = { path, status: status ?? existing?.status };
+			map.set(path, next);
+			setFileArtifacts(Array.from(map.values()));
+		},
+		[],
 	);
 
 	const handleStreamEvent = useCallback(
@@ -180,8 +294,14 @@ export default function AgentChatPage() {
 			}
 			if (event.type === "message") {
 				if (event.role === "user") {
-					const last = messagesRef.current[messagesRef.current.length - 1];
-					if (!last || last.role !== "user" || last.content !== event.content) {
+					const lastMessage = [...itemsRef.current]
+						.reverse()
+						.find((item) => item.type === "message")?.message;
+					if (
+						!lastMessage ||
+						lastMessage.role !== "user" ||
+						lastMessage.content !== event.content
+					) {
 						appendMessage(createMessage("user", event.content));
 					}
 					return;
@@ -191,11 +311,89 @@ export default function AgentChatPage() {
 				}
 				return;
 			}
+			if (event.type === "tool_use") {
+				const toolCard = createToolCard({
+					toolId: event.tool_id,
+					toolName: event.tool_name,
+					parameters: event.parameters,
+					timestamp: event.timestamp,
+				});
+				toolIdToItemIdRef.current.set(event.tool_id, toolCard.id);
+				appendToolCard(toolCard);
+				if (event.tool_name === "write_file") {
+					const filePath =
+						typeof event.parameters === "object" &&
+						event.parameters !== null &&
+						"file_path" in event.parameters
+							? String((event.parameters as { file_path?: unknown }).file_path)
+							: null;
+					if (filePath && filePath.trim().length > 0) {
+						recordFileArtifact(filePath);
+					}
+				}
+				return;
+			}
+			if (event.type === "tool_result") {
+				const hasExisting = toolIdToItemIdRef.current.has(event.tool_id);
+				if (!hasExisting) {
+					const toolCard = createToolCard({
+						toolId: event.tool_id,
+						toolName: "tool",
+						status: event.status,
+						output: event.output,
+						timestamp: event.timestamp,
+					});
+					toolIdToItemIdRef.current.set(event.tool_id, toolCard.id);
+					appendToolCard(toolCard);
+				} else {
+					updateToolCard(event.tool_id, {
+						status: event.status,
+						output: event.output,
+						timestamp: event.timestamp,
+					});
+				}
+				if (event.status) {
+					const toolItem = itemsRef.current.find(
+						(item) => item.type === "tool" && item.tool.toolId === event.tool_id,
+					);
+					if (
+						toolItem &&
+						toolItem.type === "tool" &&
+						toolItem.tool.toolName === "write_file"
+					) {
+						const filePath =
+							typeof toolItem.tool.parameters === "object" &&
+							toolItem.tool.parameters !== null &&
+							"file_path" in toolItem.tool.parameters
+								? String(
+										(toolItem.tool.parameters as { file_path?: unknown })
+											.file_path,
+									)
+								: null;
+						if (filePath && filePath.trim().length > 0) {
+							recordFileArtifact(filePath, event.status);
+						}
+					}
+				}
+				return;
+			}
+			if (event.type === "artifact") {
+				if (event.path && event.path.trim().length > 0) {
+					recordFileArtifact(event.path, event.status);
+				}
+				return;
+			}
 			if (event.type === "result") {
 				setStats(event.stats);
 			}
 		},
-		[appendAssistantDelta, appendMessage],
+		[
+			appendAssistantDelta,
+			appendMessage,
+			appendToolCard,
+			recordFileArtifact,
+			updateToolCard,
+		],
 	);
 
 	const streamResponse = useCallback(
@@ -301,6 +499,8 @@ export default function AgentChatPage() {
 			setInput("");
 			setError(null);
 			setStderrLines([]);
+			setFileArtifacts([]);
+			fileArtifactsRef.current = new Map();
 			appendMessage(createMessage("user", trimmed));
 			let uploaded: UploadedFile[] | undefined;
 			try {
@@ -361,7 +561,7 @@ export default function AgentChatPage() {
 								<p className="text-sm font-medium">Conversation</p>
 								<p className="text-xs text-slate-400">
 									Status: {status}
-									{status === "streaming" ? " • Replying..." : ""}
+					{status === "streaming" ? " • Replying..." : ""}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
@@ -377,28 +577,74 @@ export default function AgentChatPage() {
 						</div>
 
 						<div className="mt-4 flex-1 space-y-4 overflow-y-auto">
-							{messages.length === 0 ? (
+							{items.length === 0 ? (
 								<p className="text-sm text-slate-500">
 									Type a message to start streaming.
 								</p>
 							) : (
-								messages.map((message) => (
-									<div
-										key={message.id}
-										className={`rounded-xl border px-4 py-3 text-sm ${
-											message.role === "user"
-												? "border-slate-700 bg-slate-800/60"
-												: "border-emerald-500/40 bg-emerald-500/10"
-										}`}
-									>
-										<p className="text-xs uppercase tracking-wide text-slate-400">
-											{message.role}
-										</p>
-										<p className="mt-2 whitespace-pre-wrap text-slate-100">
-											{message.content || "..."}
-										</p>
-									</div>
-								))
+								items.map((item) => {
+									if (item.type === "message") {
+										return (
+											<div
+												key={item.message.id}
+												className={`rounded-xl border px-4 py-3 text-sm ${
+													item.message.role === "user"
+														? "border-slate-700 bg-slate-800/60"
+														: "border-emerald-500/40 bg-emerald-500/10"
+												}`}
+											>
+												<p className="text-xs uppercase tracking-wide text-slate-400">
+													{item.message.role}
+												</p>
+												<p className="mt-2 whitespace-pre-wrap text-slate-100">
+													{item.message.content || "..."}
+												</p>
+											</div>
+										);
+									}
+									const statusLabel = item.tool.status ?? "pending";
+									return (
+										<div
+											key={item.tool.id}
+											className="rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-sm"
+										>
+											<div className="flex items-center justify-between">
+												<p className="text-xs uppercase tracking-wide text-slate-400">
+													tool
+												</p>
+												<p className="text-[11px] uppercase tracking-wider text-slate-400">
+													{statusLabel}
+												</p>
+											</div>
+											<p className="mt-2 text-sm font-medium text-slate-100">
+												{item.tool.toolName}
+											</p>
+											<details className="mt-3 text-xs text-slate-300">
+												<summary className="cursor-pointer select-none text-slate-400">
+													View details
+												</summary>
+												<div className="mt-2 space-y-2">
+													<div>
+														<p className="text-[11px] uppercase tracking-wider text-slate-500">
+															Parameters
+														</p>
+														<pre className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-900/70 p-2 text-[11px] text-slate-200">
+															{formatToolDetail(item.tool.parameters)}
+														</pre>
+													</div>
+													<div>
+														<p className="text-[11px] uppercase tracking-wider text-slate-500">
+															Output
+														</p>
+														<pre className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-900/70 p-2 text-[11px] text-slate-200">
+															{formatToolDetail(item.tool.output)}
+														</pre>
+													</div>
+												</div>
+											</details>
+										</div>
+									);
+								})
 							)}
 						</div>
 
@@ -500,13 +746,46 @@ export default function AgentChatPage() {
 									<p>Input tokens: {stats.input_tokens}</p>
 									<p>Output tokens: {stats.output_tokens}</p>
 									<p>Duration: {stats.duration_ms} ms</p>
-									<p>Messages: {messages.length} </p>
+									<p>Messages: {items.filter((item) => item.type === "message").length}</p>
 								</div>
 							) : (
 								<p className="mt-2 text-xs text-slate-500">
 									Waiting for result...
 								</p>
 							)}
+						</div>
+						<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+							<p className="text-sm font-medium">Created files</p>
+							<div className="mt-2 space-y-2 text-xs text-slate-300">
+								{fileArtifacts.length === 0 ? (
+									<p className="text-slate-500">No files yet.</p>
+								) : (
+										fileArtifacts.map((file) => (
+											<div
+												key={file.path}
+												className="flex items-center justify-between gap-2"
+											>
+												{sandboxId ? (
+													<a
+														href={`/agents/pptx/chat/api/sandbox/${encodeURIComponent(
+															sandboxId,
+														)}/artifact/${encodeURIComponent(file.path)}`}
+														className="truncate text-emerald-300 transition hover:text-emerald-200"
+													>
+														{file.path}
+													</a>
+												) : (
+													<span className="truncate text-slate-400">
+														{file.path}
+													</span>
+												)}
+												<span className="text-[11px] uppercase tracking-wider text-slate-500">
+													{file.status ?? "pending"}
+												</span>
+											</div>
+										))
+								)}
+							</div>
 						</div>
 					</aside>
 				</div>

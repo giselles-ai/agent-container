@@ -22,7 +22,7 @@ export async function readTemplateFiles(
 			const absolutePath = join(entry.parentPath, entry.name);
 			const relativePath = relative(templateDir, absolutePath);
 			const content = await readFile(absolutePath);
-			return { path: relativePath, content };
+			return { path: `/home/vercel-sandbox/.gemini/${relativePath}`, content };
 		}),
 	);
 

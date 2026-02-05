@@ -2,6 +2,7 @@ import { Writable } from "node:stream";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
+import { readTemplateFiles } from "@/lib/sandbox/read-template-files";
 
 type ChatRequestBody = {
 	message?: string;
@@ -17,6 +18,20 @@ type ChatRequestBody = {
 };
 
 const createTimestamp = () => new Date().toISOString();
+
+export async function initSandbox() {
+	const sandbox = await Sandbox.create({
+		source: {
+			type: "snapshot",
+			snapshotId: "snap_Jhmuk7xWcnrQGk1czArYhzgtODcj",
+		},
+	});
+	const files = await readTemplateFiles(
+		"app/agents/pptx/chat/api/sandbox-template",
+	);
+	await sandbox.writeFiles(files);
+	return sandbox;
+}
 
 export async function POST(req: Request) {
 	const authError = requireApiToken(req);
@@ -85,15 +100,32 @@ export async function POST(req: Request) {
 
 			req.signal.addEventListener("abort", onAbort);
 
+			const captureCommand = async (
+				sandbox: Sandbox,
+				cmd: string,
+				args: string[],
+			) => {
+				const result = await sandbox.runCommand({
+					cmd,
+					args,
+					cwd: "/vercel/sandbox",
+					signal: abortController.signal,
+				});
+				const output = await result.stdout({ signal: abortController.signal });
+				const stderr = await result.stderr({ signal: abortController.signal });
+				if (stderr) {
+					enqueueEvent({
+						type: "stderr",
+						content: stderr,
+					});
+				}
+				return output;
+			};
+
 			(async () => {
 				const sandbox = sandboxId
 					? await Sandbox.get({ sandboxId })
-					: await Sandbox.create({
-							source: {
-								type: "snapshot",
-								snapshotId: "snap_Jhmuk7xWcnrQGk1czArYhzgtODcj",
-							},
-						});
+					: await initSandbox();
 
 				enqueueEvent({
 					type: "sandbox",
@@ -175,6 +207,28 @@ export async function POST(req: Request) {
 					}),
 					signal: abortController.signal,
 				});
+
+				if (!abortController.signal.aborted) {
+					const output = await captureCommand(sandbox, "find", [
+						"-maxdepth",
+						"4",
+						"-type",
+						"f",
+						"-name",
+						"*.pptx",
+					]);
+					const files = output
+						.split("\n")
+						.map((line) => line.trim())
+						.filter((line) => line.length > 0);
+					for (const path of files) {
+						enqueueEvent({
+							type: "artifact",
+							path,
+							status: "success",
+						});
+					}
+				}
 			})()
 				.catch((error) => {
 					if (!abortController.signal.aborted) {
