@@ -2,10 +2,6 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
 
-type Params = {
-	params: Promise<{ slug: string }>;
-};
-
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -15,8 +11,7 @@ const sanitizeFilename = (name: string) => {
 	return safe.length > 0 ? safe : "file";
 };
 
-export async function POST(req: Request, props: Params) {
-	const params = await props.params;
+export async function POST(req: Request) {
 	const authError = requireApiToken(req);
 	if (authError) return authError;
 
@@ -54,7 +49,7 @@ export async function POST(req: Request, props: Params) {
 	const uploaded = await Promise.all(
 		files.map(async (file, index) => {
 			const safeName = sanitizeFilename(file.name);
-			const pathname = `agents/${params.slug}/chat-uploads/${timestamp}/${index}-${safeName}`;
+			const pathname = `agents/pptx/chat-uploads/${timestamp}/${index}-${safeName}`;
 			const body = await file.arrayBuffer();
 			const blob = await put(pathname, body, {
 				access: "public",
