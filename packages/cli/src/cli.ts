@@ -6,8 +6,10 @@ import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
 import * as TOML from "@iarna/toml";
+import * as tar from "tar";
 
 const CONFIG_FILE = "config.toml";
+const DEFAULT_API_URL = "https://agent.giselels.ai";
 
 function getEffectiveCwd(): string {
 	return process.cwd();
@@ -39,6 +41,7 @@ function printUsage() {
   @giselles-ai/agent create
   @giselles-ai/agent add-skill <path>
   @giselles-ai/agent edit-setup-script
+  @giselles-ai/agent build
 `;
 	process.stderr.write(usage);
 }
@@ -106,6 +109,122 @@ async function ensureConfigInCwd() {
 async function writeConfig(configPath: string, config: TOML.JsonMap) {
 	const output = TOML.stringify(config);
 	await fs.writeFile(configPath, output, "utf8");
+}
+
+async function listFilesRecursively(rootPath: string): Promise<string[]> {
+	const entries = await fs.readdir(rootPath, { withFileTypes: true });
+	const files: string[] = [];
+	for (const entry of entries) {
+		const fullPath = path.join(rootPath, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await listFilesRecursively(fullPath)));
+		} else if (entry.isFile()) {
+			files.push(fullPath);
+		}
+	}
+	return files;
+}
+
+async function collectTarEntries(
+	cwd: string,
+	config: TOML.JsonMap,
+): Promise<string[]> {
+	const entries = new Set<string>();
+	entries.add(CONFIG_FILE);
+
+	const skills = Array.isArray(config.skills) ? config.skills : [];
+	for (const skill of skills) {
+		const skillPath = (skill as TOML.JsonMap)?.path;
+		if (typeof skillPath !== "string" || skillPath.length === 0) {
+			fail("Invalid skills path in config.toml.");
+		}
+		const abs = path.resolve(cwd, skillPath);
+		let stat: Stats;
+		try {
+			stat = await fs.stat(abs);
+		} catch {
+			fail(`Skill path does not exist: ${skillPath}`);
+		}
+		if (!stat.isDirectory()) {
+			fail(`Skill path must be a directory: ${skillPath}`);
+		}
+		const files = await listFilesRecursively(abs);
+		for (const file of files) {
+			entries.add(path.relative(cwd, file));
+		}
+	}
+
+	const files = Array.isArray(config.files) ? config.files : [];
+	for (const fileEntry of files) {
+		const filePath = (fileEntry as TOML.JsonMap)?.path;
+		if (typeof filePath !== "string" || filePath.length === 0) {
+			fail("Invalid files path in config.toml.");
+		}
+		const abs = path.resolve(cwd, filePath);
+		const rel = ensurePathUnderCwd(abs, cwd);
+		let stat: Stats;
+		try {
+			stat = await fs.stat(abs);
+		} catch {
+			fail(`File path does not exist: ${filePath}`);
+		}
+		if (stat.isDirectory()) {
+			const subFiles = await listFilesRecursively(abs);
+			for (const file of subFiles) {
+				entries.add(path.relative(cwd, file));
+			}
+		} else if (stat.isFile()) {
+			entries.add(rel);
+		} else {
+			fail(`Unsupported file type: ${filePath}`);
+		}
+	}
+
+	return Array.from(entries);
+}
+
+async function createAgentTar(cwd: string, config: TOML.JsonMap) {
+	const tarEntries = await collectTarEntries(cwd, config);
+	const tarPath = path.join(cwd, "agent.tar");
+	await tar.c(
+		{
+			cwd,
+			file: tarPath,
+			portable: true,
+		},
+		tarEntries,
+	);
+	return tarPath;
+}
+
+async function runBuild() {
+	const { config, cwd } = await ensureConfigInCwd();
+	const tarPath = await createAgentTar(cwd, config);
+	const tarBuffer = await fs.readFile(tarPath);
+
+	const baseUrl = process.env.GISELLE_API_URL?.trim() || DEFAULT_API_URL;
+	const url = new URL("/api/agents/build", baseUrl).toString();
+	const res = await fetch(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/octet-stream",
+		},
+		body: tarBuffer,
+	});
+	const text = await res.text();
+	if (!res.ok) {
+		fail(`Build failed (${res.status}): ${text}`);
+	}
+	let data: { snapshotId?: string };
+	try {
+		data = JSON.parse(text) as { snapshotId?: string };
+	} catch {
+		fail("Invalid response from server.");
+	}
+	if (!data.snapshotId) {
+		fail("snapshotId missing in response.");
+	}
+	process.stdout.write(`${data.snapshotId}\n`);
 }
 
 async function runCreate() {
@@ -218,6 +337,9 @@ async function main() {
 			break;
 		case "edit-setup-script":
 			await runEditSetupScript();
+			break;
+		case "build":
+			await runBuild();
 			break;
 		default:
 			printUsage();

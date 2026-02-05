@@ -11,6 +11,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/react": "3.0.70",
+		"@iarna/toml": "3.0.0",
 		"@vercel/blob": "2.0.1",
 		"@vercel/sandbox": "1.4.1",
 		"ai": "6.0.68",
@@ -19,6 +20,7 @@
 		"next": "16.1.6",
 		"react": "19.2.4",
 		"react-dom": "19.2.4",
+		"tar-stream": "3.1.7",
 		"tsx": "4.21.0",
 		"zod": "4.3.6"
 	},
@@ -27,6 +29,7 @@
 		"@types/node": "25.2.0",
 		"@types/react": "19.2.10",
 		"@types/react-dom": "19.2.3",
+		"@types/tar-stream": "3.1.4",
 		"babel-plugin-react-compiler": "1.0.0",
 		"tailwindcss": "4.1.18",
 		"typescript": "5.9.3"

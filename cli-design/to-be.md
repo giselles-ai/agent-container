@@ -65,3 +65,15 @@ path = "skills/pptx"
 `@giselles-ai/agent edit-setup-script` でCWDの`config.toml`のsetup.scriptを編集プロンプトを表示します。既存の入力内容がある場合はそれが表示され編集できます。
 
 編集プロンプトは複数行入力可能です。
+
+
+### Build
+
+`@giselles-ai/agent build` でCWDの`config.toml`とその内容から`agent.tar`を作成し、api serverの`/api/agents/build`を実行します。
+
+`/api/agents/build` はまだ存在しません。
+`packages/web/app/api/agents/build/to-be.md`を参考にCLIと合わせて実装してください。
+
+api serverのURLは`GISELLE_API_URL`環境変数で上書き可能にしてください。デフォルトは `agent.giselels.ai` でお願いします。
+
+`/api/agents/build` のレスポンスにsnapshotIdが含まれているのでそれをstdoutに表示してください。
