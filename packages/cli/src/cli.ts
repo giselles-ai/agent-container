@@ -9,7 +9,6 @@ import * as TOML from "@iarna/toml";
 import * as tar from "tar";
 
 const CONFIG_FILE = "config.toml";
-const DEFAULT_API_URL = "https://agent.giselels.ai";
 
 function getEffectiveCwd(): string {
 	return process.cwd();
@@ -202,12 +201,20 @@ async function runBuild() {
 	const tarPath = await createAgentTar(cwd, config);
 	const tarBuffer = await fs.readFile(tarPath);
 
-	const baseUrl = process.env.GISELLE_API_URL?.trim() || DEFAULT_API_URL;
+	const baseUrl = process.env.GISELLE_API_URL?.trim();
+	if (!baseUrl) {
+		fail("GISELLE_API_URL is required.");
+	}
+	const apiKey = process.env.GISELLE_API_KEY?.trim();
+	if (!apiKey) {
+		fail("GISELLE_API_KEY is required.");
+	}
 	const url = new URL("/api/agents/build", baseUrl).toString();
 	const res = await fetch(url, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/octet-stream",
+			"x-vercel-protection-bypass": apiKey,
 		},
 		body: tarBuffer,
 	});
