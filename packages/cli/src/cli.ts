@@ -2,6 +2,7 @@
 import type { Stats } from "node:fs";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
@@ -182,9 +183,13 @@ async function collectTarEntries(
 	return Array.from(entries);
 }
 
-async function createAgentTar(cwd: string, config: TOML.JsonMap) {
+async function createAgentTar(cwd: string, config: TOML.JsonMap): Promise<{
+	tarPath: string;
+	cleanup: () => Promise<void>;
+}> {
 	const tarEntries = await collectTarEntries(cwd, config);
-	const tarPath = path.join(cwd, "agent.tar");
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "giselle-agent-build-"));
+	const tarPath = path.join(tmpDir, "agent.tar");
 	await tar.c(
 		{
 			cwd,
@@ -193,14 +198,16 @@ async function createAgentTar(cwd: string, config: TOML.JsonMap) {
 		},
 		tarEntries,
 	);
-	return tarPath;
+	return {
+		tarPath,
+		cleanup: async () => {
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		},
+	};
 }
 
 async function runBuild() {
 	const { config, cwd } = await ensureConfigInCwd();
-	const tarPath = await createAgentTar(cwd, config);
-	const tarBuffer = await fs.readFile(tarPath);
-
 	const baseUrl = process.env.GISELLE_API_URL?.trim();
 	if (!baseUrl) {
 		fail("GISELLE_API_URL is required.");
@@ -209,31 +216,59 @@ async function runBuild() {
 	if (!apiKey) {
 		fail("GISELLE_API_KEY is required.");
 	}
-	const url = new URL("/api/agents/build", baseUrl).toString();
-	const res = await fetch(url, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/octet-stream",
-			"x-vercel-protection-bypass": apiKey,
-		},
-		body: tarBuffer,
-	});
-	const text = await res.text();
-	if (!res.ok) {
-		fail(`Build failed (${res.status}): ${text}`);
-	}
-	let data: { snapshotId?: string };
+
+	const { tarPath, cleanup } = await createAgentTar(cwd, config);
+	let buildError: string | null = null;
+	let cleanupError: string | null = null;
+	let outputUrl: string | null = null;
 	try {
-		data = JSON.parse(text) as { snapshotId?: string };
-	} catch {
-		fail("Invalid response from server.");
+		const tarBuffer = await fs.readFile(tarPath);
+		const url = new URL("/api/agents/build", baseUrl).toString();
+		const res = await fetch(url, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/octet-stream",
+				"x-vercel-protection-bypass": apiKey,
+			},
+			body: tarBuffer,
+		});
+		const text = await res.text();
+		if (!res.ok) {
+			buildError = `Build failed (${res.status}): ${text}`;
+			return;
+		}
+		let data: { snapshotId?: string };
+		try {
+			data = JSON.parse(text) as { snapshotId?: string };
+		} catch {
+			buildError = "Invalid response from server.";
+			return;
+		}
+		if (!data.snapshotId) {
+			buildError = "snapshotId missing in response.";
+			return;
+		}
+		outputUrl = new URL(`/agents/${data.snapshotId}/chat`, baseUrl)
+			.toString()
+			.trim();
+	} finally {
+		try {
+			await cleanup();
+		} catch (err) {
+			cleanupError = err instanceof Error ? err.message : String(err);
+		}
 	}
-	if (!data.snapshotId) {
-		fail("snapshotId missing in response.");
+
+	if (buildError) {
+		fail(buildError);
 	}
-	process.stdout.write(
-		`${new URL(`/agents/${data.snapshotId}/chat`, baseUrl).toString().trim()}\n`,
-	);
+	if (cleanupError) {
+		fail(`Failed to clean up temporary archive: ${cleanupError}`);
+	}
+	if (!outputUrl) {
+		fail("Build completed without output URL.");
+	}
+	process.stdout.write(`${outputUrl}\n`);
 }
 
 async function runCreate() {
