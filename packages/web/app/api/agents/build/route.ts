@@ -160,6 +160,24 @@ export async function POST(req: Request) {
 		await sandbox.writeFiles(agentSkills);
 	}
 
+	await sandbox.writeFiles([
+		{
+			path: "/home/vercel-sandbox/.gemini/GEMINI.md",
+			content: Buffer.from(
+				[
+					"# System Environment",
+					"",
+					"This environment is Fedora-based (Vercel Sandbox).",
+					"The package manager is `dnf`.",
+					"",
+					"- ALWAYS use `dnf` to install packages (e.g. `dnf install -y <package>`).",
+					"- NEVER use `yum` or `apt-get` — they are not available.",
+					"",
+				].join("\n"),
+			),
+		},
+	]);
+
 	const setupScript = config.setup?.script ?? "";
 	const lines = setupScript.split("\n").map((line) => line.trim());
 	for (const line of lines) {
