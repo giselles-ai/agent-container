@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/agent",
-	"version": "0.1.0-alpha.7",
+	"version": "0.1.0-alpha.8",
 	"private": false,
 	"type": "module",
 	"bin": {
