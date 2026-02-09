@@ -192,6 +192,13 @@ export default function AgentChatPage(
 	const [fileArtifacts, setFileArtifacts] = useState<
 		Array<{ path: string; status?: "success" | "error" }>
 	>([]);
+	const [isCreatingSkill, setIsCreatingSkill] = useState(false);
+	const [createdSkill, setCreatedSkill] = useState<{
+		slug: string;
+		name: string;
+		description: string;
+	} | null>(null);
+	const [createSkillError, setCreateSkillError] = useState<string | null>(null);
 
 	const itemsRef = useRef<ChatItem[]>([]);
 	const assistantIdRef = useRef<string | null>(null);
@@ -208,6 +215,10 @@ export default function AgentChatPage(
 	);
 	const uploadEndpoint = useMemo(
 		() => `/agents/${snapshotId}/chat/api/upload`,
+		[snapshotId],
+	);
+	const createSkillEndpoint = useMemo(
+		() => `/agents/${snapshotId}/chat/api/create-skill`,
 		[snapshotId],
 	);
 
@@ -546,6 +557,52 @@ export default function AgentChatPage(
 		setStatus("idle");
 	}, []);
 
+	const canCreateSkill =
+		status === "idle" &&
+		items.length > 0 &&
+		Boolean(sandboxId) &&
+		Boolean(sessionId) &&
+		!isCreatingSkill;
+
+	const handleCreateSkill = useCallback(async () => {
+		if (!canCreateSkill || !sandboxId || !sessionId) {
+			return;
+		}
+		setIsCreatingSkill(true);
+		setCreateSkillError(null);
+		setCreatedSkill(null);
+		try {
+			const response = await fetch(createSkillEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sandboxId, sessionId }),
+			});
+			const payload = (await response.json().catch(() => null)) as {
+				error?: string;
+				slug?: string;
+				name?: string;
+				description?: string;
+			} | null;
+			if (!response.ok) {
+				throw new Error(payload?.error ?? "Failed to create skill.");
+			}
+			if (!payload?.slug || !payload?.name || !payload?.description) {
+				throw new Error("Invalid skill response.");
+			}
+			setCreatedSkill({
+				slug: payload.slug,
+				name: payload.name,
+				description: payload.description,
+			});
+		} catch (error) {
+			setCreateSkillError(
+				error instanceof Error ? error.message : "Failed to create skill.",
+			);
+		} finally {
+			setIsCreatingSkill(false);
+		}
+	}, [canCreateSkill, createSkillEndpoint, sandboxId, sessionId]);
+
 	return (
 		<div className="min-h-screen bg-slate-950 text-slate-100">
 			<div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8">
@@ -763,6 +820,43 @@ export default function AgentChatPage(
 									Waiting for result...
 								</p>
 							)}
+						</div>
+						<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+							<p className="text-sm font-medium">
+								このやり取りからスキルを作成
+							</p>
+							<p className="mt-2 text-xs text-slate-400">
+								チャット履歴をもとに SKILL.md を自動生成して保存します。
+							</p>
+							<button
+								type="button"
+								onClick={() => void handleCreateSkill()}
+								disabled={!canCreateSkill}
+								className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-slate-900 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								{isCreatingSkill
+									? "Creating..."
+									: "このやり取りからスキルを作成"}
+							</button>
+							{createdSkill ? (
+								<div className="mt-3 space-y-1 rounded-lg border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-300">
+									<p>
+										<span className="text-slate-500">slug:</span>{" "}
+										{createdSkill.slug}
+									</p>
+									<p>
+										<span className="text-slate-500">name:</span>{" "}
+										{createdSkill.name}
+									</p>
+									<p>
+										<span className="text-slate-500">description:</span>{" "}
+										{createdSkill.description}
+									</p>
+								</div>
+							) : null}
+							{createSkillError ? (
+								<p className="mt-2 text-xs text-rose-400">{createSkillError}</p>
+							) : null}
 						</div>
 						<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
 							<p className="text-sm font-medium">Created files</p>
