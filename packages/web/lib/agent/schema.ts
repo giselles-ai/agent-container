@@ -20,3 +20,14 @@ export const agentManifestSchema = agentConfigSchema.extend({
 });
 
 export type AgentManifest = z.infer<typeof agentManifestSchema>;
+
+export const buildMetaSchema = z.object({
+	slug: z
+		.string()
+		.min(1)
+		.regex(/^[a-z0-9-]+$/),
+	snapshotId: z.string().min(1),
+	createdAt: z.string().min(1),
+});
+
+export type BuildMeta = z.infer<typeof buildMetaSchema>;

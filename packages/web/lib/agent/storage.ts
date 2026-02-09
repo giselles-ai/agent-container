@@ -1,12 +1,19 @@
 import {
+	del,
 	type ListBlobResult,
 	type ListBlobResultBlob,
 	list,
 	put,
 } from "@vercel/blob";
-import { type AgentManifest, agentManifestSchema } from "@/lib/agent/schema";
+import {
+	type AgentManifest,
+	agentManifestSchema,
+	type BuildMeta,
+	buildMetaSchema,
+} from "@/lib/agent/schema";
 
 const MANIFEST_FILENAME = "manifest.json";
+const BUILD_META_FILENAME = "meta.json";
 const BLOB_HOST = process.env.BLOB_HOST ?? "";
 
 function resolveManifestPath(slug: string) {
@@ -23,6 +30,14 @@ export function resolveBundlePath(slug: string) {
 
 export function resolveBundleFullPath(slug: string) {
 	return `${BLOB_HOST}/agents/${slug}/bundle.tar`;
+}
+
+export function resolveBuildMetaPath(slug: string, snapshotId: string) {
+	return `agents/${slug}/builds/${snapshotId}/${BUILD_META_FILENAME}`;
+}
+
+export function resolveBuildUploadsPrefix(slug: string, snapshotId: string) {
+	return `agents/${slug}/builds/${snapshotId}/uploads/`;
 }
 
 export function resolveSkillPrefix(slug: string) {
@@ -84,6 +99,68 @@ export async function listManifests(token?: string) {
 export async function getBundle(slug: string) {
 	const pathname = resolveBundleFullPath(slug);
 	return await fetch(pathname);
+}
+
+export async function putBuildMeta(meta: BuildMeta, token?: string) {
+	const pathname = resolveBuildMetaPath(meta.slug, meta.snapshotId);
+	await put(pathname, JSON.stringify(meta, null, 2), {
+		access: "public",
+		addRandomSuffix: false,
+		allowOverwrite: true,
+		token,
+		contentType: "application/json",
+	});
+}
+
+export async function listBuildMetas(slug: string, token?: string) {
+	const prefix = `agents/${slug}/builds/`;
+	const metas: BuildMeta[] = [];
+	let cursor: string | undefined;
+
+	do {
+		const result = await list({
+			prefix,
+			limit: 1000,
+			cursor,
+			token,
+		});
+		const metaBlobs = result.blobs.filter((blob) =>
+			blob.pathname.endsWith(`/${BUILD_META_FILENAME}`),
+		);
+		for (const blob of metaBlobs) {
+			const response = await fetch(blob.url);
+			if (!response.ok) {
+				continue;
+			}
+			const text = await response.text();
+			try {
+				const parsed = buildMetaSchema.parse(JSON.parse(text));
+				metas.push(parsed);
+			} catch {}
+		}
+		cursor = result.hasMore ? result.cursor : undefined;
+	} while (cursor);
+
+	return metas;
+}
+
+export async function deleteAgent(slug: string, token?: string) {
+	const prefix = `agents/${slug}/`;
+	let cursor: string | undefined;
+
+	do {
+		const result = await list({
+			prefix,
+			limit: 1000,
+			cursor,
+			token,
+		});
+		const urls = result.blobs.map((blob) => blob.url);
+		if (urls.length > 0) {
+			await del(urls, { token });
+		}
+		cursor = result.hasMore ? result.cursor : undefined;
+	} while (cursor);
 }
 
 export async function listSkillFiles(slug: string, token?: string) {

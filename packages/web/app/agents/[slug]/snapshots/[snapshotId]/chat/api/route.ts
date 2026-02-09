@@ -30,7 +30,7 @@ export async function initSandbox(snapshotId: string) {
 
 export async function POST(
 	req: Request,
-	ctx: RouteContext<"/agents/[snapshotId]/chat/api">,
+	ctx: RouteContext<"/agents/[slug]/snapshots/[snapshotId]/chat/api">,
 ) {
 	const authError = requireApiToken(req);
 	if (authError) return authError;

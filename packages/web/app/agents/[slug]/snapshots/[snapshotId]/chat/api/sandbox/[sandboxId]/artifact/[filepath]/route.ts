@@ -8,7 +8,7 @@ function safeFilename(path: string) {
 
 export async function GET(
 	_: NextRequest,
-	ctx: RouteContext<"/agents/pptx/chat/api/sandbox/[sandboxId]/artifact/[filepath]">,
+	ctx: RouteContext<"/agents/[slug]/snapshots/[snapshotId]/chat/api/sandbox/[sandboxId]/artifact/[filepath]">,
 ) {
 	const { sandboxId, filepath } = await ctx.params;
 	const sandbox = await Sandbox.get({ sandboxId });

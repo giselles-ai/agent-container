@@ -11,7 +11,10 @@ const sanitizeFilename = (name: string) => {
 	return safe.length > 0 ? safe : "file";
 };
 
-export async function POST(req: Request) {
+export async function POST(
+	req: Request,
+	ctx: RouteContext<"/agents/[slug]/snapshots/[snapshotId]/chat/api/upload">,
+) {
 	const authError = requireApiToken(req);
 	if (authError) return authError;
 
@@ -45,11 +48,12 @@ export async function POST(req: Request) {
 	}
 
 	const token = process.env.BLOB_READ_WRITE_TOKEN;
+	const { slug, snapshotId } = await ctx.params;
 	const timestamp = Date.now();
 	const uploaded = await Promise.all(
 		files.map(async (file, index) => {
 			const safeName = sanitizeFilename(file.name);
-			const pathname = `agents/pptx/chat-uploads/${timestamp}/${index}-${safeName}`;
+			const pathname = `agents/${slug}/builds/${snapshotId}/uploads/${timestamp}/${index}-${safeName}`;
 			const body = await file.arrayBuffer();
 			const blob = await put(pathname, body, {
 				access: "public",

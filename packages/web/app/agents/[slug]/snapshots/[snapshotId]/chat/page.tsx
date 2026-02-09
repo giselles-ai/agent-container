@@ -175,9 +175,9 @@ const formatToolDetail = (detail: unknown) => {
 };
 
 export default function AgentChatPage(
-	props: PageProps<"/agents/[snapshotId]/chat">,
+	props: PageProps<"/agents/[slug]/snapshots/[snapshotId]/chat">,
 ) {
-	const { snapshotId } = use(props.params);
+	const { slug, snapshotId } = use(props.params);
 	const [input, setInput] = useState("");
 	const [attachments, setAttachments] = useState<File[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
@@ -210,16 +210,16 @@ export default function AgentChatPage(
 	>(new Map());
 
 	const endpoint = useMemo(
-		() => `/agents/${snapshotId}/chat/api`,
-		[snapshotId],
+		() => `/agents/${slug}/snapshots/${snapshotId}/chat/api`,
+		[slug, snapshotId],
 	);
 	const uploadEndpoint = useMemo(
-		() => `/agents/${snapshotId}/chat/api/upload`,
-		[snapshotId],
+		() => `/agents/${slug}/snapshots/${snapshotId}/chat/api/upload`,
+		[slug, snapshotId],
 	);
 	const createSkillEndpoint = useMemo(
-		() => `/agents/${snapshotId}/chat/api/create-skill`,
-		[snapshotId],
+		() => `/agents/${slug}/snapshots/${snapshotId}/chat/api/create-skill`,
+		[slug, snapshotId],
 	);
 
 	const syncItems = useCallback(() => {
@@ -867,7 +867,7 @@ export default function AgentChatPage(
 										>
 											{sandboxId ? (
 												<a
-													href={`/agents/pptx/chat/api/sandbox/${encodeURIComponent(
+													href={`/agents/${encodeURIComponent(slug)}/snapshots/${encodeURIComponent(snapshotId)}/chat/api/sandbox/${encodeURIComponent(
 														sandboxId,
 													)}/artifact/${encodeURIComponent(file.path)}`}
 													className="truncate text-emerald-300 transition hover:text-emerald-200"

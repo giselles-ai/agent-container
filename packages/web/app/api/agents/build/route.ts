@@ -3,7 +3,11 @@ import * as TOML from "@iarna/toml";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import tar from "tar-stream";
-import { findHostedSkill, resolveSkillPrefix } from "@/lib/agent/storage";
+import {
+	findHostedSkill,
+	putBuildMeta,
+	resolveSkillPrefix,
+} from "@/lib/agent/storage";
 
 type TarEntry = {
 	path: string;
@@ -29,6 +33,15 @@ type HostedSkillConfig = {
 	source: "hosted";
 	slug: string;
 };
+
+function toSlug(value: string) {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.replace(/-{2,}/g, "-");
+}
 
 function normalizeTarPath(p: string): string {
 	return p.replace(/^[.\\/]+/, "").replace(/\\/g, "/");
@@ -143,6 +156,13 @@ export async function POST(req: Request) {
 	} catch (err) {
 		return NextResponse.json(
 			{ error: err instanceof Error ? err.message : "Invalid config" },
+			{ status: 400 },
+		);
+	}
+	const slug = toSlug(config.name);
+	if (!slug) {
+		return NextResponse.json(
+			{ error: "config.toml name is invalid for slug generation." },
 			{ status: 400 },
 		);
 	}
@@ -282,5 +302,14 @@ export async function POST(req: Request) {
 	}
 
 	const snapshot = await sandbox.snapshot();
-	return NextResponse.json({ snapshotId: snapshot.snapshotId });
+	const token = process.env.BLOB_READ_WRITE_TOKEN;
+	await putBuildMeta(
+		{
+			slug,
+			snapshotId: snapshot.snapshotId,
+			createdAt: new Date().toISOString(),
+		},
+		token,
+	);
+	return NextResponse.json({ snapshotId: snapshot.snapshotId, slug });
 }

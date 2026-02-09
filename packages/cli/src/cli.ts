@@ -50,6 +50,7 @@ function printUsage() {
   @giselles-ai/agent add-hosted-skill <slug>
   @giselles-ai/agent edit-setup-script
   @giselles-ai/agent build
+  @giselles-ai/agent delete [slug] [--force]
 `;
 	process.stderr.write(usage);
 }
@@ -87,6 +88,15 @@ function validateAgentName(name: string) {
 	if (name.includes("/") || name.includes("\\") || name.includes("..")) {
 		fail("Agent name cannot include path separators or '..'.");
 	}
+}
+
+function toSlug(value: string) {
+	return value
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.replace(/-{2,}/g, "-");
 }
 
 async function ensureConfigInCwd() {
@@ -258,9 +268,9 @@ async function runBuild() {
 			buildError = `Build failed (${res.status}): ${text}`;
 			return;
 		}
-		let data: { snapshotId?: string };
+		let data: { snapshotId?: string; slug?: string };
 		try {
-			data = JSON.parse(text) as { snapshotId?: string };
+			data = JSON.parse(text) as { snapshotId?: string; slug?: string };
 		} catch {
 			buildError = "Invalid response from server.";
 			return;
@@ -269,7 +279,14 @@ async function runBuild() {
 			buildError = "snapshotId missing in response.";
 			return;
 		}
-		outputUrl = new URL(`/agents/${data.snapshotId}/chat`, baseUrl)
+		if (!data.slug) {
+			buildError = "slug missing in response.";
+			return;
+		}
+		outputUrl = new URL(
+			`/agents/${data.slug}/snapshots/${data.snapshotId}/chat`,
+			baseUrl,
+		)
 			.toString()
 			.trim();
 	} finally {
@@ -290,6 +307,53 @@ async function runBuild() {
 		fail("Build completed without output URL.");
 	}
 	process.stdout.write(`${outputUrl}\n`);
+}
+
+async function runDelete(argSlug: string | undefined, force: boolean) {
+	let slug = argSlug?.trim() ?? "";
+	if (!slug) {
+		const { config } = await ensureConfigInCwd();
+		const configName = typeof config.name === "string" ? config.name : "";
+		slug = toSlug(configName);
+		if (!slug) {
+			fail("Could not derive slug from config.toml name.");
+		}
+	}
+	if (!HOSTED_SKILL_SLUG_RE.test(slug)) {
+		fail("Slug must match ^[a-z0-9-]+$.");
+	}
+
+	if (!force) {
+		const answer = (
+			await promptLine(
+				`Delete agent "${slug}"? This will remove all builds and data. [y/N] `,
+			)
+		)
+			.trim()
+			.toLowerCase();
+		if (answer !== "y" && answer !== "yes") {
+			process.stdout.write("Canceled.\n");
+			return;
+		}
+	}
+
+	const { baseUrl, apiKey } = readApiConfig();
+	const url = new URL(
+		`/api/agents/${encodeURIComponent(slug)}`,
+		baseUrl,
+	).toString();
+	const response = await fetch(url, {
+		method: "DELETE",
+		headers: {
+			"x-vercel-protection-bypass": apiKey,
+		},
+	});
+	if (!response.ok) {
+		const text = await response.text().catch(() => "");
+		fail(`Delete failed (${response.status}): ${text}`);
+	}
+
+	process.stdout.write(`Deleted agent: ${slug}\n`);
 }
 
 async function runCreate() {
@@ -521,6 +585,12 @@ async function main() {
 		case "build":
 			await runBuild();
 			break;
+		case "delete": {
+			const force = args.includes("--force");
+			const positional = args.filter((arg) => arg !== "--force");
+			await runDelete(positional[0], force);
+			break;
+		}
 		default:
 			printUsage();
 			process.exit(1);
