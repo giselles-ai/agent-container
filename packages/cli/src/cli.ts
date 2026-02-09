@@ -10,6 +10,13 @@ import * as TOML from "@iarna/toml";
 import * as tar from "tar";
 
 const CONFIG_FILE = "config.toml";
+const HOSTED_SKILL_SLUG_RE = /^[a-z0-9-]+$/;
+
+type SkillEntry = {
+	source?: "local" | "hosted";
+	path?: string;
+	slug?: string;
+};
 
 function getEffectiveCwd(): string {
 	return process.cwd();
@@ -40,6 +47,7 @@ function printUsage() {
 	const usage = `Usage:
   @giselles-ai/agent create
   @giselles-ai/agent add-skill <path>
+  @giselles-ai/agent add-hosted-skill <slug>
   @giselles-ai/agent edit-setup-script
   @giselles-ai/agent build
 `;
@@ -100,8 +108,13 @@ async function ensureConfigInCwd() {
 		fail(`${CONFIG_FILE} is not valid TOML.`);
 	}
 	const version = config.version;
-	if (version !== 1) {
-		fail(`${CONFIG_FILE} version must be 1.`);
+	if (version === 1) {
+		fail(
+			`${CONFIG_FILE} version 1 is deprecated. Please migrate to version 2.`,
+		);
+	}
+	if (version !== 2) {
+		fail(`${CONFIG_FILE} version must be 2.`);
 	}
 	return { config, configPath, cwd };
 }
@@ -133,8 +146,18 @@ async function collectTarEntries(
 	entries.add(CONFIG_FILE);
 
 	const skills = Array.isArray(config.skills) ? config.skills : [];
-	for (const skill of skills) {
-		const skillPath = (skill as TOML.JsonMap)?.path;
+	for (const rawSkill of skills) {
+		const skill = parseSkillEntry(rawSkill);
+		if (!skill) {
+			fail("Invalid skills entry in config.toml.");
+		}
+		if (isHostedSkill(skill)) {
+			continue;
+		}
+		if (skill.source === "hosted" && !skill.slug) {
+			fail("Invalid hosted skill slug in config.toml.");
+		}
+		const skillPath = skill.path;
 		if (typeof skillPath !== "string" || skillPath.length === 0) {
 			fail("Invalid skills path in config.toml.");
 		}
@@ -208,14 +231,7 @@ async function createAgentTar(cwd: string, config: TOML.JsonMap): Promise<{
 
 async function runBuild() {
 	const { config, cwd } = await ensureConfigInCwd();
-	const baseUrl = process.env.GISELLE_API_URL?.trim();
-	if (!baseUrl) {
-		fail("GISELLE_API_URL is required.");
-	}
-	const apiKey = process.env.GISELLE_API_KEY?.trim();
-	if (!apiKey) {
-		fail("GISELLE_API_KEY is required.");
-	}
+	const { baseUrl, apiKey } = readApiConfig();
 
 	const { tarPath, cleanup } = await createAgentTar(cwd, config);
 	let buildError: string | null = null;
@@ -290,7 +306,7 @@ async function runCreate() {
 
 	await fs.mkdir(targetDir, { recursive: false });
 	const configPath = path.join(targetDir, CONFIG_FILE);
-	const content = `version = 1\n\nname = "${name}"\n`;
+	const content = `version = 2\n\nname = "${name}"\n`;
 	await fs.writeFile(configPath, content, "utf8");
 	process.stdout.write(`Created ${targetDir}\n`);
 }
@@ -305,6 +321,55 @@ function ensurePathUnderCwd(absPath: string, cwd: string): string {
 
 function toPosixPath(p: string): string {
 	return p.split(path.sep).join(path.posix.sep);
+}
+
+function readApiConfig() {
+	const baseUrl = process.env.GISELLE_API_URL?.trim();
+	if (!baseUrl) {
+		fail("GISELLE_API_URL is required.");
+	}
+	const apiKey = process.env.GISELLE_API_KEY?.trim();
+	if (!apiKey) {
+		fail("GISELLE_API_KEY is required.");
+	}
+	return { baseUrl, apiKey };
+}
+
+function parseSkillEntry(input: unknown): SkillEntry | null {
+	if (!input || typeof input !== "object") {
+		return null;
+	}
+	const entry = input as TOML.JsonMap;
+	const sourceRaw = entry.source;
+	if (
+		sourceRaw !== undefined &&
+		sourceRaw !== "hosted" &&
+		sourceRaw !== "local"
+	) {
+		return null;
+	}
+	const source = sourceRaw === "hosted" || sourceRaw === "local" ? sourceRaw : null;
+	const pathValue = typeof entry.path === "string" ? entry.path : undefined;
+	const slugValue = typeof entry.slug === "string" ? entry.slug : undefined;
+	const parsed: SkillEntry = {};
+	if (source) {
+		parsed.source = source;
+	}
+	if (pathValue !== undefined) {
+		parsed.path = pathValue;
+	}
+	if (slugValue !== undefined) {
+		parsed.slug = slugValue;
+	}
+	return parsed;
+}
+
+function isLocalSkill(entry: SkillEntry) {
+	return (entry.source === undefined || entry.source === "local") && !!entry.path;
+}
+
+function isHostedSkill(entry: SkillEntry) {
+	return entry.source === "hosted" && !!entry.slug;
 }
 
 async function runAddSkill(argPath: string | undefined) {
@@ -327,16 +392,71 @@ async function runAddSkill(argPath: string | undefined) {
 
 	const normalizedRelPath = toPosixPath(relPath);
 	const skills = Array.isArray(config.skills) ? config.skills : [];
-	const already = skills.some(
-		(s) => (s as TOML.JsonMap)?.path === normalizedRelPath,
-	);
+	const already = skills.some((raw) => {
+		const entry = parseSkillEntry(raw);
+		if (!entry || !isLocalSkill(entry)) {
+			return false;
+		}
+		return entry.path === normalizedRelPath;
+	});
 	if (already) {
 		process.stdout.write("Skill already exists in config.\n");
 		return;
 	}
-	config.skills = [...skills, { path: normalizedRelPath }];
+	config.skills = [...skills, { source: "local", path: normalizedRelPath }];
 	await writeConfig(configPath, config);
 	process.stdout.write(`Added skill: ${normalizedRelPath}\n`);
+}
+
+async function runAddHostedSkill(argSlug: string | undefined) {
+	if (!argSlug) {
+		fail("Slug is required. Usage: add-hosted-skill <slug>");
+	}
+	const slug = argSlug.trim();
+	if (!HOSTED_SKILL_SLUG_RE.test(slug)) {
+		fail("Slug must match ^[a-z0-9-]+$.");
+	}
+
+	const { config, configPath } = await ensureConfigInCwd();
+	const { baseUrl, apiKey } = readApiConfig();
+	const url = new URL(`/api/skills/${encodeURIComponent(slug)}`, baseUrl).toString();
+	const response = await fetch(url, {
+		method: "GET",
+		headers: {
+			"x-vercel-protection-bypass": apiKey,
+		},
+	});
+	if (response.status === 404) {
+		fail(`Hosted skill not found: ${slug}`);
+	}
+	if (!response.ok) {
+		const text = await response.text().catch(() => "");
+		fail(`Failed to resolve hosted skill (${response.status}): ${text}`);
+	}
+
+	const payload = (await response.json().catch(() => null)) as
+		| {
+				slug?: string;
+				files?: Array<{ pathname?: string }>;
+		  }
+		| null;
+	if (!payload?.slug || !Array.isArray(payload.files) || payload.files.length === 0) {
+		fail("Invalid response from skill API.");
+	}
+
+	const skills = Array.isArray(config.skills) ? config.skills : [];
+	const already = skills.some((raw) => {
+		const entry = parseSkillEntry(raw);
+		return !!entry && isHostedSkill(entry) && entry.slug === slug;
+	});
+	if (already) {
+		process.stdout.write("Hosted skill already exists in config.\n");
+		return;
+	}
+
+	config.skills = [...skills, { source: "hosted", slug }];
+	await writeConfig(configPath, config);
+	process.stdout.write(`Added hosted skill: ${slug}\n`);
 }
 
 async function runEditSetupScript() {
@@ -378,6 +498,9 @@ async function main() {
 			break;
 		case "add-skill":
 			await runAddSkill(args[0]);
+			break;
+		case "add-hosted-skill":
+			await runAddHostedSkill(args[0]);
 			break;
 		case "edit-setup-script":
 			await runEditSetupScript();

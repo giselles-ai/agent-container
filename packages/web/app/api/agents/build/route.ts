@@ -3,6 +3,7 @@ import * as TOML from "@iarna/toml";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import tar from "tar-stream";
+import { findHostedSkill, resolveSkillPrefix } from "@/lib/agent/storage";
 
 type TarEntry = {
 	path: string;
@@ -12,9 +13,22 @@ type TarEntry = {
 type AgentConfig = {
 	version: number;
 	name: string;
-	skills?: Array<{ path: string }>;
+	skills?: Array<
+		| { source?: "local"; path: string }
+		| { source: "hosted"; slug: string }
+	>;
 	files?: Array<{ path: string }>;
 	setup?: { script?: string };
+};
+
+type LocalSkillConfig = {
+	source?: "local";
+	path: string;
+};
+
+type HostedSkillConfig = {
+	source: "hosted";
+	slug: string;
 };
 
 function normalizeTarPath(p: string): string {
@@ -56,8 +70,11 @@ function parseConfig(entries: TarEntry[]): AgentConfig {
 	} catch {
 		throw new Error("config.toml is not valid TOML.");
 	}
-	if (config.version !== 1) {
-		throw new Error("config.toml version must be 1.");
+	if (config.version === 1) {
+		throw new Error("config.toml version 1 is deprecated. Use version 2.");
+	}
+	if (config.version !== 2) {
+		throw new Error("config.toml version must be 2.");
 	}
 	return config;
 }
@@ -67,6 +84,39 @@ function getEntriesUnder(entries: TarEntry[], root: string): TarEntry[] {
 	return entries.filter((entry) => {
 		return entry.path === normalized || entry.path.startsWith(`${normalized}/`);
 	});
+}
+
+function toLocalSkillConfig(value: unknown): LocalSkillConfig | null {
+	if (!value || typeof value !== "object") return null;
+	const record = value as Record<string, unknown>;
+	const source = record.source;
+	if (source !== undefined && source !== "local") {
+		return null;
+	}
+	const skillPath = record.path;
+	if (typeof skillPath !== "string" || skillPath.length === 0) {
+		return null;
+	}
+	return {
+		source: "local",
+		path: skillPath,
+	};
+}
+
+function toHostedSkillConfig(value: unknown): HostedSkillConfig | null {
+	if (!value || typeof value !== "object") return null;
+	const record = value as Record<string, unknown>;
+	if (record.source !== "hosted") {
+		return null;
+	}
+	const slug = record.slug;
+	if (typeof slug !== "string" || !/^[a-z0-9-]+$/.test(slug)) {
+		return null;
+	}
+	return {
+		source: "hosted",
+		slug,
+	};
 }
 
 export async function POST(req: Request) {
@@ -122,8 +172,52 @@ export async function POST(req: Request) {
 
 	const skills = config.skills ?? [];
 	for (const skill of skills) {
-		const skillPath = skill.path;
-		if (!skillPath) continue;
+		const hosted = toHostedSkillConfig(skill);
+		if (hosted) {
+			const token = process.env.BLOB_READ_WRITE_TOKEN;
+			const found = await findHostedSkill(hosted.slug, token);
+			if (!found) {
+				return NextResponse.json(
+					{ error: `Hosted skill not found: ${hosted.slug}` },
+					{ status: 400 },
+				);
+			}
+			const prefix = resolveSkillPrefix(hosted.slug);
+			for (const file of found.files) {
+				if (!file.pathname.startsWith(prefix)) {
+					continue;
+				}
+				const relative = file.pathname.slice(prefix.length);
+				if (!relative) {
+					continue;
+				}
+				const response = await fetch(file.url);
+				if (!response.ok) {
+					return NextResponse.json(
+						{
+							error: `Failed to fetch hosted skill file: ${file.pathname}`,
+						},
+						{ status: 400 },
+					);
+				}
+				const arrayBuffer = await response.arrayBuffer();
+				agentSkills.push({
+					path: `/home/vercel-sandbox/.gemini/skills/${hosted.slug}/${relative}`,
+					content: Buffer.from(arrayBuffer),
+				});
+			}
+			continue;
+		}
+
+		const local = toLocalSkillConfig(skill);
+		if (!local) {
+			return NextResponse.json(
+				{ error: "Invalid skills entry in config.toml." },
+				{ status: 400 },
+			);
+		}
+
+		const skillPath = local.path;
 		const matched = getEntriesUnder(entries, skillPath);
 		if (matched.length === 0) {
 			return NextResponse.json(

@@ -1,4 +1,4 @@
-import { list, put } from "@vercel/blob";
+import { list, put, type ListBlobResultBlob } from "@vercel/blob";
 import { type AgentManifest, agentManifestSchema } from "@/lib/agent/schema";
 
 const MANIFEST_FILENAME = "manifest.json";
@@ -18,6 +18,14 @@ export function resolveBundlePath(slug: string) {
 
 export function resolveBundleFullPath(slug: string) {
 	return `${BLOB_HOST}/agents/${slug}/bundle.tar`;
+}
+
+export function resolveSkillPrefix(slug: string) {
+	return `skills/${slug}/`;
+}
+
+export function resolveSkillFullPath(pathname: string) {
+	return `${BLOB_HOST}/${pathname}`;
 }
 
 export async function putManifest(
@@ -71,4 +79,48 @@ export async function listManifests(token?: string) {
 export async function getBundle(slug: string) {
 	const pathname = resolveBundleFullPath(slug);
 	return await fetch(pathname);
+}
+
+export async function listSkillFiles(slug: string, token?: string) {
+	const prefix = resolveSkillPrefix(slug);
+	const blobs: ListBlobResultBlob[] = [];
+	let cursor: string | undefined;
+
+	do {
+		const result = await list({
+			prefix,
+			limit: 1000,
+			cursor,
+			token,
+		});
+		blobs.push(...result.blobs);
+		cursor = result.hasMore ? result.cursor : undefined;
+	} while (cursor);
+
+	return blobs;
+}
+
+export async function getSkillFileText(pathname: string) {
+	if (!BLOB_HOST) {
+		return null;
+	}
+	const fullPath = resolveSkillFullPath(pathname);
+	const response = await fetch(fullPath);
+	if (!response.ok) {
+		return null;
+	}
+	return await response.text();
+}
+
+export async function findHostedSkill(slug: string, token?: string) {
+	const files = await listSkillFiles(slug, token);
+	if (files.length === 0) {
+		return null;
+	}
+	const skillPath = `${resolveSkillPrefix(slug)}SKILL.md`;
+	const hasSkillMd = files.some((file) => file.pathname === skillPath);
+	if (!hasSkillMd) {
+		return null;
+	}
+	return { files };
 }

@@ -1,7 +1,7 @@
 # type: number
 # required: true
 # description: コンフィグのVersion番号
-version = 1
+version = 2
 
 # type: string
 # required: true
@@ -25,13 +25,30 @@ pip install playwright
 """
 
 [[skills]]
-# type: string
+# type: string("local" | "hosted")
 # required: false
-# description: スキルのディレクトリ
+# description: スキルの参照元（local: CWD配下, hosted: Vercel Blob）
+source="local"
+
+# type: string
+# required: source = "local" の場合 true
+# description: ローカルスキルのディレクトリ
 path="skills/pptx"
 
 [[skills]]
+source="local"
 path="skills/xlsx"
+
+[[skills]]
+# type: string("local" | "hosted")
+# required: false
+# description: スキルの参照元（local: CWD配下, hosted: Vercel Blob）
+source="hosted"
+
+# type: string
+# required: source = "hosted" の場合 true
+# description: Hosted skill の slug
+slug="generated-pptx-skill"
 
 
 [[files]]
