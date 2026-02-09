@@ -822,11 +822,9 @@ export default function AgentChatPage(
 							)}
 						</div>
 						<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-							<p className="text-sm font-medium">
-								このやり取りからスキルを作成
-							</p>
+							<p className="text-sm font-medium">Create Skill from Chat</p>
 							<p className="mt-2 text-xs text-slate-400">
-								チャット履歴をもとに SKILL.md を自動生成して保存します。
+								Generate and save a SKILL.md from this chat session.
 							</p>
 							<button
 								type="button"
@@ -834,9 +832,7 @@ export default function AgentChatPage(
 								disabled={!canCreateSkill}
 								className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-slate-900 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
 							>
-								{isCreatingSkill
-									? "Creating..."
-									: "このやり取りからスキルを作成"}
+								{isCreatingSkill ? "Creating..." : "Create Skill from Chat"}
 							</button>
 							{createdSkill ? (
 								<div className="mt-3 space-y-1 rounded-lg border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-300">

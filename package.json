@@ -3,7 +3,9 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
-	"scripts": {},
+	"scripts": {
+		"format": "biome check --write"
+	},
 	"dependencies": {
 		"tsx": "4.21.0"
 	},
