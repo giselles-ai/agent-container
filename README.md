@@ -36,6 +36,17 @@ npx @giselles-ai/agent run <agent-slug> "hello"
 
 Open the UI at `/agents` to run it from the browser.
 
+## Release CLI Package
+
+From repository root, run:
+
+```bash
+pnpm cli:release
+```
+
+This runs version bump (`prerelease`, `preid=alpha`), build, and publish for
+`packages/cli` in one command.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
