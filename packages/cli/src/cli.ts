@@ -206,12 +206,17 @@ async function collectTarEntries(
 	return Array.from(entries);
 }
 
-async function createAgentTar(cwd: string, config: TOML.JsonMap): Promise<{
+async function createAgentTar(
+	cwd: string,
+	config: TOML.JsonMap,
+): Promise<{
 	tarPath: string;
 	cleanup: () => Promise<void>;
 }> {
 	const tarEntries = await collectTarEntries(cwd, config);
-	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "giselle-agent-build-"));
+	const tmpDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "giselle-agent-build-"),
+	);
 	const tarPath = path.join(tmpDir, "agent.tar");
 	await tar.c(
 		{
@@ -348,7 +353,8 @@ function parseSkillEntry(input: unknown): SkillEntry | null {
 	) {
 		return null;
 	}
-	const source = sourceRaw === "hosted" || sourceRaw === "local" ? sourceRaw : null;
+	const source =
+		sourceRaw === "hosted" || sourceRaw === "local" ? sourceRaw : null;
 	const pathValue = typeof entry.path === "string" ? entry.path : undefined;
 	const slugValue = typeof entry.slug === "string" ? entry.slug : undefined;
 	const parsed: SkillEntry = {};
@@ -365,7 +371,9 @@ function parseSkillEntry(input: unknown): SkillEntry | null {
 }
 
 function isLocalSkill(entry: SkillEntry) {
-	return (entry.source === undefined || entry.source === "local") && !!entry.path;
+	return (
+		(entry.source === undefined || entry.source === "local") && !!entry.path
+	);
 }
 
 function isHostedSkill(entry: SkillEntry) {
@@ -419,7 +427,10 @@ async function runAddHostedSkill(argSlug: string | undefined) {
 
 	const { config, configPath } = await ensureConfigInCwd();
 	const { baseUrl, apiKey } = readApiConfig();
-	const url = new URL(`/api/skills/${encodeURIComponent(slug)}`, baseUrl).toString();
+	const url = new URL(
+		`/api/skills/${encodeURIComponent(slug)}`,
+		baseUrl,
+	).toString();
 	const response = await fetch(url, {
 		method: "GET",
 		headers: {
@@ -434,13 +445,15 @@ async function runAddHostedSkill(argSlug: string | undefined) {
 		fail(`Failed to resolve hosted skill (${response.status}): ${text}`);
 	}
 
-	const payload = (await response.json().catch(() => null)) as
-		| {
-				slug?: string;
-				files?: Array<{ pathname?: string }>;
-		  }
-		| null;
-	if (!payload?.slug || !Array.isArray(payload.files) || payload.files.length === 0) {
+	const payload = (await response.json().catch(() => null)) as {
+		slug?: string;
+		files?: Array<{ pathname?: string }>;
+	} | null;
+	if (
+		!payload?.slug ||
+		!Array.isArray(payload.files) ||
+		payload.files.length === 0
+	) {
 		fail("Invalid response from skill API.");
 	}
 

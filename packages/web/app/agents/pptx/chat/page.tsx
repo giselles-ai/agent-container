@@ -208,10 +208,7 @@ export default function AgentChatPage() {
 
 	const appendMessage = useCallback(
 		(message: ChatMessage) => {
-			itemsRef.current = [
-				...itemsRef.current,
-				{ type: "message", message },
-			];
+			itemsRef.current = [...itemsRef.current, { type: "message", message }];
 			syncItems();
 		},
 		[syncItems],
@@ -354,7 +351,8 @@ export default function AgentChatPage() {
 				}
 				if (event.status) {
 					const toolItem = itemsRef.current.find(
-						(item) => item.type === "tool" && item.tool.toolId === event.tool_id,
+						(item) =>
+							item.type === "tool" && item.tool.toolId === event.tool_id,
 					);
 					if (
 						toolItem &&
@@ -561,7 +559,7 @@ export default function AgentChatPage() {
 								<p className="text-sm font-medium">Conversation</p>
 								<p className="text-xs text-slate-400">
 									Status: {status}
-					{status === "streaming" ? " • Replying..." : ""}
+									{status === "streaming" ? " • Replying..." : ""}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
@@ -746,7 +744,10 @@ export default function AgentChatPage() {
 									<p>Input tokens: {stats.input_tokens}</p>
 									<p>Output tokens: {stats.output_tokens}</p>
 									<p>Duration: {stats.duration_ms} ms</p>
-									<p>Messages: {items.filter((item) => item.type === "message").length}</p>
+									<p>
+										Messages:{" "}
+										{items.filter((item) => item.type === "message").length}
+									</p>
 								</div>
 							) : (
 								<p className="mt-2 text-xs text-slate-500">
@@ -760,30 +761,30 @@ export default function AgentChatPage() {
 								{fileArtifacts.length === 0 ? (
 									<p className="text-slate-500">No files yet.</p>
 								) : (
-										fileArtifacts.map((file) => (
-											<div
-												key={file.path}
-												className="flex items-center justify-between gap-2"
-											>
-												{sandboxId ? (
-													<a
-														href={`/agents/pptx/chat/api/sandbox/${encodeURIComponent(
-															sandboxId,
-														)}/artifact/${encodeURIComponent(file.path)}`}
-														className="truncate text-emerald-300 transition hover:text-emerald-200"
-													>
-														{file.path}
-													</a>
-												) : (
-													<span className="truncate text-slate-400">
-														{file.path}
-													</span>
-												)}
-												<span className="text-[11px] uppercase tracking-wider text-slate-500">
-													{file.status ?? "pending"}
+									fileArtifacts.map((file) => (
+										<div
+											key={file.path}
+											className="flex items-center justify-between gap-2"
+										>
+											{sandboxId ? (
+												<a
+													href={`/agents/pptx/chat/api/sandbox/${encodeURIComponent(
+														sandboxId,
+													)}/artifact/${encodeURIComponent(file.path)}`}
+													className="truncate text-emerald-300 transition hover:text-emerald-200"
+												>
+													{file.path}
+												</a>
+											) : (
+												<span className="truncate text-slate-400">
+													{file.path}
 												</span>
-											</div>
-										))
+											)}
+											<span className="text-[11px] uppercase tracking-wider text-slate-500">
+												{file.status ?? "pending"}
+											</span>
+										</div>
+									))
 								)}
 							</div>
 						</div>

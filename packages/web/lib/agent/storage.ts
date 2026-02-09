@@ -1,4 +1,9 @@
-import { list, put, type ListBlobResultBlob } from "@vercel/blob";
+import {
+	type ListBlobResult,
+	type ListBlobResultBlob,
+	list,
+	put,
+} from "@vercel/blob";
 import { type AgentManifest, agentManifestSchema } from "@/lib/agent/schema";
 
 const MANIFEST_FILENAME = "manifest.json";
@@ -55,7 +60,7 @@ export async function getManifest(slug: string) {
 }
 
 export async function listManifests(token?: string) {
-	let results;
+	let results: ListBlobResult;
 	try {
 		results = await list({ prefix: "agents/", token });
 	} catch {

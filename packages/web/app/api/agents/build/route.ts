@@ -14,8 +14,7 @@ type AgentConfig = {
 	version: number;
 	name: string;
 	skills?: Array<
-		| { source?: "local"; path: string }
-		| { source: "hosted"; slug: string }
+		{ source?: "local"; path: string } | { source: "hosted"; slug: string }
 	>;
 	files?: Array<{ path: string }>;
 	setup?: { script?: string };
