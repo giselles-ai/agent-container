@@ -1,34 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI RPA SDK MVP (Next.js Monorepo)
 
-## Getting Started
+This repository contains a prototype for AI-driven form automation in a Next.js app.
 
-First, run the development server:
+- `apps/demo`: Next.js demo app with a form + prompt panel
+- `packages/rpa-sdk`: Browser-side SDK (`snapshot`, `execute`, React provider/panel)
+
+## Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+- OpenAI API key
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp apps/demo/.env.example apps/demo/.env.local
+# set OPENAI_API_KEY in apps/demo/.env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How the MVP works
 
-## Learn More
+1. Enter instruction and optional document in the prompt panel.
+2. Click `Plan`.
+3. SDK snapshots form fields from the DOM.
+4. `/api/rpa` calls `ai` (`model: "openai/gpt-4o-mini"`) with structured output.
+5. Review action plan, then click `Apply`.
+6. SDK applies `fill` / `click` / `select` actions to the DOM.
 
-To learn more about Next.js, take a look at the following resources:
+## Manual E2E checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. `Fill title and body with a concise summary of the document.` with some document text fills both fields.
+2. Add/select instructions to verify `select` action.
+3. Use a fake field in instruction and confirm partial apply + warnings.
+4. Confirm no DOM changes happen before `Apply`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Commands
 
-## Deploy on Vercel
+```bash
+pnpm dev
+pnpm build
+pnpm typecheck
+pnpm format
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Constraints in this MVP
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- No auth / RBAC / audit log
+- No streaming partial form fill
+- No multi-page automation
+- No automatic retry when selector lookup fails
