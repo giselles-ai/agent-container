@@ -15,11 +15,30 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  apps/demo:
+  packages/rpa-sdk:
+    dependencies:
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/web:
     dependencies:
       '@giselles/rpa-sdk':
         specifier: workspace:*
-        version: link:../../packages/rpa-sdk
+        version: link:../rpa-sdk
       ai:
         specifier: 6.0.59
         version: 6.0.59(zod@4.3.6)
@@ -51,25 +70,6 @@ importers:
       tailwindcss:
         specifier: 4.1.18
         version: 4.1.18
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/rpa-sdk:
-    dependencies:
-      react:
-        specifier: '>=19.0.0'
-        version: 19.2.4
-      react-dom:
-        specifier: '>=19.0.0'
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.10
-        version: 19.2.10
-      '@types/react-dom':
-        specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.10)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
