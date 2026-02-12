@@ -12,7 +12,11 @@ node_modules/
 .DS_Store
 *.log
 *.tsbuildinfo
+dist/
+packages/*/dist/
 
 # local references
 llms-furl/
 opensrc/
+.vercel
+.env*.local

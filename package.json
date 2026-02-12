@@ -7,7 +7,12 @@
     "dev": "pnpm --filter demo dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "format": "pnpm exec biome check --write ."
+    "format": "pnpm exec biome check --write .",
+    "snapshot:rpa": "node scripts/create-rpa-snapshot.mjs",
+    "mcp:check": "pnpm --filter @giselles/mcp-smoke run check",
+    "mcp:check:discovery": "pnpm --filter @giselles/mcp-smoke run check:discovery",
+    "mcp:check:sandbox": "pnpm --filter @giselles/mcp-smoke run check:sandbox",
+    "mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",

@@ -383,6 +383,14 @@ function ChatPanel() {
 export default function Page() {
   return (
     <main className="min-h-screen p-6 text-slate-100 sm:p-10">
+      <div className="mb-4">
+        <a
+          href="/gemini-rpa"
+          className="inline-flex rounded-md border border-slate-600 px-3 py-1 text-xs text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
+        >
+          Open Gemini CLI + MCP + SSE demo
+        </a>
+      </div>
       <DemoForm />
       <ChatPanel />
     </main>

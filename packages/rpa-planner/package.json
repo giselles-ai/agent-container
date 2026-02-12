@@ -1,0 +1,29 @@
+{
+  "name": "@giselles/rpa-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "format": "pnpm exec biome check --write ."
+  },
+  "dependencies": {
+    "ai": "6.0.59",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
