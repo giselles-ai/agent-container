@@ -6,7 +6,7 @@ const dispatchSchema = z.object({
   sessionId: z.string().min(1),
   token: z.string().min(1),
   request: bridgeRequestSchema,
-  timeoutMs: z.number().int().positive().max(120_000).optional()
+  timeoutMs: z.number().int().positive().max(55_000).optional()
 });
 
 export const runtime = "nodejs";

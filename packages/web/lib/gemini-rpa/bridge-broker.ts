@@ -1,39 +1,34 @@
 import { randomUUID } from "node:crypto";
-import type { BridgeErrorCode, BridgeRequest, BridgeResponse } from "./bridge-types";
+import Redis from "ioredis";
+import {
+  bridgeResponseSchema,
+  type BridgeErrorCode,
+  type BridgeRequest,
+  type BridgeResponse
+} from "./bridge-types";
 
 const DEFAULT_SESSION_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_REQUEST_TTL_SEC = 60;
 const DEFAULT_DISPATCH_TIMEOUT_MS = 20 * 1000;
-const KEEPALIVE_INTERVAL_MS = 20 * 1000;
+const BROWSER_PRESENCE_TTL_SEC = 90;
+export const BRIDGE_SSE_KEEPALIVE_INTERVAL_MS = 20 * 1000;
 
-const encoder = new TextEncoder();
+const REDIS_URL_ENV_CANDIDATES = [
+  "REDIS_URL",
+  "REDIS_TLS_URL",
+  "KV_URL",
+  "UPSTASH_REDIS_TLS_URL",
+  "UPSTASH_REDIS_URL"
+] as const;
 
-type PendingRequest = {
-  requestType: BridgeRequest["type"];
-  timeoutId: ReturnType<typeof setTimeout>;
-  resolve: (response: BridgeResponse) => void;
-  reject: (error: BridgeBrokerError) => void;
-};
-
-type BrowserStream = {
-  controller: ReadableStreamDefaultController<Uint8Array>;
-  keepaliveId: ReturnType<typeof setInterval>;
-};
-
-type BridgeSession = {
-  sessionId: string;
+type BridgeSessionRecord = {
   token: string;
   expiresAt: number;
-  browserStream: BrowserStream | null;
-  pendingRequests: Map<string, PendingRequest>;
-};
-
-type BridgeState = {
-  sessions: Map<string, BridgeSession>;
 };
 
 declare global {
-  // biome-ignore lint/style/noVar: global singleton state for local in-memory broker
-  var __geminiRpaBridgeState: BridgeState | undefined;
+  // biome-ignore lint/style/noVar: global singleton redis client for node runtime reuse
+  var __geminiRpaBridgeRedis: Redis | undefined;
 }
 
 export class BridgeBrokerError extends Error {
@@ -66,230 +61,141 @@ function createBridgeError(code: BridgeErrorCode, message: string): BridgeBroker
   }
 }
 
-function getBridgeState(): BridgeState {
-  if (!globalThis.__geminiRpaBridgeState) {
-    globalThis.__geminiRpaBridgeState = {
-      sessions: new Map()
-    };
-  }
-
-  return globalThis.__geminiRpaBridgeState;
-}
-
-function sendSseData(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  payload: unknown
-): void {
-  controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-}
-
-function sendSseComment(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  comment: string
-): void {
-  controller.enqueue(encoder.encode(`: ${comment}\n\n`));
-}
-
-function touchSession(session: BridgeSession): void {
-  session.expiresAt = Date.now() + DEFAULT_SESSION_TTL_MS;
-}
-
-function rejectAllPending(session: BridgeSession, error: BridgeBrokerError): void {
-  for (const [requestId, pending] of session.pendingRequests.entries()) {
-    clearTimeout(pending.timeoutId);
-    session.pendingRequests.delete(requestId);
-    pending.reject(error);
-  }
-}
-
-function closeBrowserStream(session: BridgeSession): void {
-  if (!session.browserStream) {
-    return;
-  }
-
-  clearInterval(session.browserStream.keepaliveId);
-
-  try {
-    session.browserStream.controller.close();
-  } catch {
-    // Stream may already be closed.
-  }
-
-  session.browserStream = null;
-}
-
-function cleanupExpiredSessions(): void {
-  const state = getBridgeState();
-  const now = Date.now();
-
-  for (const [sessionId, session] of state.sessions.entries()) {
-    if (session.expiresAt > now) {
-      continue;
+function resolveRedisUrl(): string {
+  for (const name of REDIS_URL_ENV_CANDIDATES) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
     }
-
-    closeBrowserStream(session);
-    rejectAllPending(
-      session,
-      createBridgeError("TIMEOUT", "Bridge session expired before receiving a browser response.")
-    );
-    state.sessions.delete(sessionId);
-  }
-}
-
-function getAuthorizedSession(sessionId: string, token: string): BridgeSession {
-  cleanupExpiredSessions();
-
-  const state = getBridgeState();
-  const session = state.sessions.get(sessionId);
-
-  if (!session || session.token !== token) {
-    throw createBridgeError("UNAUTHORIZED", "Invalid bridge session credentials.");
   }
 
-  touchSession(session);
-  return session;
-}
-
-export function createBridgeSession(): { sessionId: string; token: string; expiresAt: number } {
-  cleanupExpiredSessions();
-
-  const sessionId = randomUUID();
-  const token = `${randomUUID()}-${randomUUID()}`;
-  const expiresAt = Date.now() + DEFAULT_SESSION_TTL_MS;
-
-  getBridgeState().sessions.set(sessionId, {
-    sessionId,
-    token,
-    expiresAt,
-    browserStream: null,
-    pendingRequests: new Map()
-  });
-
-  return {
-    sessionId,
-    token,
-    expiresAt
-  };
-}
-
-export function assertBridgeSession(sessionId: string, token: string): void {
-  getAuthorizedSession(sessionId, token);
-}
-
-export function attachBridgeBrowserStream(
-  sessionId: string,
-  token: string,
-  controller: ReadableStreamDefaultController<Uint8Array>
-): void {
-  const session = getAuthorizedSession(sessionId, token);
-
-  if (session.browserStream) {
-    closeBrowserStream(session);
-    rejectAllPending(
-      session,
-      createBridgeError("NO_BROWSER", "Bridge browser stream was replaced before request completion.")
-    );
-  }
-
-  const keepaliveId = setInterval(() => {
-    try {
-      sendSseComment(controller, "keepalive");
-    } catch {
-      clearInterval(keepaliveId);
-    }
-  }, KEEPALIVE_INTERVAL_MS);
-
-  session.browserStream = {
-    controller,
-    keepaliveId
-  };
-
-  sendSseData(controller, {
-    type: "ready",
-    sessionId: session.sessionId
-  });
-}
-
-export function detachBridgeBrowserStream(
-  sessionId: string,
-  controller?: ReadableStreamDefaultController<Uint8Array>
-): void {
-  cleanupExpiredSessions();
-
-  const session = getBridgeState().sessions.get(sessionId);
-  if (!session || !session.browserStream) {
-    return;
-  }
-
-  if (controller && session.browserStream.controller !== controller) {
-    return;
-  }
-
-  closeBrowserStream(session);
-  rejectAllPending(
-    session,
-    createBridgeError("NO_BROWSER", "Browser disconnected before request completion.")
+  throw createBridgeError(
+    "INTERNAL",
+    `Missing Redis URL. Set one of: ${REDIS_URL_ENV_CANDIDATES.join(", ")}`
   );
 }
 
-export async function dispatchBridgeRequest(input: {
-  sessionId: string;
-  token: string;
-  request: BridgeRequest;
-  timeoutMs?: number;
-}): Promise<BridgeResponse> {
-  const session = getAuthorizedSession(input.sessionId, input.token);
-
-  if (!session.browserStream) {
-    throw createBridgeError("NO_BROWSER", "No browser client is connected to this bridge session.");
-  }
-
-  if (session.pendingRequests.has(input.request.requestId)) {
-    throw createBridgeError(
-      "INVALID_RESPONSE",
-      `Request id is already pending: ${input.request.requestId}`
-    );
-  }
-
-  const timeoutMs = input.timeoutMs ?? DEFAULT_DISPATCH_TIMEOUT_MS;
-
-  return await new Promise<BridgeResponse>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      session.pendingRequests.delete(input.request.requestId);
-      reject(createBridgeError("TIMEOUT", "Timed out waiting for browser bridge response."));
-    }, timeoutMs);
-
-    session.pendingRequests.set(input.request.requestId, {
-      requestType: input.request.type,
-      timeoutId,
-      resolve,
-      reject
+function getRedisClient(): Redis {
+  if (!globalThis.__geminiRpaBridgeRedis) {
+    globalThis.__geminiRpaBridgeRedis = new Redis(resolveRedisUrl(), {
+      maxRetriesPerRequest: 2
     });
+  }
 
-    try {
-      const activeStream = session.browserStream;
-      if (!activeStream) {
-        throw createBridgeError("NO_BROWSER", "No browser client is connected to this bridge session.");
-      }
+  return globalThis.__geminiRpaBridgeRedis;
+}
 
-      sendSseData(activeStream.controller, input.request);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      session.pendingRequests.delete(input.request.requestId);
-
-      if (error instanceof BridgeBrokerError) {
-        reject(error);
-        return;
-      }
-
-      reject(
-        createBridgeError(
-          "NO_BROWSER",
-          "Browser stream is unavailable while dispatching a bridge request."
-        )
-      );
-    }
+export function createBridgeSubscriber(): Redis {
+  return getRedisClient().duplicate({
+    maxRetriesPerRequest: 2
   });
+}
+
+function sessionKey(sessionId: string): string {
+  return `bridge:session:${sessionId}`;
+}
+
+function browserPresenceKey(sessionId: string): string {
+  return `bridge:browser:${sessionId}`;
+}
+
+function requestTypeKey(sessionId: string, requestId: string): string {
+  return `bridge:req:${sessionId}:${requestId}:type`;
+}
+
+function responseKey(sessionId: string, requestId: string): string {
+  return `bridge:resp:${sessionId}:${requestId}`;
+}
+
+export function bridgeRequestChannel(sessionId: string): string {
+  return `bridge:${sessionId}:request`;
+}
+
+function bridgeResponseChannel(sessionId: string, requestId: string): string {
+  return `bridge:${sessionId}:response:${requestId}`;
+}
+
+function sessionExpiryTimestamp(): number {
+  return Date.now() + DEFAULT_SESSION_TTL_MS;
+}
+
+function parseSessionRecord(raw: string): BridgeSessionRecord {
+  let parsed: unknown = null;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw createBridgeError("INTERNAL", "Bridge session payload in Redis is malformed.");
+  }
+
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !("token" in parsed) ||
+    !("expiresAt" in parsed) ||
+    typeof parsed.token !== "string" ||
+    typeof parsed.expiresAt !== "number"
+  ) {
+    throw createBridgeError("INTERNAL", "Bridge session payload in Redis is invalid.");
+  }
+
+  return {
+    token: parsed.token,
+    expiresAt: parsed.expiresAt
+  };
+}
+
+function toRequestType(value: string): BridgeRequest["type"] {
+  if (value === "snapshot_request" || value === "execute_request") {
+    return value;
+  }
+
+  throw createBridgeError("INTERNAL", `Stored request type is invalid: ${value}`);
+}
+
+function parseStoredBridgeResponse(raw: string): BridgeResponse {
+  let decoded: unknown = null;
+
+  try {
+    decoded = JSON.parse(raw);
+  } catch {
+    throw createBridgeError("INVALID_RESPONSE", "Bridge response payload in Redis is malformed.");
+  }
+
+  const parsed = bridgeResponseSchema.safeParse(decoded);
+  if (!parsed.success) {
+    throw createBridgeError("INVALID_RESPONSE", "Bridge response payload in Redis is invalid.");
+  }
+
+  return parsed.data;
+}
+
+async function touchSession(sessionId: string, token: string): Promise<number> {
+  const expiresAt = sessionExpiryTimestamp();
+  const redis = getRedisClient();
+
+  await redis.set(sessionKey(sessionId), JSON.stringify({ token, expiresAt }), "EX", Math.ceil(DEFAULT_SESSION_TTL_MS / 1000));
+  return expiresAt;
+}
+
+async function getAuthorizedSession(sessionId: string, token: string): Promise<BridgeSessionRecord> {
+  const redis = getRedisClient();
+  const raw = await redis.get(sessionKey(sessionId));
+
+  if (!raw) {
+    throw createBridgeError("UNAUTHORIZED", "Invalid bridge session credentials.");
+  }
+
+  const session = parseSessionRecord(raw);
+  if (session.token !== token) {
+    throw createBridgeError("UNAUTHORIZED", "Invalid bridge session credentials.");
+  }
+
+  const expiresAt = await touchSession(sessionId, token);
+  return {
+    token,
+    expiresAt
+  };
 }
 
 function validateResponseType(requestType: BridgeRequest["type"], responseType: BridgeResponse["type"]): void {
@@ -308,39 +214,264 @@ function validateResponseType(requestType: BridgeRequest["type"], responseType: 
   }
 }
 
-export function resolveBridgeResponse(input: {
+async function ensureBrowserConnected(sessionId: string): Promise<void> {
+  const redis = getRedisClient();
+  const isConnected = await redis.exists(browserPresenceKey(sessionId));
+
+  if (isConnected === 0) {
+    throw createBridgeError("NO_BROWSER", "No browser client is connected to this bridge session.");
+  }
+}
+
+async function waitForBridgeResponseSignal(input: {
+  subscriber: Redis;
+  channel: string;
+  timeoutMs: number;
+  trigger: () => Promise<void>;
+}): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    const onMessage = (channel: string) => {
+      if (settled || channel !== input.channel) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      resolve();
+    };
+
+    const onError = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      const message = error instanceof Error ? error.message : "Unknown Redis subscriber error.";
+      reject(createBridgeError("INTERNAL", `Redis subscriber failed while waiting for response. ${message}`));
+    };
+
+    const onTimeout = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      reject(createBridgeError("TIMEOUT", "Timed out waiting for browser bridge response."));
+    };
+
+    const timeoutId = setTimeout(onTimeout, input.timeoutMs);
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      input.subscriber.off("message", onMessage);
+      input.subscriber.off("error", onError);
+    };
+
+    input.subscriber.on("message", onMessage);
+    input.subscriber.on("error", onError);
+
+    void input.trigger().catch((error: unknown) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+
+      if (error instanceof BridgeBrokerError) {
+        reject(error);
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : "Unknown Redis publish error.";
+      reject(createBridgeError("INTERNAL", `Failed to publish bridge request. ${message}`));
+    });
+  });
+}
+
+async function storeBridgeResponse(input: {
+  sessionId: string;
+  requestId: string;
+  response: BridgeResponse;
+}): Promise<void> {
+  const redis = getRedisClient();
+
+  await redis
+    .multi()
+    .set(
+      responseKey(input.sessionId, input.requestId),
+      JSON.stringify(input.response),
+      "EX",
+      DEFAULT_REQUEST_TTL_SEC
+    )
+    .del(requestTypeKey(input.sessionId, input.requestId))
+    .publish(bridgeResponseChannel(input.sessionId, input.requestId), input.requestId)
+    .exec();
+}
+
+export async function createBridgeSession(): Promise<{
+  sessionId: string;
+  token: string;
+  expiresAt: number;
+}> {
+  const sessionId = randomUUID();
+  const token = `${randomUUID()}-${randomUUID()}`;
+  const expiresAt = sessionExpiryTimestamp();
+  const redis = getRedisClient();
+
+  await redis.set(
+    sessionKey(sessionId),
+    JSON.stringify({
+      token,
+      expiresAt
+    }),
+    "EX",
+    Math.ceil(DEFAULT_SESSION_TTL_MS / 1000)
+  );
+
+  return {
+    sessionId,
+    token,
+    expiresAt
+  };
+}
+
+export async function assertBridgeSession(sessionId: string, token: string): Promise<void> {
+  await getAuthorizedSession(sessionId, token);
+}
+
+export async function markBridgeBrowserConnected(sessionId: string, token: string): Promise<void> {
+  await getAuthorizedSession(sessionId, token);
+
+  const redis = getRedisClient();
+  await redis.set(browserPresenceKey(sessionId), "1", "EX", BROWSER_PRESENCE_TTL_SEC);
+}
+
+export async function touchBridgeBrowserConnected(sessionId: string): Promise<void> {
+  const redis = getRedisClient();
+  await redis.set(browserPresenceKey(sessionId), "1", "EX", BROWSER_PRESENCE_TTL_SEC);
+}
+
+export async function dispatchBridgeRequest(input: {
+  sessionId: string;
+  token: string;
+  request: BridgeRequest;
+  timeoutMs?: number;
+}): Promise<BridgeResponse> {
+  await getAuthorizedSession(input.sessionId, input.token);
+  await ensureBrowserConnected(input.sessionId);
+
+  const redis = getRedisClient();
+  const timeoutMs = input.timeoutMs ?? DEFAULT_DISPATCH_TIMEOUT_MS;
+  const requestId = input.request.requestId;
+  const requestTypeStateKey = requestTypeKey(input.sessionId, requestId);
+  const storedResponseKey = responseKey(input.sessionId, requestId);
+  const responseEventChannel = bridgeResponseChannel(input.sessionId, requestId);
+  const subscriber = createBridgeSubscriber();
+
+  const setPending = await redis.set(
+    requestTypeStateKey,
+    input.request.type,
+    "EX",
+    DEFAULT_REQUEST_TTL_SEC,
+    "NX"
+  );
+
+  if (setPending !== "OK") {
+    throw createBridgeError("INVALID_RESPONSE", `Request id is already pending: ${requestId}`);
+  }
+
+  try {
+    await redis.del(storedResponseKey);
+    await subscriber.subscribe(responseEventChannel);
+
+    await waitForBridgeResponseSignal({
+      subscriber,
+      channel: responseEventChannel,
+      timeoutMs,
+      trigger: async () => {
+        await redis.publish(bridgeRequestChannel(input.sessionId), JSON.stringify(input.request));
+      }
+    });
+
+    const storedResponse = await redis.get(storedResponseKey);
+    if (!storedResponse) {
+      throw createBridgeError("TIMEOUT", "Bridge response notification was received without payload.");
+    }
+
+    const parsedResponse = parseStoredBridgeResponse(storedResponse);
+
+    if (parsedResponse.type === "error_response") {
+      throw createBridgeError("INVALID_RESPONSE", parsedResponse.message);
+    }
+
+    validateResponseType(input.request.type, parsedResponse.type);
+    return parsedResponse;
+  } finally {
+    await Promise.allSettled([redis.del(requestTypeStateKey), redis.del(storedResponseKey)]);
+    await subscriber.unsubscribe(responseEventChannel).catch(() => undefined);
+    await subscriber.quit().catch(() => {
+      subscriber.disconnect();
+    });
+  }
+}
+
+export async function resolveBridgeResponse(input: {
   sessionId: string;
   token: string;
   response: BridgeResponse;
-}): void {
-  const session = getAuthorizedSession(input.sessionId, input.token);
+}): Promise<void> {
+  await getAuthorizedSession(input.sessionId, input.token);
 
-  const pending = session.pendingRequests.get(input.response.requestId);
-  if (!pending) {
-    throw createBridgeError("NOT_FOUND", `Pending request was not found: ${input.response.requestId}`);
+  const redis = getRedisClient();
+  const requestId = input.response.requestId;
+  const requestTypeStateKey = requestTypeKey(input.sessionId, requestId);
+  const expectedRequestTypeRaw = await redis.get(requestTypeStateKey);
+
+  if (!expectedRequestTypeRaw) {
+    throw createBridgeError("NOT_FOUND", `Pending request was not found: ${requestId}`);
   }
 
-  session.pendingRequests.delete(input.response.requestId);
-  clearTimeout(pending.timeoutId);
+  const expectedRequestType = toRequestType(expectedRequestTypeRaw);
 
   if (input.response.type === "error_response") {
-    pending.reject(createBridgeError("INVALID_RESPONSE", input.response.message));
+    await storeBridgeResponse({
+      sessionId: input.sessionId,
+      requestId,
+      response: input.response
+    });
     return;
   }
 
   try {
-    validateResponseType(pending.requestType, input.response.type);
-    pending.resolve(input.response);
+    validateResponseType(expectedRequestType, input.response.type);
   } catch (error) {
-    if (error instanceof BridgeBrokerError) {
-      pending.reject(error);
-      throw error;
-    }
+    const bridgeError =
+      error instanceof BridgeBrokerError
+        ? error
+        : createBridgeError("INVALID_RESPONSE", "Unexpected bridge response type.");
 
-    const bridgeError = createBridgeError("INVALID_RESPONSE", "Unexpected bridge response type.");
-    pending.reject(bridgeError);
+    await storeBridgeResponse({
+      sessionId: input.sessionId,
+      requestId,
+      response: {
+        type: "error_response",
+        requestId,
+        message: bridgeError.message
+      }
+    });
     throw bridgeError;
   }
+
+  await storeBridgeResponse({
+    sessionId: input.sessionId,
+    requestId,
+    response: input.response
+  });
 }
 
 export function toBridgeError(error: unknown): BridgeBrokerError {

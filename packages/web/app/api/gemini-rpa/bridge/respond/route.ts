@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    resolveBridgeResponse(parsed.data);
+    await resolveBridgeResponse(parsed.data);
     return Response.json({ ok: true });
   } catch (error) {
     const bridgeError = toBridgeError(error);

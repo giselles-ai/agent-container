@@ -3,7 +3,7 @@ import { createBridgeSession } from "@/lib/gemini-rpa/bridge-broker";
 export const runtime = "nodejs";
 
 export async function POST() {
-  const session = createBridgeSession();
+  const session = await createBridgeSession();
 
   return Response.json({
     sessionId: session.sessionId,

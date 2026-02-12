@@ -1,11 +1,15 @@
 import {
+  BRIDGE_SSE_KEEPALIVE_INTERVAL_MS,
   assertBridgeSession,
-  attachBridgeBrowserStream,
-  detachBridgeBrowserStream,
+  bridgeRequestChannel,
+  createBridgeSubscriber,
+  markBridgeBrowserConnected,
+  touchBridgeBrowserConnected,
   toBridgeError
 } from "@/lib/gemini-rpa/bridge-broker";
 
 export const runtime = "nodejs";
+const encoder = new TextEncoder();
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -23,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    assertBridgeSession(sessionId, token);
+    await assertBridgeSession(sessionId, token);
   } catch (error) {
     const bridgeError = toBridgeError(error);
     return Response.json(
@@ -35,30 +39,125 @@ export async function GET(request: Request) {
     );
   }
 
-  let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  const requestChannel = bridgeRequestChannel(sessionId);
+  let cleanup: (() => Promise<void>) | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      streamController = controller;
+      const subscriber = createBridgeSubscriber();
+      let keepaliveId: ReturnType<typeof setInterval> | null = null;
+      let closed = false;
+      let nextEventId = 0;
 
-      try {
-        attachBridgeBrowserStream(sessionId, token, controller);
-      } catch (error) {
-        controller.error(error);
-        return;
-      }
+      const sendSseData = (payload: unknown): void => {
+        nextEventId += 1;
+        controller.enqueue(
+          encoder.encode(`id: ${nextEventId}\ndata: ${JSON.stringify(payload)}\n\n`)
+        );
+      };
 
-      request.signal.addEventListener("abort", () => {
-        detachBridgeBrowserStream(sessionId, controller);
+      const sendSseRawJson = (rawJson: string): void => {
+        nextEventId += 1;
+        controller.enqueue(encoder.encode(`id: ${nextEventId}\ndata: ${rawJson}\n\n`));
+      };
+
+      const sendSseComment = (comment: string): void => {
+        controller.enqueue(encoder.encode(`: ${comment}\n\n`));
+      };
+
+      const closeController = () => {
         try {
           controller.close();
         } catch {
           // Stream may already be closed.
         }
+      };
+
+      const onAbort = () => {
+        void cleanup?.();
+        closeController();
+      };
+
+      cleanup = async () => {
+        if (closed) {
+          return;
+        }
+
+        closed = true;
+        request.signal.removeEventListener("abort", onAbort);
+
+        if (keepaliveId) {
+          clearInterval(keepaliveId);
+        }
+
+        await subscriber.unsubscribe(requestChannel).catch(() => undefined);
+        await subscriber.quit().catch(() => {
+          subscriber.disconnect();
+        });
+      };
+
+      request.signal.addEventListener("abort", onAbort);
+
+      subscriber.on("message", (channel, message) => {
+        if (closed || channel !== requestChannel) {
+          return;
+        }
+
+        try {
+          JSON.parse(message);
+        } catch {
+          return;
+        }
+
+        try {
+          sendSseRawJson(message);
+        } catch {
+          void cleanup?.();
+          closeController();
+        }
       });
+
+      subscriber.on("error", (error) => {
+        if (closed) {
+          return;
+        }
+
+        controller.error(error);
+        void cleanup?.();
+      });
+
+      void (async () => {
+        try {
+          await subscriber.subscribe(requestChannel);
+          await markBridgeBrowserConnected(sessionId, token);
+
+          sendSseData({
+            type: "ready",
+            sessionId
+          });
+
+          keepaliveId = setInterval(() => {
+            void touchBridgeBrowserConnected(sessionId).catch(() => undefined);
+
+            try {
+              sendSseComment("keepalive");
+            } catch {
+              void cleanup?.();
+              closeController();
+            }
+          }, BRIDGE_SSE_KEEPALIVE_INTERVAL_MS);
+        } catch (error) {
+          if (closed) {
+            return;
+          }
+
+          controller.error(error);
+          await cleanup?.();
+        }
+      })();
     },
     cancel() {
-      detachBridgeBrowserStream(sessionId, streamController ?? undefined);
+      void cleanup?.();
     }
   });
 
