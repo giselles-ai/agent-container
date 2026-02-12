@@ -1,132 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { z } from "zod";
-
-export type ExecutionReport = {
-  applied: number;
-  skipped: number;
-  warnings: string[];
-};
-
-type FieldKind = "text" | "textarea" | "select" | "checkbox" | "radio";
-
-export type SnapshotField = {
-  fieldId: string;
-  selector: string;
-  kind: FieldKind;
-  label: string;
-  name?: string;
-  required: boolean;
-  placeholder?: string;
-  currentValue: string | boolean;
-  options?: string[];
-};
-
-type FillAction = {
-  action: "fill";
-  fieldId: string;
-  value: string;
-};
-
-type ClickAction = {
-  action: "click";
-  fieldId: string;
-};
-
-type SelectAction = {
-  action: "select";
-  fieldId: string;
-  value: string;
-};
-
-export type RpaAction = FillAction | ClickAction | SelectAction;
-
-const snapshotFieldSchema = z.object({
-  fieldId: z.string().min(1),
-  selector: z.string().min(1),
-  kind: z.enum(["text", "textarea", "select", "checkbox", "radio"]),
-  label: z.string().min(1),
-  name: z.string().optional(),
-  required: z.boolean(),
-  placeholder: z.string().optional(),
-  currentValue: z.union([z.string(), z.boolean()]),
-  options: z.array(z.string()).optional()
-});
-
-const fillActionSchema = z.object({
-  action: z.literal("fill"),
-  fieldId: z.string().min(1),
-  value: z.string()
-});
-
-const clickActionSchema = z.object({
-  action: z.literal("click"),
-  fieldId: z.string().min(1)
-});
-
-const selectActionSchema = z.object({
-  action: z.literal("select"),
-  fieldId: z.string().min(1),
-  value: z.string()
-});
-
-const rpaActionSchema = z.discriminatedUnion("action", [
-  fillActionSchema,
-  clickActionSchema,
-  selectActionSchema
-]);
-
-const executionReportSchema = z.object({
-  applied: z.number().int().nonnegative(),
-  skipped: z.number().int().nonnegative(),
-  warnings: z.array(z.string())
-});
-
-const bridgeRequestSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("snapshot_request"),
-    requestId: z.string().min(1),
-    instruction: z.string().min(1),
-    document: z.string().optional()
-  }),
-  z.object({
-    type: z.literal("execute_request"),
-    requestId: z.string().min(1),
-    actions: z.array(rpaActionSchema),
-    fields: z.array(snapshotFieldSchema)
-  })
-]);
-
-const bridgeResponseSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("snapshot_response"),
-    requestId: z.string().min(1),
-    fields: z.array(snapshotFieldSchema)
-  }),
-  z.object({
-    type: z.literal("execute_response"),
-    requestId: z.string().min(1),
-    report: executionReportSchema
-  }),
-  z.object({
-    type: z.literal("error_response"),
-    requestId: z.string().min(1),
-    message: z.string().min(1)
-  })
-]);
-
-const dispatchSuccessSchema = z.object({
-  ok: z.literal(true),
-  response: bridgeResponseSchema
-});
-
-const dispatchErrorSchema = z.object({
-  ok: z.literal(false),
-  errorCode: z.string(),
-  message: z.string()
-});
-
-type BridgeRequest = z.infer<typeof bridgeRequestSchema>;
-type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
+import {
+  dispatchErrorSchema,
+  dispatchSuccessSchema,
+  type BridgeRequest,
+  type BridgeResponse,
+  bridgeRequestSchema,
+  bridgeResponseSchema,
+  type ExecutionReport,
+  type RpaAction,
+  type SnapshotField
+} from "@giselles/rpa-sdk";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -249,7 +132,8 @@ export class BridgeClient {
       throw new Error(`Bridge dispatch failed with HTTP ${response.status}.`);
     }
 
-    return success.data.response;
+    const parsedResponse = bridgeResponseSchema.parse(success.data.response);
+    return parsedResponse;
   }
 }
 

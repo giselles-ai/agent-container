@@ -15,6 +15,7 @@
     "check:sandbox:discovery": "pnpm run build && node dist/index.js --target sandbox --mode discovery"
   },
   "dependencies": {
+    "@giselles/rpa-sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@vercel/sandbox": "^1.5.0"
   },

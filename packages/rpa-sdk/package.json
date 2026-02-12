@@ -19,6 +19,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "pnpm exec biome check --write ."
   },
+  "dependencies": {
+    "zod": "4.3.6"
+  },
   "peerDependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"

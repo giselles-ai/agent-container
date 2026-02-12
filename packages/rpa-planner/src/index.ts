@@ -1,64 +1,20 @@
 import { Output, generateText } from "ai";
 import { z } from "zod";
+import {
+  type ClickAction,
+  type FieldKind,
+  type FillAction,
+  type PlanActionsInput,
+  type PlanResult,
+  type SelectAction,
+  type RpaAction,
+  type SnapshotField,
+  fieldKindSchema,
+  planActionsInputSchema,
+  snapshotFieldSchema
+} from "@giselles/rpa-sdk";
 
-export type FieldKind = "text" | "textarea" | "select" | "checkbox" | "radio";
-
-export type SnapshotField = {
-  fieldId: string;
-  selector: string;
-  kind: FieldKind;
-  label: string;
-  name?: string;
-  required: boolean;
-  placeholder?: string;
-  currentValue: string | boolean;
-  options?: string[];
-};
-
-export type FillAction = {
-  action: "fill";
-  fieldId: string;
-  value: string;
-};
-
-export type ClickAction = {
-  action: "click";
-  fieldId: string;
-};
-
-export type SelectAction = {
-  action: "select";
-  fieldId: string;
-  value: string;
-};
-
-export type RpaAction = FillAction | ClickAction | SelectAction;
-
-export const fieldKindSchema = z.enum([
-  "text",
-  "textarea",
-  "select",
-  "checkbox",
-  "radio"
-]);
-
-export const snapshotFieldSchema = z.object({
-  fieldId: z.string().min(1),
-  selector: z.string().min(1),
-  kind: fieldKindSchema,
-  label: z.string().min(1),
-  name: z.string().optional(),
-  required: z.boolean(),
-  placeholder: z.string().optional(),
-  currentValue: z.union([z.string(), z.boolean()]),
-  options: z.array(z.string()).optional()
-});
-
-export const planActionsInputSchema = z.object({
-  instruction: z.string().min(1),
-  document: z.string().optional(),
-  fields: z.array(snapshotFieldSchema).min(1)
-});
+export { fieldKindSchema, planActionsInputSchema, snapshotFieldSchema };
 
 const actionSchema = z.object({
   action: z.enum(["fill", "click", "select"]),
@@ -82,15 +38,20 @@ Do not invent fields.
 If instruction is ambiguous, skip uncertain actions and put notes in warnings.
 `.trim();
 
-export type PlanActionsInput = {
-  instruction: string;
-  document?: string;
-  fields: SnapshotField[];
-};
-
 export type PlanActionsResult = {
   actions: RpaAction[];
   warnings: string[];
+};
+
+export {
+  type ClickAction,
+  type FillAction,
+  type FieldKind,
+  type PlanActionsInput,
+  type PlanResult,
+  type RpaAction,
+  type SelectAction,
+  type SnapshotField
 };
 
 export async function planActions(input: PlanActionsInput): Promise<PlanActionsResult> {

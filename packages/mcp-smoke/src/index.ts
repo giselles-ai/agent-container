@@ -7,37 +7,11 @@ import { fileURLToPath } from "node:url";
 import { Sandbox } from "@vercel/sandbox";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-
-type SnapshotField = {
-  fieldId: string;
-  selector: string;
-  kind: "text" | "textarea" | "select" | "checkbox" | "radio";
-  label: string;
-  required: boolean;
-  currentValue: string | boolean;
-  options?: string[];
-};
-
-type RpaAction =
-  | { action: "fill"; fieldId: string; value: string }
-  | { action: "click"; fieldId: string }
-  | { action: "select"; fieldId: string; value: string };
-
-type SnapshotRequest = {
-  type: "snapshot_request";
-  requestId: string;
-  instruction: string;
-  document?: string;
-};
-
-type ExecuteRequest = {
-  type: "execute_request";
-  requestId: string;
-  actions: RpaAction[];
-  fields: SnapshotField[];
-};
-
-type BridgeRequest = SnapshotRequest | ExecuteRequest;
+import {
+  type BridgeRequest,
+  type RpaAction,
+  type SnapshotField
+} from "@giselles/rpa-sdk";
 
 type BridgeDispatchBody = {
   sessionId: string;

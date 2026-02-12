@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { BridgeClient, RpaAction, SnapshotField } from "../bridge-client.js";
+import type { RpaAction, SnapshotField } from "@giselles/rpa-sdk";
+import type { BridgeClient } from "../bridge-client.js";
 
 export const fillFormInputShape = {
   instruction: z.string().min(1),
