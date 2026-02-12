@@ -357,6 +357,12 @@ export async function POST(request: Request) {
 					type: "stderr",
 					content: `[info] MCP server path: ${mcpServerDistPath}`,
 				});
+				enqueueEvent({
+					type: "stderr",
+					content: `[info] VERCEL_PROTECTION_BYPASS=${
+						vercelProtectionBypass || "(unset)"
+					}`,
+				});
 
 				await sandbox.writeFiles([
 					{
