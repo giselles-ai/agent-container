@@ -147,17 +147,20 @@ export class BridgeClient {
   private readonly sessionId: string;
   private readonly token: string;
   private readonly timeoutMs: number;
+  private readonly protectionBypass: string | null;
 
   constructor(input: {
     baseUrl: string;
     sessionId: string;
     token: string;
     timeoutMs?: number;
+    protectionBypass?: string;
   }) {
     this.baseUrl = trimTrailingSlash(input.baseUrl);
     this.sessionId = input.sessionId;
     this.token = input.token;
     this.timeoutMs = input.timeoutMs ?? 20_000;
+    this.protectionBypass = input.protectionBypass?.trim() || null;
   }
 
   async requestSnapshot(input: {
@@ -201,11 +204,16 @@ export class BridgeClient {
     let response: Response;
 
     try {
+      const headers: Record<string, string> = {
+        "content-type": "application/json"
+      };
+      if (this.protectionBypass) {
+        headers["x-vercel-protection-bypass"] = this.protectionBypass;
+      }
+
       response = await fetch(`${this.baseUrl}/api/gemini-rpa/bridge/dispatch`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
+        headers,
         body: JSON.stringify({
           sessionId: this.sessionId,
           token: this.token,
@@ -249,6 +257,7 @@ export function createBridgeClientFromEnv(): BridgeClient {
   return new BridgeClient({
     baseUrl: requiredEnv("RPA_BRIDGE_BASE_URL"),
     sessionId: requiredEnv("RPA_BRIDGE_SESSION_ID"),
-    token: requiredEnv("RPA_BRIDGE_TOKEN")
+    token: requiredEnv("RPA_BRIDGE_TOKEN"),
+    protectionBypass: process.env.VERCEL_PROTECTION_BYPASS
   });
 }

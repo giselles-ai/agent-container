@@ -201,9 +201,21 @@ function buildGeminiSettings(input: {
 	bridgeSessionId: string;
 	bridgeToken: string;
 	openAiApiKey: string;
+	vercelProtectionBypass?: string;
 	mcpServerDistPath: string;
 	mcpServerCwd: string;
 }) {
+	const mcpEnv: Record<string, string> = {
+		RPA_BRIDGE_BASE_URL: input.bridgeBaseUrl,
+		RPA_BRIDGE_SESSION_ID: input.bridgeSessionId,
+		RPA_BRIDGE_TOKEN: input.bridgeToken,
+		OPENAI_API_KEY: input.openAiApiKey,
+	};
+
+	if (input.vercelProtectionBypass?.trim()) {
+		mcpEnv.VERCEL_PROTECTION_BYPASS = input.vercelProtectionBypass.trim();
+	}
+
 	return {
 		security: {
 			auth: {
@@ -215,12 +227,7 @@ function buildGeminiSettings(input: {
 				command: "node",
 				args: [input.mcpServerDistPath],
 				cwd: input.mcpServerCwd,
-				env: {
-					RPA_BRIDGE_BASE_URL: input.bridgeBaseUrl,
-					RPA_BRIDGE_SESSION_ID: input.bridgeSessionId,
-					RPA_BRIDGE_TOKEN: input.bridgeToken,
-					OPENAI_API_KEY: input.openAiApiKey,
-				},
+				env: mcpEnv,
 			},
 		},
 	};
@@ -314,6 +321,8 @@ export async function POST(request: Request) {
 				const openAiApiKey = requiredEnv("OPENAI_API_KEY");
 				const sandboxSnapshotId = requiredEnv("RPA_SANDBOX_SNAPSHOT_ID");
 				const aiGatewayApiKey = requiredEnv("AI_GATEWAY_API_KEY");
+				const vercelProtectionBypass =
+					process.env.VERCEL_PROTECTION_BYPASS?.trim() || undefined;
 
 				const bridgeBaseUrl =
 					process.env.RPA_BRIDGE_BASE_URL?.trim() ||
@@ -359,6 +368,7 @@ export async function POST(request: Request) {
 									bridgeSessionId,
 									bridgeToken,
 									openAiApiKey,
+									vercelProtectionBypass,
 									mcpServerDistPath,
 									mcpServerCwd,
 								}),

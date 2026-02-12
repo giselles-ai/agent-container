@@ -46,6 +46,9 @@ RPA_SANDBOX_REPO_ROOT=/vercel/sandbox
 RPA_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/mcp-server/dist/index.js
 RPA_MCP_SERVER_CWD=/vercel/sandbox
 RPA_SKIP_SANDBOX_BUILD=1
+# Optional: pass through to sandbox MCP and send
+# x-vercel-protection-bypass on bridge dispatch requests.
+VERCEL_PROTECTION_BYPASS=...
 ```
 
 ## Create Sandbox Snapshot
