@@ -254,10 +254,15 @@ export class BridgeClient {
 }
 
 export function createBridgeClientFromEnv(): BridgeClient {
+  const protectionBypass = process.env.VERCEL_PROTECTION_BYPASS;
+  console.error(
+    `[bridge-client] VERCEL_PROTECTION_BYPASS=${protectionBypass?.trim() || "(unset)"}`
+  );
+
   return new BridgeClient({
     baseUrl: requiredEnv("RPA_BRIDGE_BASE_URL"),
     sessionId: requiredEnv("RPA_BRIDGE_SESSION_ID"),
     token: requiredEnv("RPA_BRIDGE_TOKEN"),
-    protectionBypass: process.env.VERCEL_PROTECTION_BYPASS
+    protectionBypass
   });
 }
