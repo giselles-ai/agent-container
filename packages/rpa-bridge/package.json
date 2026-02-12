@@ -12,6 +12,10 @@
     "./react": {
       "types": "./src/react/index.ts",
       "default": "./src/react/index.ts"
+    },
+    "./next": {
+      "types": "./src/next/index.ts",
+      "default": "./src/next/index.ts"
     }
   },
   "scripts": {
@@ -21,8 +25,11 @@
   },
   "dependencies": {
     "@giselles/rpa-sdk": "workspace:*",
+    "@vercel/sandbox": "^1.0.0",
+    "ioredis": "^5.9.2",
     "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "react-dom": ">=19.0.0",
+    "zod": "4.3.6"
   },
   "peerDependencies": {
     "react": ">=19.0.0",
@@ -31,6 +38,7 @@
   "devDependencies": {
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
+    "@types/node": "25.0.10",
     "typescript": "5.9.3"
   }
 }

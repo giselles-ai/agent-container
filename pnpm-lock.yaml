@@ -20,6 +20,9 @@ importers:
       '@giselles/rpa-planner':
         specifier: workspace:*
         version: link:../rpa-planner
+      '@giselles/rpa-sdk':
+        specifier: workspace:*
+        version: link:../rpa-sdk
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.26.0(zod@4.3.6)
@@ -36,6 +39,9 @@ importers:
 
   packages/mcp-smoke:
     dependencies:
+      '@giselles/rpa-sdk':
+        specifier: workspace:*
+        version: link:../rpa-sdk
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.26.0(zod@4.3.6)
@@ -50,8 +56,45 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  packages/rpa-bridge:
+    dependencies:
+      '@giselles/rpa-sdk':
+        specifier: workspace:*
+        version: link:../rpa-sdk
+      '@vercel/sandbox':
+        specifier: ^1.0.0
+        version: 1.5.0
+      ioredis:
+        specifier: ^5.9.2
+        version: 5.9.2
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.0.10
+        version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/rpa-planner:
     dependencies:
+      '@giselles/rpa-sdk':
+        specifier: workspace:*
+        version: link:../rpa-sdk
       ai:
         specifier: 6.0.59
         version: 6.0.59(zod@4.3.6)
@@ -71,6 +114,9 @@ importers:
       react-dom:
         specifier: '>=19.0.0'
         version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
     devDependencies:
       '@types/react':
         specifier: 19.2.10
@@ -87,6 +133,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.70
         version: 3.0.70(react@19.2.4)(zod@4.3.6)
+      '@giselles/rpa-bridge':
+        specifier: workspace:*
+        version: link:../rpa-bridge
       '@giselles/rpa-planner':
         specifier: workspace:*
         version: link:../rpa-planner

@@ -524,9 +524,16 @@ export function useBridge({ endpoint }: UseBridgeOptions): BridgeHookState {
     async ({ message, document }: { message: string; document?: string }) => {
       const trimmedMessage = message.trim();
       const currentSession = sessionRef.current;
+      const currentBridgeBase = bridgeBaseRef.current;
 
       if (!currentSession) {
         const nextError = "Bridge session is not initialized yet.";
+        setError(nextError);
+        throw new Error(nextError);
+      }
+
+      if (!currentBridgeBase) {
+        const nextError = "Bridge base endpoint is not initialized yet.";
         setError(nextError);
         throw new Error(nextError);
       }
@@ -547,7 +554,7 @@ export function useBridge({ endpoint }: UseBridgeOptions): BridgeHookState {
       messagesAssistantId.current = null;
       setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: trimmedMessage }]);
 
-      const response = await fetch(`${normalizedEndpoint}/chat`, {
+      const response = await fetch(`${currentBridgeBase}/chat`, {
         method: "POST",
         headers: {
           "content-type": "application/json"
@@ -605,7 +612,7 @@ export function useBridge({ endpoint }: UseBridgeOptions): BridgeHookState {
         setChatStatus("ready");
       }
     },
-    [chatStatus, handleStreamEvent, sandboxId, status, normalizedEndpoint]
+    [chatStatus, handleStreamEvent, sandboxId, status]
   );
 
   return {
