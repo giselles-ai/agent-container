@@ -1,0 +1,18 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"outputs": [".next/**/*", "!.next/cache/**/*", "!.next/dev/**/*"],
+			"env": [
+				"TURSO_*",
+				"GEMINI_API_KEY",
+				"REDIS_URL",
+				"RPA_*",
+				"VERCEL_*",
+				"GISELLE_*"
+			],
+			"inputs": ["$TURBO_DEFAULT$", ".env.*"]
+		}
+	}
+}

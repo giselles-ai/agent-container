@@ -1,21 +1,22 @@
 {
-  "name": "agent-container",
-  "version": "0.1.0",
-  "private": true,
-  "packageManager": "pnpm@10.17.0",
-  "scripts": {
-    "dev": "pnpm --filter demo dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "format": "pnpm exec biome check --write .",
-    "snapshot:rpa": "node scripts/create-rpa-snapshot.mjs",
-    "mcp:check": "pnpm --filter @giselles/mcp-smoke run check",
-    "mcp:check:discovery": "pnpm --filter @giselles/mcp-smoke run check:discovery",
-    "mcp:check:sandbox": "pnpm --filter @giselles/mcp-smoke run check:sandbox",
-    "mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.13",
-    "typescript": "5.9.3"
-  }
+	"name": "agent-container",
+	"version": "0.1.0",
+	"private": true,
+	"packageManager": "pnpm@10.17.0",
+	"scripts": {
+		"dev": "pnpm --filter demo dev",
+		"build": "turbo build",
+		"typecheck": "pnpm -r typecheck",
+		"format": "pnpm exec biome check --write .",
+		"snapshot:rpa": "node scripts/create-rpa-snapshot.mjs",
+		"mcp:check": "pnpm --filter @giselles/mcp-smoke run check",
+		"mcp:check:discovery": "pnpm --filter @giselles/mcp-smoke run check:discovery",
+		"mcp:check:sandbox": "pnpm --filter @giselles/mcp-smoke run check:sandbox",
+		"mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.13",
+		"turbo": "2.8.7",
+		"typescript": "5.9.3"
+	}
 }

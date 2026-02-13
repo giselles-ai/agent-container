@@ -20,3 +20,5 @@ llms-furl/
 opensrc/
 .vercel
 .env*.local
+
+.turbo
