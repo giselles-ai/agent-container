@@ -20,6 +20,12 @@ const REDIS_URL_ENV_CANDIDATES = [
   "UPSTASH_REDIS_TLS_URL",
   "UPSTASH_REDIS_URL"
 ] as const;
+const BRIDGE_SUBSCRIBER_REDIS_OPTIONS = {
+  enableReadyCheck: false,
+  autoResubscribe: false,
+  autoResendUnfulfilledCommands: false,
+  maxRetriesPerRequest: 2
+} as const;
 
 type BridgeSessionRecord = {
   token: string;
@@ -86,9 +92,7 @@ function getRedisClient(): Redis {
 }
 
 export function createBridgeSubscriber(): Redis {
-  return getRedisClient().duplicate({
-    maxRetriesPerRequest: 2
-  });
+  return getRedisClient().duplicate(BRIDGE_SUBSCRIBER_REDIS_OPTIONS);
 }
 
 function sessionKey(sessionId: string): string {

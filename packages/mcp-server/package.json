@@ -7,7 +7,7 @@
     "giselles-mcp-server": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup src/index.ts --dts --format esm --out-dir dist --clean",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "pnpm exec biome check --write ."
   },
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "25.0.10",
+    "tsup": "8.5.1",
     "typescript": "5.9.3"
   }
 }
