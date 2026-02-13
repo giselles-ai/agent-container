@@ -12,10 +12,13 @@
 		"mcp:check": "pnpm --filter @giselles/mcp-smoke run check",
 		"mcp:check:discovery": "pnpm --filter @giselles/mcp-smoke run check:discovery",
 		"mcp:check:sandbox": "pnpm --filter @giselles/mcp-smoke run check:sandbox",
-		"mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery"
+		"mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery",
+		"knip": "knip"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.13",
+		"@types/node": "^25.2.3",
+		"knip": "^5.83.1",
 		"turbo": "2.8.7",
 		"typescript": "5.9.3"
 	}
