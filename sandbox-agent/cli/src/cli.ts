@@ -45,12 +45,12 @@ function fsSyncExists(p: string): boolean {
 
 function printUsage() {
 	const usage = `Usage:
-  @giselles-ai/agent create
-  @giselles-ai/agent add-skill <path>
-  @giselles-ai/agent add-hosted-skill <slug>
-  @giselles-ai/agent edit-setup-script
-  @giselles-ai/agent build
-  @giselles-ai/agent delete [slug] [--force]
+  giselle create
+  giselle add-skill <path>
+  giselle add-hosted-skill <slug>
+  giselle edit-setup-script
+  giselle build
+  giselle delete [slug] [--force]
 `;
 	process.stderr.write(usage);
 }
@@ -498,7 +498,7 @@ async function runAddHostedSkill(argSlug: string | undefined) {
 	const response = await fetch(url, {
 		method: "GET",
 		headers: {
-			"x-vercel-protection-bypass": apiKey,
+			"x-giselle-protection-bypass": apiKey,
 		},
 	});
 	if (response.status === 404) {
