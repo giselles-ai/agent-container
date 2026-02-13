@@ -30,20 +30,23 @@ export class BridgeClient {
   private readonly sessionId: string;
   private readonly token: string;
   private readonly timeoutMs: number;
-  private readonly protectionBypass: string | null;
+  private readonly vercelProtectionBypass: string | null;
+  private readonly giselleProtectionBypass: string | null;
 
   constructor(input: {
     baseUrl: string;
     sessionId: string;
     token: string;
     timeoutMs?: number;
-    protectionBypass?: string;
+    vercelProtectionBypass?: string;
+    giselleProtectionBypass?: string;
   }) {
     this.baseUrl = trimTrailingSlash(input.baseUrl);
     this.sessionId = input.sessionId;
     this.token = input.token;
     this.timeoutMs = input.timeoutMs ?? 20_000;
-    this.protectionBypass = input.protectionBypass?.trim() || null;
+    this.vercelProtectionBypass = input.vercelProtectionBypass?.trim() || null;
+    this.giselleProtectionBypass = input.giselleProtectionBypass?.trim() || null;
   }
 
   async requestSnapshot(input: {
@@ -90,8 +93,11 @@ export class BridgeClient {
       const headers: Record<string, string> = {
         "content-type": "application/json"
       };
-      if (this.protectionBypass) {
-        headers["x-vercel-protection-bypass"] = this.protectionBypass;
+      if (this.vercelProtectionBypass) {
+        headers["x-vercel-protection-bypass"] = this.vercelProtectionBypass;
+      }
+      if (this.giselleProtectionBypass) {
+        headers["x-giselle-protection-bypass"] = this.giselleProtectionBypass;
       }
 
       response = await fetch(`${this.baseUrl}/api/gemini-rpa/bridge/dispatch`, {
@@ -138,15 +144,20 @@ export class BridgeClient {
 }
 
 export function createBridgeClientFromEnv(): BridgeClient {
-  const protectionBypass = process.env.VERCEL_PROTECTION_BYPASS;
+  const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS;
+  const giselleProtectionBypass = process.env.GISELLE_PROTECTION_BYPASS;
   console.error(
-    `[bridge-client] VERCEL_PROTECTION_BYPASS=${protectionBypass?.trim() || "(unset)"}`
+    `[bridge-client] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass?.trim() ? "(set)" : "(unset)"}`
+  );
+  console.error(
+    `[bridge-client] GISELLE_PROTECTION_BYPASS=${giselleProtectionBypass?.trim() ? "(set)" : "(unset)"}`
   );
 
   return new BridgeClient({
     baseUrl: requiredEnv("RPA_BRIDGE_BASE_URL"),
     sessionId: requiredEnv("RPA_BRIDGE_SESSION_ID"),
     token: requiredEnv("RPA_BRIDGE_TOKEN"),
-    protectionBypass
+    vercelProtectionBypass,
+    giselleProtectionBypass
   });
 }

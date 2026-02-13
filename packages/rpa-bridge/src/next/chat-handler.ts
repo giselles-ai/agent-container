@@ -218,6 +218,7 @@ function buildGeminiSettings(input: {
   bridgeToken: string;
   oidcToken?: string;
   vercelProtectionBypass?: string;
+  giselleProtectionBypass?: string;
   mcpServerDistPath: string;
   mcpServerCwd: string;
 }) {
@@ -233,6 +234,10 @@ function buildGeminiSettings(input: {
 
   if (input.vercelProtectionBypass?.trim()) {
     mcpEnv.VERCEL_PROTECTION_BYPASS = input.vercelProtectionBypass.trim();
+  }
+
+  if (input.giselleProtectionBypass?.trim()) {
+    mcpEnv.GISELLE_PROTECTION_BYPASS = input.giselleProtectionBypass.trim();
   }
 
   return {
@@ -352,6 +357,8 @@ export function createGeminiChatHandler(
             );
           }
           const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS?.trim() || undefined;
+          const giselleProtectionBypass =
+            process.env.GISELLE_PROTECTION_PASSWORD?.trim() || undefined;
 
           const bridgeBaseUrl =
             process.env.RPA_BRIDGE_BASE_URL?.trim() || new URL(request.url).origin;
@@ -387,7 +394,11 @@ export function createGeminiChatHandler(
           });
           enqueueEvent({
             type: "stderr",
-            content: `[info] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass || "(unset)"}`
+            content: `[info] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass ? "(set)" : "(unset)"}`
+          });
+          enqueueEvent({
+            type: "stderr",
+            content: `[info] GISELLE_PROTECTION_BYPASS=${giselleProtectionBypass ? "(set)" : "(unset)"}`
           });
 
           await sandbox.writeFiles([
@@ -401,6 +412,7 @@ export function createGeminiChatHandler(
                     bridgeToken,
                     oidcToken,
                     vercelProtectionBypass,
+                    giselleProtectionBypass,
                     mcpServerDistPath,
                     mcpServerCwd
                   }),

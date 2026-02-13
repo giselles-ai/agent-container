@@ -46,8 +46,14 @@ RPA_SANDBOX_REPO_ROOT=/vercel/sandbox
 RPA_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/mcp-server/dist/index.js
 RPA_MCP_SERVER_CWD=/vercel/sandbox
 RPA_SKIP_SANDBOX_BUILD=1
+# Optional: thin in-app protection for all pages/routes in packages/web.
+# Unauthenticated UI requests are redirected to /giselle-protection.
+# Unauthenticated /api/* requests return 401 unless header
+# x-giselle-protection-bypass equals this value.
+GISELLE_PROTECTION_PASSWORD=...
 # Optional: pass through to sandbox MCP and send
 # x-vercel-protection-bypass on bridge dispatch requests.
+# Separate concern from GISELLE_PROTECTION_PASSWORD.
 VERCEL_PROTECTION_BYPASS=...
 ```
 

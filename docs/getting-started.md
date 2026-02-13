@@ -56,7 +56,8 @@ REDIS_URL=redis://...
 
 # オプション
 RPA_BRIDGE_BASE_URL=https://your-app.vercel.app  # 未設定時はリクエスト元 origin を使用
-VERCEL_PROTECTION_BYPASS=your-bypass-token        # Vercel Authentication 使用時
+GISELLE_PROTECTION_PASSWORD=shared-password       # App 全体の薄い保護（UI は /giselle-protection、API は x-giselle-protection-bypass で迂回可）
+VERCEL_PROTECTION_BYPASS=your-bypass-token        # Vercel Authentication 使用時（上記とは別用途）
 RPA_SKIP_SANDBOX_BUILD=false                      # true にすると Sandbox 内ビルドをスキップ
 RPA_MCP_MOCK_PLAN=false                           # true にすると LLM を使わずモックで動作確認
 ```
