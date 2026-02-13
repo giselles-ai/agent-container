@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+	--color-ground: #f5f0e8;
+	--color-ground-deep: #ebe4d8;
+	--color-soil: #2c2416;
+	--color-soil-muted: #7a6e5c;
+	--color-membrane: #c9a87c;
+	--color-membrane-light: #e2d2b8;
+	--color-root: #a08660;
+	--color-sprout: #8a9a6c;
+}
