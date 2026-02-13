@@ -6,8 +6,7 @@
 	"scripts": {
 		"dev": "next dev",
 		"build": "next build",
-		"start": "next start",
-		"format": "biome check --write"
+		"start": "next start"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "3.0.70",

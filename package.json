@@ -13,7 +13,8 @@
 		"mcp:check:discovery": "pnpm --filter @giselles/mcp-smoke run check:discovery",
 		"mcp:check:sandbox": "pnpm --filter @giselles/mcp-smoke run check:sandbox",
 		"mcp:check:sandbox:discovery": "pnpm --filter @giselles/mcp-smoke run check:sandbox:discovery",
-		"knip": "knip"
+		"knip": "knip",
+		"cli:release": "node sandbox-agent/scripts/release-cli.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.13",
