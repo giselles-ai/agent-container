@@ -29,7 +29,11 @@ SDK はこの制約を Redis Pub/Sub + SSE による Bridge アーキテクチ�
 - Redis（[Vercel Marketplace の Redis](https://vercel.com/marketplace/redis)、Upstash、またはセルフホスト）
 - [Vercel Sandbox](https://vercel.com/docs/sandbox) が利用可能な Vercel プロジェクト
 - Gemini API キー
-- OpenAI API キー（RPA planner 用）
+- AI planner 認証情報（任意）
+  - OpenAI API キー（直接認証）
+  - AI Gateway 認証情報（AI Gateway を利用）
+    - `AI_GATEWAY_API_KEY`（固定キー）
+    - `Vercel Functions` 実行時の OIDC (`x-vercel-oidc-token` ヘッダ)
 
 ## 1. パッケージのインストール
 
@@ -44,8 +48,6 @@ pnpm add @giselles/rpa-sdk @giselles/rpa-bridge
 ```env
 # 必須
 GEMINI_API_KEY=your-gemini-api-key
-OPENAI_API_KEY=your-openai-api-key
-AI_GATEWAY_API_KEY=your-ai-gateway-api-key
 RPA_SANDBOX_SNAPSHOT_ID=your-sandbox-snapshot-id
 
 # Redis（いずれか1つ）

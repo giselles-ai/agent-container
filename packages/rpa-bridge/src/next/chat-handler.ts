@@ -19,6 +19,24 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+function extractTokenFromRequest(request: Request): string | undefined {
+  const oidcToken = request.headers.get("x-vercel-oidc-token")?.trim();
+  if (oidcToken) {
+    return oidcToken;
+  }
+
+  const authorization = request.headers.get("authorization")?.trim();
+  if (!authorization) {
+    return undefined;
+  }
+
+  if (/^bearer\s+/i.test(authorization)) {
+    return authorization.replace(/^bearer\s+/i, "").trim();
+  }
+
+  return authorization;
+}
+
 function parseBooleanFlag(value: string | undefined): boolean {
   if (!value) {
     return false;
@@ -198,7 +216,7 @@ function buildGeminiSettings(input: {
   bridgeBaseUrl: string;
   bridgeSessionId: string;
   bridgeToken: string;
-  openAiApiKey: string;
+  oidcToken?: string;
   vercelProtectionBypass?: string;
   mcpServerDistPath: string;
   mcpServerCwd: string;
@@ -206,9 +224,12 @@ function buildGeminiSettings(input: {
   const mcpEnv: Record<string, string> = {
     RPA_BRIDGE_BASE_URL: input.bridgeBaseUrl,
     RPA_BRIDGE_SESSION_ID: input.bridgeSessionId,
-    RPA_BRIDGE_TOKEN: input.bridgeToken,
-    OPENAI_API_KEY: input.openAiApiKey
+    RPA_BRIDGE_TOKEN: input.bridgeToken
   };
+
+  if (input.oidcToken) {
+    mcpEnv.VERCEL_OIDC_TOKEN = input.oidcToken;
+  }
 
   if (input.vercelProtectionBypass?.trim()) {
     mcpEnv.VERCEL_PROTECTION_BYPASS = input.vercelProtectionBypass.trim();
@@ -323,9 +344,13 @@ export function createGeminiChatHandler(
 
         (async () => {
           const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-          const openAiApiKey = requiredEnv("OPENAI_API_KEY");
           const sandboxSnapshotId = requiredEnv("RPA_SANDBOX_SNAPSHOT_ID");
-          const aiGatewayApiKey = requiredEnv("AI_GATEWAY_API_KEY");
+          const oidcToken = extractTokenFromRequest(request) ?? process.env.VERCEL_OIDC_TOKEN ?? "";
+          if (!oidcToken) {
+            throw new Error(
+              "Planner authentication is required: set OIDC token in x-vercel-oidc-token or VERCEL_OIDC_TOKEN."
+            );
+          }
           const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS?.trim() || undefined;
 
           const bridgeBaseUrl =
@@ -374,7 +399,7 @@ export function createGeminiChatHandler(
                     bridgeBaseUrl,
                     bridgeSessionId,
                     bridgeToken,
-                    openAiApiKey,
+                    oidcToken,
                     vercelProtectionBypass,
                     mcpServerDistPath,
                     mcpServerCwd
@@ -391,13 +416,12 @@ export function createGeminiChatHandler(
             args.push("--resume", sessionId);
           }
 
-          await sandbox.runCommand({
+            await sandbox.runCommand({
             cmd: "gemini",
             args,
             env: {
               GEMINI_API_KEY: geminiApiKey,
-              OPENAI_API_KEY: openAiApiKey,
-              AI_GATEWAY_API_KEY: aiGatewayApiKey
+              ...(oidcToken ? { VERCEL_OIDC_TOKEN: oidcToken } : {})
             },
             stdout: new Writable({
               write(chunk, _encoding, callback) {
