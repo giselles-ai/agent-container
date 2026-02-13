@@ -1,8 +1,8 @@
-export { useBridge } from "./use-bridge";
 export type {
-  BridgeStatus,
-  BridgeMessage,
-  BridgeHookState,
-  UseBridgeOptions,
-  UseBridgeState
+	BridgeHookState,
+	BridgeMessage,
+	BridgeStatus,
+	UseBridgeOptions,
+	UseBridgeState,
 } from "./use-bridge";
+export { useBridge } from "./use-bridge";

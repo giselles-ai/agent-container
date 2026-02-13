@@ -44,5 +44,8 @@ function toBase64Url(bytes: Uint8Array): string {
 		binary += String.fromCharCode(byte);
 	}
 
-	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+	return btoa(binary)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/g, "");
 }

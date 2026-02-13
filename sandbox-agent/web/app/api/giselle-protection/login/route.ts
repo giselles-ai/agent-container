@@ -14,7 +14,9 @@ function toStringValue(value: FormDataEntryValue | null): string | undefined {
 
 export async function POST(request: Request) {
 	const formData = await request.formData().catch(() => null);
-	const nextPath = sanitizeNextPath(toStringValue(formData?.get("next") ?? null));
+	const nextPath = sanitizeNextPath(
+		toStringValue(formData?.get("next") ?? null),
+	);
 	const redirectTarget = new URL(nextPath, request.url);
 
 	const protectionPassword = getProtectionPassword();
@@ -22,7 +24,8 @@ export async function POST(request: Request) {
 		return NextResponse.redirect(redirectTarget, { status: 303 });
 	}
 
-	const submittedPassword = toStringValue(formData?.get("password") ?? null)?.trim() ?? "";
+	const submittedPassword =
+		toStringValue(formData?.get("password") ?? null)?.trim() ?? "";
 
 	if (submittedPassword !== protectionPassword) {
 		const retryUrl = new URL("/giselle-protection", request.url);

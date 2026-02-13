@@ -2,12 +2,17 @@
 @source "../../../packages/rpa-sdk/src/**/*.{ts,tsx}";
 
 :root {
-  color-scheme: dark;
+	color-scheme: dark;
 }
 
 body {
-  margin: 0;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 20%, #1a1f35 0%, #090b14 45%, #06070d 100%);
-  color: #e7e9f4;
+	margin: 0;
+	font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+	background: radial-gradient(
+		circle at 20% 20%,
+		#1a1f35 0%,
+		#090b14 45%,
+		#06070d 100%
+	);
+	color: #e7e9f4;
 }

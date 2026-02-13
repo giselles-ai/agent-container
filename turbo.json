@@ -11,7 +11,7 @@
 				"RPA_*",
 				"VERCEL_*",
 				"GISELLE_*"
-			],
+			]
 		},
 		"dev": {
 			"cache": false,

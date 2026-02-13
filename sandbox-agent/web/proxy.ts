@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import {
 	GISELLE_PROTECTION_COOKIE_NAME,
 	getProtectionPassword,
@@ -23,12 +23,17 @@ export async function proxy(request: NextRequest) {
 
 	const isApiRequest = pathname.startsWith("/api/");
 
-	if (isApiRequest && isValidBypassHeader(request.headers, protectionPassword)) {
+	if (
+		isApiRequest &&
+		isValidBypassHeader(request.headers, protectionPassword)
+	) {
 		return NextResponse.next();
 	}
 
 	const expectedSession = await hashSecret(protectionPassword);
-	const sessionCookie = request.cookies.get(GISELLE_PROTECTION_COOKIE_NAME)?.value;
+	const sessionCookie = request.cookies.get(
+		GISELLE_PROTECTION_COOKIE_NAME,
+	)?.value;
 	if (sessionCookie === expectedSession) {
 		return NextResponse.next();
 	}
@@ -47,5 +52,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-	matcher: ["/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)"],
+	matcher: [
+		"/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+	],
 };
