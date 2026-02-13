@@ -3,7 +3,15 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**"]
+			"outputs": ["dist/**"],
+			"env": [
+				"TURSO_*",
+				"GEMINI_API_KEY",
+				"REDIS_URL",
+				"RPA_*",
+				"VERCEL_*",
+				"GISELLE_*"
+			],
 		},
 		"dev": {
 			"cache": false,
