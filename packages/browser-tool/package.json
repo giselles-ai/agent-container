@@ -1,0 +1,42 @@
+{
+	"name": "@giselles-ai/browser-tool",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./dom": {
+			"types": "./dist/dom/index.d.ts",
+			"import": "./dist/dom/index.js",
+			"default": "./dist/dom/index.js"
+		},
+		"./planner": {
+			"types": "./dist/planner/index.d.ts",
+			"import": "./dist/planner/index.js",
+			"default": "./dist/planner/index.js"
+		},
+		"./planner/runtime": {
+			"types": "./dist/planner/index.d.ts",
+			"import": "./dist/planner/index.js",
+			"default": "./dist/planner/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsup --config tsup.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"format": "pnpm exec biome check --write ."
+	},
+	"dependencies": {
+		"ai": "6.0.59",
+		"zod": "4.3.6"
+	},
+	"devDependencies": {
+		"tsup": "8.5.1",
+		"typescript": "5.9.3"
+	}
+}

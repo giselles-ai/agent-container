@@ -1,299 +1,118 @@
-# Getting Started — Giselles RPA SDK
+# Getting Started — `@giselles-ai/agent`
 
-Giselles RPA SDK を使うと、Next.js アプリのフォームを Gemini CLI から AI 駆動で自動入力できます。
-開発者が書くコードは **API route 1 ファイル（8行）** と **ページコンポーネントへの hook 追加** だけです。
-
-## 仕組み
-
-```
-ユーザーが Chat UI で指示
-    ↓
-useBridge() が Bridge Server 経由で Gemini CLI に送信
-    ↓
-Gemini CLI → MCP Server → Bridge → ブラウザに snapshot 要求
-    ↓
-ブラウザが DOM をスキャンして SnapshotField[] を返却
-    ↓
-Gemini CLI が LLM でアクション計画 → Bridge → ブラウザで DOM 操作
-```
-
-Gemini CLI は Vercel Sandbox 内で動作するためブラウザ DOM に直接アクセスできません。
-SDK はこの制約を Redis Pub/Sub + SSE による Bridge アーキテクチャで透過的に解決します。
-開発者は Bridge の内部プロトコルを意識する必要はありません。
+`@giselles-ai/agent` を使うと、Next.js で Gemini CLI + MCP + SSE bridge を 1 つの API route (`/api/agent`) と 1 つの hook (`useAgent`) で扱えます。
 
 ## 前提条件
 
-- Next.js 14+ (App Router)
+- Next.js (App Router)
 - React 19+
 - Node.js 20+
-- Redis（[Vercel Marketplace の Redis](https://vercel.com/marketplace/redis)、Upstash、またはセルフホスト）
-- [Vercel Sandbox](https://vercel.com/docs/sandbox) が利用可能な Vercel プロジェクト
-- Gemini API キー
-- AI planner 認証情報（任意）
-  - OpenAI API キー（直接認証）
-  - AI Gateway 認証情報（AI Gateway を利用）
-    - `AI_GATEWAY_API_KEY`（固定キー）
-    - `Vercel Functions` 実行時の OIDC (`x-vercel-oidc-token` ヘッダ)
+- Redis
+- Vercel Sandbox が使える環境
+- `GEMINI_API_KEY`
+- `RPA_SANDBOX_SNAPSHOT_ID`
 
-## 1. パッケージのインストール
+## 1. パッケージインストール
 
 ```bash
-pnpm add @giselles/browser-tool-sdk @giselles/browser-tool-bridge
+pnpm add @giselles-ai/agent @giselles-ai/browser-tool
 ```
 
-## 2. 環境変数の設定
+## 2. 環境変数設定
 
-`.env.local` に以下を設定します：
+`.env.local`:
 
 ```env
-# 必須
-GEMINI_API_KEY=your-gemini-api-key
-RPA_SANDBOX_SNAPSHOT_ID=your-sandbox-snapshot-id
-
-# Redis（いずれか1つ）
+GEMINI_API_KEY=...
+RPA_SANDBOX_SNAPSHOT_ID=...
 REDIS_URL=redis://...
-# または REDIS_TLS_URL, KV_URL, UPSTASH_REDIS_TLS_URL, UPSTASH_REDIS_URL
 
-# オプション
-RPA_BRIDGE_BASE_URL=https://your-app.vercel.app  # 未設定時はリクエスト元 origin を使用
-GISELLE_PROTECTION_PASSWORD=shared-password       # App 全体の薄い保護（UI は /giselle-protection、API は x-giselle-protection-bypass で迂回可）
-VERCEL_PROTECTION_BYPASS=your-bypass-token        # Vercel Authentication 使用時（上記とは別用途）
-RPA_SKIP_SANDBOX_BUILD=false                      # true にすると Sandbox 内ビルドをスキップ
-RPA_MCP_MOCK_PLAN=false                           # true にすると LLM を使わずモックで動作確認
+# optional
+RPA_BRIDGE_BASE_URL=https://your-app.vercel.app
+RPA_SKIP_SANDBOX_BUILD=false
+VERCEL_PROTECTION_BYPASS=...
+GISELLE_PROTECTION_PASSWORD=...
 ```
 
-## 3. API Route の作成
+## 3. API route を作成
 
-`app/api/gemini-rpa/[...slug]/route.ts` を作成します：
+`app/api/agent/route.ts`:
 
 ```ts
-import { createBridgeRoutes } from "@giselles/browser-tool-bridge/next";
+import { handleAgentRunner } from "@giselles-ai/agent";
 
 export const runtime = "nodejs";
 
-const handler = createBridgeRoutes();
+const handler = handleAgentRunner({ tools: { browser: true } });
 
 export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-これだけで以下の5つのエンドポイントが自動的に提供されます：
-
-| エンドポイント | 用途 |
-|---|---|
-| `POST .../session` | Bridge セッション作成 |
-| `GET  .../events` | SSE 接続（ブラウザ ↔ Sandbox 間の通信） |
-| `POST .../dispatch` | MCP Server → ブラウザへのリクエスト仲介 |
-| `POST .../respond` | ブラウザ → MCP Server へのレスポンス返却 |
-| `POST .../chat` | Gemini CLI の起動とストリーミング |
-
 ## 4. フォームに `data-rpa-id` を付与
 
-SDK がフォームフィールドを識別するために、各入力要素に `data-rpa-id` 属性を追加します：
-
 ```tsx
-<input
-  id="title"
-  name="title"
-  data-rpa-id="title"    // ← これを追加
-  type="text"
-  value={title}
-  onChange={(e) => setTitle(e.target.value)}
-/>
-
-<textarea
-  id="body"
-  name="body"
-  data-rpa-id="body"     // ← これを追加
-  value={body}
-  onChange={(e) => setBody(e.target.value)}
-/>
-
-<select
-  id="category"
-  name="category"
-  data-rpa-id="category" // ← これを追加
-  value={category}
-  onChange={(e) => setCategory(e.target.value)}
->
-  <option value="memo">Memo</option>
-  <option value="blog">Blog Post</option>
-</select>
-
-<input
-  type="checkbox"
-  name="publish"
-  data-rpa-id="publish"  // ← これを追加
-  checked={publish}
-  onChange={(e) => setPublish(e.target.checked)}
-/>
+<input data-rpa-id="title" />
+<textarea data-rpa-id="body" />
+<select data-rpa-id="category" />
+<input type="checkbox" data-rpa-id="publish" />
 ```
 
-> **Note:** `data-rpa-id` がなくても SDK は `id`、`name`、CSS セレクタからフィールドを自動特定します。
-> `data-rpa-id` を付けると一意性が保証され、DOM 構造が変わっても安定して動作します。
-
-### SDK が認識するフォーム要素
-
-| 要素 | サポートされる type |
-|---|---|
-| `<input>` | `text`, `email`, `password`, `number`, `tel`, `url`, `search`, `date`, `checkbox`, `radio` |
-| `<textarea>` | — |
-| `<select>` | — |
-
-`hidden`, `submit`, `button`, `file`, `reset`, `image` は自動的に除外されます。
-
-### ラベルの解決順序
-
-SDK はフィールドのラベルを以下の優先順位で自動解決します：
-
-1. `<label for="id">` による紐付け
-2. `aria-label` 属性
-3. `aria-labelledby` 属性
-4. 祖先の `<label>` 要素のテキスト
-5. `name` 属性
-6. `id` 属性
-7. `"unnamed-field"` (フォールバック)
-
-## 5. `useBridge()` でチャット UI を実装
+## 5. `useAgent()` を使う
 
 ```tsx
 "use client";
 
-import { useState, useCallback } from "react";
-import { useBridge } from "@giselles/browser-tool-bridge/react";
+import { useAgent } from "@giselles-ai/agent/react";
 
-export default function MyPage() {
-  const [input, setInput] = useState("");
+export default function Page() {
+  const { status, messages, tools, error, sendMessage } = useAgent({
+    endpoint: "/api/agent",
+  });
 
-  const {
-    status,        // "connecting" | "connected" | "disconnected" | "error"
-    chatStatus,    // "ready" | "streaming"
-    messages,      // { id, role, content }[]
-    warnings,      // string[]
-    error,         // string | null
-    sendMessage,   // ({ message, document? }) => Promise<void>
-  } = useBridge({ endpoint: "/api/gemini-rpa" });
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const trimmed = input.trim();
-      if (!trimmed || chatStatus !== "ready") return;
-
-      try {
-        await sendMessage({ message: trimmed });
-        setInput("");
-      } catch {
-        // エラーは error state で自動管理される
-      }
-    },
-    [chatStatus, input, sendMessage]
-  );
+  async function handleSend(text: string) {
+    await sendMessage({ message: text });
+  }
 
   return (
     <main>
-      <MyForm />  {/* Step 4 で data-rpa-id を付けたフォーム */}
-
-      <p>Bridge: {status}</p>
-
-      <div>
-        {messages.map((msg) => (
-          <div key={msg.id}>
-            <strong>{msg.role}:</strong> {msg.content}
-          </div>
-        ))}
-      </div>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      <form onSubmit={handleSubmit}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. Fill title and body with a concise summary"
-        />
-        <button type="submit" disabled={chatStatus !== "ready"}>
-          Send
-        </button>
-      </form>
+      <p>status: {status}</p>
+      {error ? <p>{error}</p> : null}
+      <button onClick={() => handleSend("Fill title and body")}>Send</button>
+      <pre>{JSON.stringify({ messages, tools }, null, 2)}</pre>
     </main>
   );
 }
 ```
 
-## `useBridge()` API リファレンス
+## `useAgent()` 返り値
 
-### オプション
+- `status`: `"idle" | "connecting" | "connected" | "running" | "error"`
+- `messages`: チャット履歴
+- `tools`: tool use / result の履歴
+- `warnings`: planner / executor の警告
+- `stderrLogs`: sandbox stderr ログ
+- `sandboxId`: sandbox id
+- `geminiSessionId`: gemini session id
+- `error`: 文字列エラー
+- `sendMessage({ message, document? })`
 
-| プロパティ | 型 | 説明 |
-|---|---|---|
-| `endpoint` | `string` | API route のパス（例: `"/api/gemini-rpa"`） |
+## Bridge HTTP 契約
 
-### 返り値
+### POST `/api/agent`
 
-| プロパティ | 型 | 説明 |
-|---|---|---|
-| `status` | `BridgeStatus` | Bridge 接続状態: `"connecting"` / `"connected"` / `"disconnected"` / `"error"` |
-| `chatStatus` | `ChatStatus` | チャット状態: `"ready"` / `"streaming"` |
-| `messages` | `BridgeMessage[]` | チャット履歴 `{ id, role, content }` |
-| `tools` | `ToolEvent[]` | Gemini CLI が実行したツール呼び出しの記録 |
-| `warnings` | `string[]` | planner や executor からの警告メッセージ |
-| `stderrLogs` | `string[]` | Sandbox の stderr 出力 |
-| `sandboxId` | `string \| null` | 現在の Vercel Sandbox ID |
-| `geminiSessionId` | `string \| null` | Gemini CLI のセッション ID |
-| `session` | `BridgeSession \| null` | Bridge セッション情報 |
-| `error` | `string \| null` | 直近のエラーメッセージ |
-| `sendMessage` | `(input) => Promise<void>` | メッセージ送信。`{ message: string, document?: string }` |
+- `{ type: "agent.run", message, document?, session_id?, sandbox_id? }`
+- `{ type: "bridge.dispatch", sessionId, token, request, timeoutMs? }`
+- `{ type: "bridge.respond", sessionId, token, response }`
 
-### `sendMessage` のオプション
+### GET `/api/agent?type=bridge.events&sessionId=...&token=...`
 
-| プロパティ | 型 | 説明 |
-|---|---|---|
-| `message` | `string` | ユーザーの指示テキスト（必須） |
-| `document` | `string` | 参照ドキュメント。フォーム入力の元データとして LLM に渡される（オプション） |
-
-`document` を渡すと、LLM はドキュメントの内容を元にフォームフィールドを自動入力します。
-例えば議事録のテキストを渡して「このドキュメントの内容でフォームを埋めて」と指示できます。
-
-## 動作確認
-
-1. `pnpm dev` で Next.js を起動
-2. ブラウザでページを開く
-3. ステータスが `connected` になるのを確認
-4. チャット欄に `Fill title with "Hello World" and select category "Blog Post"` と入力して Send
+- SSE 接続 (`ready`, keepalive, `snapshot_request`, `execute_request`)
 
 ## トラブルシューティング
 
-### Bridge が `connecting` のまま進まない
+- `UNAUTHORIZED`: `sessionId/token` 不一致
+- `NO_BROWSER`: SSE 接続未確立
+- `TIMEOUT`: bridge 応答タイムアウト
+- `INVALID_RESPONSE`: request/response 型不整合
 
-- Redis の接続 URL が正しいか確認してください
-- `REDIS_URL` 等の環境変数がサーバーサイドで読めているか確認してください
-
-### `NO_BROWSER` エラー
-
-- ブラウザが SSE 接続を確立する前に Gemini CLI がリクエストを送っています
-- ページをリロードして Bridge が `connected` になってからチャットを送信してください
-
-### Sandbox 内でビルドエラー
-
-- `RPA_SANDBOX_SNAPSHOT_ID` のスナップショットに `packages/mcp-server` と `packages/browser-tool-planner` のビルド済みファイルが含まれているか確認してください
-- または `RPA_SKIP_SANDBOX_BUILD=false` にして Sandbox 内でビルドを実行させてください
-
-### `TIMEOUT` エラー
-
-- Bridge のデフォルトタイムアウトは 20 秒です
-- ブラウザがバックグラウンドタブになっていると SSE 接続が不安定になることがあります
-
-## パッケージ構成
-
-```
-@giselles/browser-tool-sdk        — コア (snapshot, execute, 型定義, Zod スキーマ)
-@giselles/browser-tool-bridge     — Bridge 統合
-  ├── /react             — useBridge() hook
-  └── /next              — createBridgeRoutes(), bridge-broker, chat-handler
-@giselles/browser-tool-planner    — LLM によるアクション計画
-@giselles/mcp-server     — Gemini CLI 用 MCP Server
-```
-
-すべての型と Zod スキーマは `@giselles/browser-tool-sdk` が Single Source of Truth です。
-他のパッケージは re-export しています。

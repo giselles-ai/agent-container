@@ -1,4 +1,4 @@
-import type { RpaAction, SnapshotField } from "@giselles/browser-tool-sdk";
+import type { RpaAction, SnapshotField } from "@giselles-ai/browser-tool";
 import { z } from "zod";
 import type { BridgeClient } from "../bridge-client.js";
 
@@ -86,7 +86,7 @@ export async function runFillForm(
 		});
 	} else {
 		const { planActions } = await import(
-			"@giselles/browser-tool-planner/runtime"
+			"@giselles-ai/browser-tool/planner/runtime"
 		);
 		planned = await planActions({
 			instruction: parsed.instruction,

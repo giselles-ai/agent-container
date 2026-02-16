@@ -1,6 +1,6 @@
 "use client";
 
-import { useBridge } from "@giselles/browser-tool-bridge/react";
+import { useAgent } from "@giselles-ai/agent/react";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 function DemoForm() {
@@ -12,11 +12,11 @@ function DemoForm() {
 	return (
 		<div className="mx-auto max-w-3xl rounded-2xl border border-slate-700/60 bg-slate-900/50 p-6 shadow-2xl backdrop-blur">
 			<p className="text-xs uppercase tracking-[0.18em] text-cyan-300/80">
-				Gemini RPA Bridge
+				Gemini RPA Agent
 			</p>
 			<h1 className="mt-2 text-3xl font-semibold">Form Autofill Prototype</h1>
 			<p className="mt-3 text-sm text-slate-300/90">
-				This page uses Gemini CLI + MCP + SSE bridge for browser-side DOM
+				This page uses Gemini CLI + MCP + SSE agent runner for browser-side DOM
 				execution.
 			</p>
 
@@ -113,18 +113,16 @@ export default function GeminiRpaPage() {
 	const [documentText, setDocumentText] = useState("");
 
 	const {
-		status: bridgeStatus,
-		chatStatus,
+		status,
 		messages,
 		tools,
 		warnings,
 		stderrLogs,
 		sandboxId,
 		geminiSessionId,
-		session,
 		error,
 		sendMessage,
-	} = useBridge({ endpoint: "/api/gemini-rpa" });
+	} = useAgent({ endpoint: "/api/agent" });
 
 	const renderedMessages = useMemo(
 		() =>
@@ -153,7 +151,7 @@ export default function GeminiRpaPage() {
 			event.preventDefault();
 
 			const trimmed = input.trim();
-			if (!trimmed || chatStatus !== "ready") {
+			if (!trimmed || status === "running") {
 				return;
 			}
 
@@ -164,10 +162,10 @@ export default function GeminiRpaPage() {
 				});
 				setInput("");
 			} catch {
-				// Error message is managed by useBridge.
+				// Error message is managed by useAgent.
 			}
 		},
-		[chatStatus, documentText, input, sendMessage],
+		[documentText, input, sendMessage, status],
 	);
 
 	return (
@@ -177,9 +175,9 @@ export default function GeminiRpaPage() {
 					href="/"
 					className="rounded-md border border-slate-600 px-2 py-1 transition hover:border-slate-400"
 				>
-					Back to AI SDK demo
+					Back to home
 				</a>
-				<span>bridge: {bridgeStatus}</span>
+				<span>agent: {status}</span>
 				<span>sandbox: {sandboxId ?? "-"}</span>
 				<span>session: {geminiSessionId ?? "-"}</span>
 			</div>
@@ -192,7 +190,7 @@ export default function GeminiRpaPage() {
 						<p className="text-xs uppercase tracking-[0.15em] text-cyan-300">
 							Gemini RPA Chat
 						</p>
-						<p className="text-[11px] text-slate-400">status: {chatStatus}</p>
+						<p className="text-[11px] text-slate-400">status: {status}</p>
 					</div>
 
 					<label className="mb-3 block">
@@ -223,10 +221,10 @@ export default function GeminiRpaPage() {
 						/>
 						<button
 							type="submit"
-							disabled={!input.trim() || chatStatus !== "ready"}
+							disabled={!input.trim() || status === "running"}
 							className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							Send
+							{status === "running" ? "Running..." : "Send"}
 						</button>
 					</form>
 				</div>
@@ -302,16 +300,6 @@ export default function GeminiRpaPage() {
 								))
 							)}
 						</div>
-					</div>
-
-					<div className="rounded-2xl border border-slate-700 bg-slate-950/85 p-4 text-xs text-slate-300">
-						<p>bridge session: {session?.sessionId ?? "-"}</p>
-						<p className="mt-1">
-							expires at:{" "}
-							{session?.expiresAt
-								? new Date(session.expiresAt).toISOString()
-								: "-"}
-						</p>
 					</div>
 				</aside>
 			</section>

@@ -1,11 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-	transpilePackages: [
-		"@giselles/browser-tool-sdk",
-		"@giselles/browser-tool-planner",
-		"@giselles/browser-tool-bridge",
-	],
+	transpilePackages: ["@giselles-ai/browser-tool", "@giselles-ai/agent"],
 };
 
 export default nextConfig;

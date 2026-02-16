@@ -9,7 +9,7 @@ import {
 	type ExecutionReport,
 	type RpaAction,
 	type SnapshotField,
-} from "@giselles/browser-tool-sdk";
+} from "@giselles-ai/browser-tool";
 
 function requiredEnv(name: string): string {
 	const value = process.env[name]?.trim();
@@ -101,10 +101,11 @@ export class BridgeClient {
 				headers["x-giselle-protection-bypass"] = this.giselleProtectionBypass;
 			}
 
-			response = await fetch(`${this.baseUrl}/api/gemini-rpa/bridge/dispatch`, {
+			response = await fetch(`${this.baseUrl}/api/agent`, {
 				method: "POST",
 				headers,
 				body: JSON.stringify({
+					type: "bridge.dispatch",
 					sessionId: this.sessionId,
 					token: this.token,
 					timeoutMs: this.timeoutMs,
