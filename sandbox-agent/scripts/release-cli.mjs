@@ -57,10 +57,16 @@ if (releaseType !== "prerelease") {
 	process.exit(1);
 }
 
-run("npm", ["version", "prerelease", `--preid=${preid}`, "--no-git-tag-version"], {
+run(
+	"npm",
+	["version", "prerelease", `--preid=${preid}`, "--no-git-tag-version"],
+	{
+		cwd: cliCwd,
+	},
+);
+run("npm", ["run", "build"], { cwd: cliCwd });
+run("npm", ["publish", "--access", "public", "--tag", "alpha"], {
 	cwd: cliCwd,
 });
-run("npm", ["run", "build"], { cwd: cliCwd });
-run("npm", ["publish", "--access", "public", "--tag", "alpha"], { cwd: cliCwd });
 
 process.stdout.write("\nCLI release completed.\n");

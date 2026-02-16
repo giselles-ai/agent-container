@@ -6,12 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 import * as TOML from "@iarna/toml";
 import * as tar from "tar";
 
 const CONFIG_FILE = "config.toml";
 const HOSTED_SKILL_SLUG_RE = /^[a-z0-9-]+$/;
-const DEBUG_FLAG_SET = new Set(["--debug", "--verbose", "-v"]);
+const DEBUG_FLAG_SET = new Set(["--debug", "--verbose"]);
+const VERSION_FLAG_SET = new Set(["--version", "-v"]);
 const isDebugEnabled = (() => {
 	const env = process.env.GISELLE_CLI_DEBUG?.trim().toLowerCase();
 	return (
@@ -62,6 +64,7 @@ function printUsage() {
   giselle edit-setup-script
   giselle build [--debug]
   giselle delete [slug] [--force]
+  giselle --version
 `;
 	process.stderr.write(usage);
 }
@@ -114,6 +117,27 @@ async function readStdinAll(): Promise<string> {
 		data += chunk;
 	}
 	return data;
+}
+
+function getVersion(): string {
+	const packageJsonPath = path.join(
+		path.dirname(fileURLToPath(import.meta.url)),
+		"..",
+		"package.json",
+	);
+	try {
+		const content = fsSync.readFileSync(packageJsonPath, "utf8");
+		const data = JSON.parse(content) as { version?: unknown };
+		return typeof data.version === "string" && data.version.length > 0
+			? data.version
+			: "unknown";
+	} catch {
+		return "unknown";
+	}
+}
+
+function printVersion() {
+	process.stdout.write(`${getVersion()}\n`);
 }
 
 function validateAgentName(name: string) {
@@ -649,7 +673,13 @@ async function runEditSetupScript() {
 }
 
 async function main() {
-	const [command, ...args] = stripDebugArgs(process.argv.slice(2));
+	const args = process.argv.slice(2);
+	if (args.some((arg) => VERSION_FLAG_SET.has(arg))) {
+		printVersion();
+		return;
+	}
+
+	const [command, ...argsWithoutDebug] = stripDebugArgs(args);
 	if (!command || command === "--help" || command === "-h") {
 		printUsage();
 		process.exit(command ? 0 : 1);
@@ -672,8 +702,8 @@ async function main() {
 			await runBuild();
 			break;
 		case "delete": {
-			const force = args.includes("--force");
-			const positional = args.filter((arg) => arg !== "--force");
+			const force = argsWithoutDebug.includes("--force");
+			const positional = argsWithoutDebug.filter((arg) => arg !== "--force");
 			await runDelete(positional[0], force);
 			break;
 		}
