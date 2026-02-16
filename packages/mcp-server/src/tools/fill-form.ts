@@ -1,4 +1,4 @@
-import type { RpaAction, SnapshotField } from "@giselles/rpa-sdk";
+import type { RpaAction, SnapshotField } from "@giselles/browser-tool-sdk";
 import { z } from "zod";
 import type { BridgeClient } from "../bridge-client.js";
 
@@ -85,7 +85,9 @@ export async function runFillForm(
 			fields,
 		});
 	} else {
-		const { planActions } = await import("@giselles/rpa-planner/runtime");
+		const { planActions } = await import(
+			"@giselles/browser-tool-planner/runtime"
+		);
 		planned = await planActions({
 			instruction: parsed.instruction,
 			document: parsed.document,

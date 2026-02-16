@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { execute, snapshot } from "@giselles/rpa-sdk";
+import { execute, snapshot } from "@giselles/browser-tool-sdk";
 import {
 	DefaultChatTransport,
 	lastAssistantMessageIsCompleteWithToolCalls,

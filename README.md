@@ -3,10 +3,10 @@
 This repository contains a prototype for AI-driven form automation in a Next.js app.
 
 - `packages/web`: Next.js demo app with AI SDK and Gemini CLI RPA channels
-- `packages/rpa-planner`: shared planner (`instruction + fields -> actions`)
+- `packages/browser-tool-planner`: shared planner (`instruction + fields -> actions`)
 - `packages/mcp-server`: MCP server used by Gemini CLI
 - `packages/mcp-smoke`: CLI smoke checker for MCP server (no Next.js required)
-- `packages/rpa-sdk`: Browser-side SDK (`snapshot`, `execute`, React provider/panel)
+- `packages/browser-tool-sdk`: Browser-side SDK (`snapshot`, `execute`, React provider/panel)
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ VERCEL_PROTECTION_BYPASS=...
 Use the helper script to create a fresh snapshot containing:
 
 - `gemini` CLI
-- built `packages/rpa-planner/dist`
+- built `packages/browser-tool-planner/dist`
 - built `packages/mcp-server/dist`
 
 Prerequisites:
@@ -103,7 +103,7 @@ pnpm mcp:check
 
 What it does:
 
-- Builds `@giselles/rpa-planner` and `@giselles/mcp-server`
+- Builds `@giselles/browser-tool-planner` and `@giselles/mcp-server`
 - Starts a local mock bridge HTTP server
 - Connects to `packages/mcp-server/dist/index.js` via MCP stdio client
 - Runs `tools/list` and `fillForm`

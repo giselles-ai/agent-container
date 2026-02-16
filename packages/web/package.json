@@ -11,9 +11,9 @@
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^3.0.70",
-		"@giselles/rpa-planner": "workspace:*",
-		"@giselles/rpa-sdk": "workspace:*",
-		"@giselles/rpa-bridge": "workspace:*",
+		"@giselles/browser-tool-planner": "workspace:*",
+		"@giselles/browser-tool-sdk": "workspace:*",
+		"@giselles/browser-tool-bridge": "workspace:*",
 		"@vercel/sandbox": "^1.0.0",
 		"ai": "6.0.59",
 		"ioredis": "^5.9.2",

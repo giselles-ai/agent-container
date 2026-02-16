@@ -1,4 +1,7 @@
-import { planActions, planActionsInputSchema } from "@giselles/rpa-planner";
+import {
+	planActions,
+	planActionsInputSchema,
+} from "@giselles/browser-tool-planner";
 
 export async function POST(request: Request) {
 	const payload = await request.json().catch(() => null);

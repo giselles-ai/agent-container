@@ -137,7 +137,7 @@ async function ensureMcpDistPaths(input: {
 	}
 
 	const mcpServerDistPath = `${repoRoot}/packages/mcp-server/dist/index.js`;
-	const plannerDistPath = `${repoRoot}/packages/rpa-planner/dist/index.js`;
+	const plannerDistPath = `${repoRoot}/packages/browser-tool-planner/dist/index.js`;
 
 	const checkDistReady = async () => {
 		const { stdout, stderr } = await runCommandCapture(input.sandbox, {
@@ -179,7 +179,7 @@ async function ensureMcpDistPaths(input: {
 					"-lc",
 					[
 						"set -e",
-						'pnpm --dir "$REPO_ROOT" --filter @giselles/rpa-planner run build',
+						'pnpm --dir "$REPO_ROOT" --filter @giselles/browser-tool-planner run build',
 						'pnpm --dir "$REPO_ROOT" --filter @giselles/mcp-server run build',
 					].join("\n"),
 				],

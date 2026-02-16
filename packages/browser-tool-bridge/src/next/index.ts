@@ -1,4 +1,7 @@
-import { bridgeRequestSchema, bridgeResponseSchema } from "@giselles/rpa-sdk";
+import {
+	bridgeRequestSchema,
+	bridgeResponseSchema,
+} from "@giselles/browser-tool-sdk";
 import { z } from "zod";
 import {
 	assertBridgeSession,

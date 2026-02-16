@@ -10,7 +10,7 @@ import {
 	type SelectAction,
 	type SnapshotField,
 	snapshotFieldSchema,
-} from "@giselles/rpa-sdk";
+} from "@giselles/browser-tool-sdk";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 

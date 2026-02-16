@@ -9,7 +9,7 @@ import {
 	type ExecutionReport,
 	type RpaAction,
 	type SnapshotField,
-} from "@giselles/rpa-sdk";
+} from "@giselles/browser-tool-sdk";
 
 function requiredEnv(name: string): string {
 	const value = process.env[name]?.trim();

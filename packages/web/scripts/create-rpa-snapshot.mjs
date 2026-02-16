@@ -23,8 +23,8 @@ const INCLUDE_PATHS = [
 	"pnpm-workspace.yaml",
 	"tsconfig.base.json",
 	"packages/mcp-server",
-	"packages/rpa-planner",
-	"packages/rpa-sdk",
+	"packages/browser-tool-planner",
+	"packages/browser-tool-sdk",
 ];
 
 const SKIP_DIR_NAMES = new Set([
@@ -172,8 +172,8 @@ async function main() {
 					`cd ${SANDBOX_ROOT}`,
 					[
 						"corepack pnpm install --no-frozen-lockfile",
-						"--filter @giselles/rpa-sdk...",
-						"--filter @giselles/rpa-planner...",
+						"--filter @giselles/browser-tool-sdk...",
+						"--filter @giselles/browser-tool-planner...",
 						"--filter @giselles/mcp-server...",
 					].join(" "),
 				].join("\n"),
@@ -188,8 +188,8 @@ async function main() {
 				[
 					"set -e",
 					`cd ${SANDBOX_ROOT}`,
-					"corepack pnpm --filter @giselles/rpa-sdk run build",
-					"corepack pnpm --filter @giselles/rpa-planner run build",
+					"corepack pnpm --filter @giselles/browser-tool-sdk run build",
+					"corepack pnpm --filter @giselles/browser-tool-planner run build",
 					"corepack pnpm --filter @giselles/mcp-server run build",
 				].join("\n"),
 			],
@@ -209,7 +209,7 @@ async function main() {
 				[
 					"set -e",
 					`test -f ${SANDBOX_ROOT}/packages/mcp-server/dist/index.js`,
-					`test -f ${SANDBOX_ROOT}/packages/rpa-planner/dist/index.js`,
+					`test -f ${SANDBOX_ROOT}/packages/browser-tool-planner/dist/index.js`,
 					"which gemini",
 				].join("\n"),
 			],

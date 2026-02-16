@@ -1,4 +1,4 @@
-import { createBridgeRoutes } from "@giselles/rpa-bridge/next";
+import { createBridgeRoutes } from "@giselles/browser-tool-bridge/next";
 
 export const runtime = "nodejs";
 

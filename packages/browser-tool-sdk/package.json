@@ -1,5 +1,5 @@
 {
-	"name": "@giselles/rpa-sdk",
+	"name": "@giselles/browser-tool-sdk",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",

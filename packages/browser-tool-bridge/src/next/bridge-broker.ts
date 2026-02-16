@@ -4,7 +4,7 @@ import {
 	type BridgeRequest,
 	type BridgeResponse,
 	bridgeResponseSchema,
-} from "@giselles/rpa-sdk";
+} from "@giselles/browser-tool-sdk";
 import Redis from "ioredis";
 
 const DEFAULT_SESSION_TTL_MS = 10 * 60 * 1000;

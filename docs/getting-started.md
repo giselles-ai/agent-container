@@ -38,7 +38,7 @@ SDK はこの制約を Redis Pub/Sub + SSE による Bridge アーキテクチ�
 ## 1. パッケージのインストール
 
 ```bash
-pnpm add @giselles/rpa-sdk @giselles/rpa-bridge
+pnpm add @giselles/browser-tool-sdk @giselles/browser-tool-bridge
 ```
 
 ## 2. 環境変数の設定
@@ -67,7 +67,7 @@ RPA_MCP_MOCK_PLAN=false                           # true にすると LLM を使
 `app/api/gemini-rpa/[...slug]/route.ts` を作成します：
 
 ```ts
-import { createBridgeRoutes } from "@giselles/rpa-bridge/next";
+import { createBridgeRoutes } from "@giselles/browser-tool-bridge/next";
 
 export const runtime = "nodejs";
 
@@ -160,7 +160,7 @@ SDK はフィールドのラベルを以下の優先順位で自動解決しま�
 "use client";
 
 import { useState, useCallback } from "react";
-import { useBridge } from "@giselles/rpa-bridge/react";
+import { useBridge } from "@giselles/browser-tool-bridge/react";
 
 export default function MyPage() {
   const [input, setInput] = useState("");
@@ -276,7 +276,7 @@ export default function MyPage() {
 
 ### Sandbox 内でビルドエラー
 
-- `RPA_SANDBOX_SNAPSHOT_ID` のスナップショットに `packages/mcp-server` と `packages/rpa-planner` のビルド済みファイルが含まれているか確認してください
+- `RPA_SANDBOX_SNAPSHOT_ID` のスナップショットに `packages/mcp-server` と `packages/browser-tool-planner` のビルド済みファイルが含まれているか確認してください
 - または `RPA_SKIP_SANDBOX_BUILD=false` にして Sandbox 内でビルドを実行させてください
 
 ### `TIMEOUT` エラー
@@ -287,13 +287,13 @@ export default function MyPage() {
 ## パッケージ構成
 
 ```
-@giselles/rpa-sdk        — コア (snapshot, execute, 型定義, Zod スキーマ)
-@giselles/rpa-bridge     — Bridge 統合
+@giselles/browser-tool-sdk        — コア (snapshot, execute, 型定義, Zod スキーマ)
+@giselles/browser-tool-bridge     — Bridge 統合
   ├── /react             — useBridge() hook
   └── /next              — createBridgeRoutes(), bridge-broker, chat-handler
-@giselles/rpa-planner    — LLM によるアクション計画
+@giselles/browser-tool-planner    — LLM によるアクション計画
 @giselles/mcp-server     — Gemini CLI 用 MCP Server
 ```
 
-すべての型と Zod スキーマは `@giselles/rpa-sdk` が Single Source of Truth です。
+すべての型と Zod スキーマは `@giselles/browser-tool-sdk` が Single Source of Truth です。
 他のパッケージは re-export しています。

@@ -1,5 +1,5 @@
 {
-	"name": "@giselles/rpa-planner",
+	"name": "@giselles/browser-tool-planner",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -20,7 +20,7 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles/rpa-sdk": "workspace:*",
+		"@giselles/browser-tool-sdk": "workspace:*",
 		"ai": "6.0.59",
 		"zod": "4.3.6"
 	},

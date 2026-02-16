@@ -1,5 +1,5 @@
 {
-	"name": "@giselles/rpa-bridge",
+	"name": "@giselles/browser-tool-bridge",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -24,7 +24,7 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles/rpa-sdk": "workspace:*",
+		"@giselles/browser-tool-sdk": "workspace:*",
 		"@vercel/sandbox": "^1.0.0",
 		"ioredis": "^5.9.2",
 		"react": ">=19.0.0",

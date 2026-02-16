@@ -1,6 +1,6 @@
 "use client";
 
-import { useBridge } from "@giselles/rpa-bridge/react";
+import { useBridge } from "@giselles/browser-tool-bridge/react";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 function DemoForm() {

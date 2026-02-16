@@ -12,8 +12,8 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles/rpa-sdk": "workspace:*",
-		"@giselles/rpa-planner": "workspace:*",
+		"@giselles/browser-tool-sdk": "workspace:*",
+		"@giselles/browser-tool-planner": "workspace:*",
 		"@modelcontextprotocol/sdk": "^1.0.0",
 		"zod": "4.3.6"
 	},

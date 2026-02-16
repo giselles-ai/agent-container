@@ -2,9 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	transpilePackages: [
-		"@giselles/rpa-sdk",
-		"@giselles/rpa-planner",
-		"@giselles/rpa-bridge",
+		"@giselles/browser-tool-sdk",
+		"@giselles/browser-tool-planner",
+		"@giselles/browser-tool-bridge",
 	],
 };
 

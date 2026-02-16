@@ -1,7 +1,7 @@
 "use client";
 
-import type { RpaAction, SnapshotField } from "@giselles/rpa-sdk";
-import { execute, snapshot } from "@giselles/rpa-sdk";
+import type { RpaAction, SnapshotField } from "@giselles/browser-tool-sdk";
+import { execute, snapshot } from "@giselles/browser-tool-sdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type BridgeSession = {

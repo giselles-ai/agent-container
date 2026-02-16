@@ -15,4 +15,4 @@ export {
 	snapshotFieldSchema,
 	snapshotRequestSchema,
 	snapshotResponseSchema,
-} from "@giselles/rpa-sdk";
+} from "@giselles/browser-tool-sdk";
