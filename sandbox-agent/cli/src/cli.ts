@@ -11,6 +11,17 @@ import * as tar from "tar";
 
 const CONFIG_FILE = "config.toml";
 const HOSTED_SKILL_SLUG_RE = /^[a-z0-9-]+$/;
+const DEBUG_FLAG_SET = new Set(["--debug", "--verbose", "-v"]);
+const isDebugEnabled = (() => {
+	const env = process.env.GISELLE_CLI_DEBUG?.trim().toLowerCase();
+	return (
+		process.argv.some((arg) => DEBUG_FLAG_SET.has(arg)) ||
+		env === "1" ||
+		env === "true" ||
+		env === "yes" ||
+		env === "on"
+	);
+})();
 
 type SkillEntry = {
 	source?: "local" | "hosted";
@@ -49,7 +60,7 @@ function printUsage() {
   giselle add-skill <path>
   giselle add-hosted-skill <slug>
   giselle edit-setup-script
-  giselle build
+  giselle build [--debug]
   giselle delete [slug] [--force]
 `;
 	process.stderr.write(usage);
@@ -58,6 +69,30 @@ function printUsage() {
 function fail(message: string): never {
 	process.stderr.write(`Error: ${message}\n`);
 	process.exit(1);
+}
+
+function toLogValue(value: unknown): string {
+	if (value instanceof Error) {
+		return `${value.name}: ${value.message}${value.stack ? `\n${value.stack}` : ""}`;
+	}
+	if (typeof value === "string") {
+		return value;
+	}
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+}
+
+function logDebug(message: string, value?: unknown) {
+	if (!isDebugEnabled) return;
+	const suffix = value === undefined ? "" : ` | ${toLogValue(value)}`;
+	process.stderr.write(`[debug] ${message}${suffix}\n`);
+}
+
+function stripDebugArgs(args: string[]) {
+	return args.filter((arg) => !DEBUG_FLAG_SET.has(arg));
 }
 
 async function promptLine(question: string): Promise<string> {
@@ -245,25 +280,42 @@ async function createAgentTar(
 }
 
 async function runBuild() {
+	logDebug("Starting build");
 	const { config, cwd } = await ensureConfigInCwd();
 	const { baseUrl, apiKey } = readApiConfig();
+	logDebug("Loaded config", { cwd, baseUrl });
 
 	const { tarPath, cleanup } = await createAgentTar(cwd, config);
+	logDebug("Created temporary archive", tarPath);
 	let buildError: string | null = null;
 	let cleanupError: string | null = null;
 	let outputUrl: string | null = null;
 	try {
 		const tarBuffer = await fs.readFile(tarPath);
+		logDebug("Read archive", { tarSize: tarBuffer.byteLength });
 		const url = new URL("/api/agents/build", baseUrl).toString();
-		const res = await fetch(url, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/octet-stream",
-				"x-vercel-protection-bypass": apiKey,
-			},
-			body: tarBuffer,
-		});
-		const text = await res.text();
+		logDebug("POST", url);
+		let text: string;
+		let res: Response;
+		try {
+			res = await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/octet-stream",
+					"x-giselle-protection-bypass": apiKey,
+				},
+				body: tarBuffer,
+			});
+			text = await res.text();
+		} catch (err) {
+			logDebug("Network request failed", err);
+			buildError = `Build request failed: ${
+				err instanceof Error ? err.message : String(err)
+			}`;
+			return;
+		}
+		logDebug("Response", { status: res.status, statusText: res.statusText });
+		logDebug("Response body", text);
 		if (!res.ok) {
 			buildError = `Build failed (${res.status}): ${text}`;
 			return;
@@ -275,6 +327,7 @@ async function runBuild() {
 			buildError = "Invalid response from server.";
 			return;
 		}
+		logDebug("Parsed response", data);
 		if (!data.snapshotId) {
 			buildError = "snapshotId missing in response.";
 			return;
@@ -289,6 +342,7 @@ async function runBuild() {
 		)
 			.toString()
 			.trim();
+		logDebug("Build completed", { outputUrl });
 	} finally {
 		try {
 			await cleanup();
@@ -345,7 +399,7 @@ async function runDelete(argSlug: string | undefined, force: boolean) {
 	const response = await fetch(url, {
 		method: "DELETE",
 		headers: {
-			"x-vercel-protection-bypass": apiKey,
+			"x-giselle-protection-bypass": apiKey,
 		},
 	});
 	if (!response.ok) {
@@ -393,15 +447,47 @@ function toPosixPath(p: string): string {
 }
 
 function readApiConfig() {
-	const baseUrl = process.env.GISELLE_API_URL?.trim();
+	const baseUrl = getNormalizedEnv("GISELLE_API_URL");
 	if (!baseUrl) {
-		fail("GISELLE_API_URL is required.");
+		fail(
+			`GISELLE_API_URL is required. Available environment keys: ${getVisibleGiselleEnvKeys()}`,
+		);
 	}
-	const apiKey = process.env.GISELLE_API_KEY?.trim();
+	const apiKey = getNormalizedEnv("GISELLE_API_KEY");
 	if (!apiKey) {
-		fail("GISELLE_API_KEY is required.");
+		fail(
+			`GISELLE_PROTECTION_PASSWORD or GISELLE_API_KEY is required. Available environment keys: ${getVisibleGiselleEnvKeys()}`,
+		);
 	}
+
 	return { baseUrl, apiKey };
+}
+
+function getVisibleGiselleEnvKeys() {
+	const keys = Object.keys(process.env)
+		.filter((key) => key.startsWith("GISELLE_"))
+		.sort()
+		.join(", ");
+	return keys.length > 0 ? keys : "<none>";
+}
+
+function getNormalizedEnv(name: string): string | null {
+	const raw = process.env[name];
+	if (!raw) {
+		return null;
+	}
+	const trimmed = raw.trim();
+	if (!trimmed) {
+		return null;
+	}
+	const quotedSingle =
+		trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2;
+	const quotedDouble =
+		trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2;
+	if (quotedSingle || quotedDouble) {
+		return trimmed.slice(1, -1).trim();
+	}
+	return trimmed;
 }
 
 function parseSkillEntry(input: unknown): SkillEntry | null {
@@ -563,7 +649,7 @@ async function runEditSetupScript() {
 }
 
 async function main() {
-	const [command, ...args] = process.argv.slice(2);
+	const [command, ...args] = stripDebugArgs(process.argv.slice(2));
 	if (!command || command === "--help" || command === "-h") {
 		printUsage();
 		process.exit(command ? 0 : 1);
@@ -598,6 +684,7 @@ async function main() {
 }
 
 main().catch((err) => {
+	logDebug("Unexpected error", err);
 	process.stderr.write(`Unexpected error: ${err?.message ?? String(err)}\n`);
 	process.exit(1);
 });
