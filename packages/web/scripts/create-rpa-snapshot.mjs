@@ -14,6 +14,7 @@ const TIMEOUT_MS = Number.parseInt(
 	process.env.RPA_SNAPSHOT_TIMEOUT_MS || "2700000",
 	10,
 );
+const BASE_SNAPSHOT_ID = process.env.BASE_SNAPSHOT_ID?.trim() || "";
 const INCLUDE_PATHS = [
 	"package.json",
 	"pnpm-lock.yaml",
@@ -127,10 +128,58 @@ async function main() {
 
 	console.log(`[snapshot] files to upload: ${uploadFiles.length}`);
 
+	let baseSnapshotId = BASE_SNAPSHOT_ID;
+
+	if (baseSnapshotId) {
+		console.log(
+			`[snapshot] using existing base snapshot: ${baseSnapshotId}`,
+		);
+	} else {
+		console.log(
+			"[snapshot] BASE_SNAPSHOT_ID not set, creating base snapshot with gemini-cli...",
+		);
+
+		const baseSandbox = await Sandbox.create({
+			runtime: RUNTIME,
+			timeout: TIMEOUT_MS,
+		});
+		console.log(`[snapshot] base sandbox created: ${baseSandbox.sandboxId}`);
+
+		try {
+			console.log("[snapshot] installing gemini cli...");
+			await runCommandOrThrow(baseSandbox, {
+				cmd: "npm",
+				args: ["install", "-g", "@google/gemini-cli"],
+			});
+
+			console.log("[snapshot] creating base snapshot...");
+			const baseSnapshot = await baseSandbox.snapshot();
+			baseSnapshotId = baseSnapshot.snapshotId;
+
+			console.log(`[snapshot] base snapshot created: ${baseSnapshotId}`);
+			console.log(
+				"[snapshot] reuse with: BASE_SNAPSHOT_ID=" + baseSnapshotId,
+			);
+		} catch (error) {
+			console.error("[snapshot] base snapshot creation failed:");
+			console.error(
+				error instanceof Error ? error.message : String(error),
+			);
+			try {
+				await baseSandbox.stop();
+			} catch {
+				// Best-effort cleanup.
+			}
+			process.exitCode = 1;
+			return;
+		}
+	}
+
 	console.log(
-		`[snapshot] creating sandbox runtime=${RUNTIME} timeoutMs=${TIMEOUT_MS}...`,
+		`[snapshot] creating sandbox from base snapshot runtime=${RUNTIME} timeoutMs=${TIMEOUT_MS}...`,
 	);
 	const sandbox = await Sandbox.create({
+		source: { type: "snapshot", snapshotId: baseSnapshotId },
 		runtime: RUNTIME,
 		timeout: TIMEOUT_MS,
 	});
@@ -189,12 +238,6 @@ async function main() {
 					"corepack pnpm --filter @giselles/mcp-server run build",
 				].join("\n"),
 			],
-		});
-
-		console.log("[snapshot] installing gemini cli...");
-		await runCommandOrThrow(sandbox, {
-			cmd: "npm",
-			args: ["install", "-g", "@google/gemini-cli"],
 		});
 
 		console.log("[snapshot] validating artifacts...");
