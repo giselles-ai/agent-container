@@ -77,42 +77,23 @@ async function main() {
 		LOCAL_SANDBOX_ROOT,
 	);
 
-	console.log("[local-sandbox] building browser-tool (planner + mcp-server)...");
+	console.log("[local-sandbox] building browser-tool (mcp-server)...");
 	await run(
 		"corepack",
 		["pnpm", "--filter", "@giselles-ai/browser-tool", "build"],
 		LOCAL_SANDBOX_ROOT,
 	);
 
-	const plannerDistPath = path.join(
-		LOCAL_SANDBOX_ROOT,
-		"packages/browser-tool/dist/planner/index.js",
-	);
 	const mcpDistPath = path.join(
 		LOCAL_SANDBOX_ROOT,
 		"packages/browser-tool/dist/mcp-server/index.js",
 	);
 
-	await assertExists(plannerDistPath);
 	await assertExists(mcpDistPath);
-
-	console.log("[local-sandbox] validating planner runtime import...");
-	await run(
-		"node",
-		[
-			"-e",
-			"import(process.argv[1]).then((m)=>console.log('planner import ok',Object.keys(m))).catch((e)=>{console.error(e);process.exit(1);})",
-			plannerDistPath,
-		],
-		LOCAL_SANDBOX_ROOT,
-	);
 
 	console.log("");
 	console.log("Local sandbox is ready.");
 	console.log(`RPA_SANDBOX_ROOT=${LOCAL_SANDBOX_ROOT}`);
-	console.log(
-		`Planner path = ${LOCAL_SANDBOX_ROOT}/packages/browser-tool/dist/planner/index.js`,
-	);
 	console.log(
 		`MCP server path = ${LOCAL_SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
 	);

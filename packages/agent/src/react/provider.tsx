@@ -2,7 +2,6 @@
 
 import type {
 	ExecutionReport,
-	PlanResult,
 	RpaAction,
 	RpaStatus,
 	SnapshotField,
@@ -23,6 +22,12 @@ type RunInput = {
 	document?: string;
 };
 
+type RpaPlan = {
+	fields: SnapshotField[];
+	actions: RpaAction[];
+	warnings: string[];
+};
+
 export type RpaProviderProps = {
 	endpoint: string;
 	children: ReactNode;
@@ -31,11 +36,11 @@ export type RpaProviderProps = {
 export type RpaContextValue = {
 	endpoint: string;
 	status: RpaStatus;
-	lastPlan: PlanResult | null;
+	lastPlan: RpaPlan | null;
 	lastExecution: ExecutionReport | null;
 	error: string | null;
 	setError: Dispatch<SetStateAction<string | null>>;
-	run: (input: RunInput) => Promise<PlanResult>;
+	run: (input: RunInput) => Promise<RpaPlan>;
 	apply: (actions: RpaAction[], fields: SnapshotField[]) => ExecutionReport;
 };
 
@@ -77,14 +82,14 @@ function parseWarnings(value: unknown): string[] {
 
 export function RpaProvider({ endpoint, children }: RpaProviderProps) {
 	const [status, setStatus] = useState<RpaStatus>("idle");
-	const [lastPlan, setLastPlan] = useState<PlanResult | null>(null);
+	const [lastPlan, setLastPlan] = useState<RpaPlan | null>(null);
 	const [lastExecution, setLastExecution] = useState<ExecutionReport | null>(
 		null,
 	);
 	const [error, setError] = useState<string | null>(null);
 
 	const run = useCallback(
-		async ({ instruction, document }: RunInput): Promise<PlanResult> => {
+		async ({ instruction, document }: RunInput): Promise<RpaPlan> => {
 			const trimmedInstruction = instruction.trim();
 			if (!trimmedInstruction) {
 				throw new Error("Instruction is required.");
@@ -127,7 +132,7 @@ export function RpaProvider({ endpoint, children }: RpaProviderProps) {
 					? parseWarnings(payload.warnings)
 					: [];
 
-				const plan: PlanResult = {
+				const plan: RpaPlan = {
 					fields,
 					actions,
 					warnings,

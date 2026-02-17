@@ -10,7 +10,6 @@ Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動�
 - `packages/browser-tool` — `@giselles-ai/browser-tool`
   - 型 + Zod スキーマ
   - DOM 操作 (`snapshot` / `execute`)
-  - planner (`planActions`)
   - MCP server (`./mcp-server` subpath export)
 - `packages/web` — Next.js デモアプリ
 
@@ -109,7 +108,6 @@ const { status, messages, tools, error, sendMessage } = useAgent({
 `pnpm snapshot:rpa` で以下を含む snapshot を作成します。
 
 - `gemini` CLI
-- built `packages/browser-tool/dist/planner/index.js`
 - built `packages/browser-tool/dist/mcp-server/index.js`
 
 Script output で以下の推奨値が表示されます。
@@ -137,6 +135,5 @@ pnpm sandbox:local:rpa
 
 - `@giselles-ai/browser-tool` build
 - `packages/browser-tool/dist/mcp-server/index.js` の存在検証
-- `packages/browser-tool/dist/planner/index.js` の import 検証
 
 これはローカル事前検証用です。実行環境の Sandbox では `snapshot:rpa` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。

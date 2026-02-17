@@ -137,7 +137,6 @@ async function ensureMcpDistPaths(input: {
 	}
 
 	const mcpServerDistPath = `${repoRoot}/packages/browser-tool/dist/mcp-server/index.js`;
-	const plannerDistPath = `${repoRoot}/packages/browser-tool/dist/planner/index.js`;
 
 	const checkDistReady = async () => {
 		const { stdout, stderr } = await runCommandCapture(input.sandbox, {
@@ -145,14 +144,13 @@ async function ensureMcpDistPaths(input: {
 			args: [
 				"-lc",
 				[
-					'if [ -f "$MCP_SERVER_DIST_PATH" ] && [ -f "$PLANNER_DIST_PATH" ]; then',
+					'if [ -f "$MCP_SERVER_DIST_PATH" ]; then',
 					'  echo "ready"',
 					"fi",
 				].join("\n"),
 			],
 			env: {
 				MCP_SERVER_DIST_PATH: mcpServerDistPath,
-				PLANNER_DIST_PATH: plannerDistPath,
 			},
 			signal: input.signal,
 		});
@@ -170,7 +168,7 @@ async function ensureMcpDistPaths(input: {
 		if (!skipSandboxBuild) {
 			input.enqueueEvent({
 				type: "stderr",
-				content: `[info] Building browser-tool (planner + mcp-server) in sandbox at ${repoRoot}`,
+				content: `[info] Building browser-tool (mcp-server) in sandbox at ${repoRoot}`,
 			});
 
 			const buildResult = await runCommandCapture(input.sandbox, {
@@ -200,7 +198,7 @@ async function ensureMcpDistPaths(input: {
 		if (!finalCheck.ready) {
 			throw new Error(
 				[
-					`MCP dist files are missing in sandbox: ${mcpServerDistPath} and/or ${plannerDistPath}.`,
+					`MCP dist file is missing in sandbox: ${mcpServerDistPath}.`,
 					"Ensure the snapshot contains built artifacts or allow sandbox build.",
 				].join(" "),
 			);

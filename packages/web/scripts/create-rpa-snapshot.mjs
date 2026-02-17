@@ -130,9 +130,7 @@ async function main() {
 	let baseSnapshotId = BASE_SNAPSHOT_ID;
 
 	if (baseSnapshotId) {
-		console.log(
-			`[snapshot] using existing base snapshot: ${baseSnapshotId}`,
-		);
+		console.log(`[snapshot] using existing base snapshot: ${baseSnapshotId}`);
 	} else {
 		console.log(
 			"[snapshot] BASE_SNAPSHOT_ID not set, creating base snapshot with gemini-cli...",
@@ -157,13 +155,11 @@ async function main() {
 
 			console.log(`[snapshot] base snapshot created: ${baseSnapshotId}`);
 			console.log(
-				"[snapshot] reuse with: BASE_SNAPSHOT_ID=" + baseSnapshotId,
+				`[snapshot] reuse with: BASE_SNAPSHOT_ID="${baseSnapshotId}"`,
 			);
 		} catch (error) {
 			console.error("[snapshot] base snapshot creation failed:");
-			console.error(
-				error instanceof Error ? error.message : String(error),
-			);
+			console.error(error instanceof Error ? error.message : String(error));
 			try {
 				await baseSandbox.stop();
 			} catch {
@@ -224,7 +220,7 @@ async function main() {
 			],
 		});
 
-		console.log("[snapshot] building browser-tool (planner + mcp-server)...");
+		console.log("[snapshot] building browser-tool (mcp-server)...");
 		await runCommandOrThrow(sandbox, {
 			cmd: "bash",
 			args: [
@@ -245,7 +241,6 @@ async function main() {
 				[
 					"set -e",
 					`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
-					`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/planner/index.js`,
 					"which gemini",
 				].join("\n"),
 			],

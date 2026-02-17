@@ -39,12 +39,6 @@ export type ExecutionReport = {
 	warnings: string[];
 };
 
-export type PlanResult = {
-	fields: SnapshotField[];
-	actions: RpaAction[];
-	warnings: string[];
-};
-
 export type RpaStatus =
 	| "idle"
 	| "snapshotting"
@@ -109,13 +103,6 @@ export const executionReportSchema = z.object({
 	skipped: z.number().int().nonnegative(),
 	warnings: z.array(z.string()),
 });
-
-export const planActionsInputSchema = z.object({
-	instruction: z.string().min(1),
-	document: z.string().optional(),
-	fields: z.array(snapshotFieldSchema).min(1),
-});
-export type PlanActionsInput = z.infer<typeof planActionsInputSchema>;
 
 export const snapshotRequestSchema = z.object({
 	type: z.literal("snapshot_request"),
