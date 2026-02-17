@@ -17,6 +17,8 @@ import {
 } from "./internal/bridge-broker";
 import { createGeminiChatHandler } from "./internal/chat-handler";
 
+const LOG_PREFIX = "[agent-bridge]";
+
 const agentRunSchema = z.object({
 	type: z.literal("agent.run"),
 	message: z.string().min(1),
@@ -91,6 +93,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 
 	return assertBridgeSession(sessionId, token)
 		.then(() => {
+			console.info(`${LOG_PREFIX} sse.connect`, { sessionId });
 			const requestChannel = bridgeRequestChannel(sessionId);
 			const stream = new ReadableStream<Uint8Array>({
 				start(controller) {
@@ -103,7 +106,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 						nextEventId += 1;
 						controller.enqueue(
 							encoder.encode(
-								`id: ${nextEventId}\\ndata: ${JSON.stringify(payload)}\\n\\n`,
+								`id: ${nextEventId}\ndata: ${JSON.stringify(payload)}\n\n`,
 							),
 						);
 					};
@@ -111,12 +114,12 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 					const sendSseRawJson = (rawJson: string): void => {
 						nextEventId += 1;
 						controller.enqueue(
-							encoder.encode(`id: ${nextEventId}\\ndata: ${rawJson}\\n\\n`),
+							encoder.encode(`id: ${nextEventId}\ndata: ${rawJson}\n\n`),
 						);
 					};
 
 					const sendSseComment = (comment: string): void => {
-						controller.enqueue(encoder.encode(`: ${comment}\\n\\n`));
+						controller.enqueue(encoder.encode(`: ${comment}\n\n`));
 					};
 
 					const closeController = () => {
@@ -151,6 +154,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 					};
 
 					request.signal.addEventListener("abort", onAbort);
+					sendSseComment("connected");
 
 					subscriber.on("message", (channel, message) => {
 						if (closed || channel !== requestChannel) {
@@ -164,6 +168,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 						}
 
 						try {
+							console.info(`${LOG_PREFIX} sse.push`, { sessionId, message });
 							sendSseRawJson(message);
 						} catch {
 							void cleanup?.();
@@ -184,6 +189,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 						try {
 							await subscriber.subscribe(requestChannel);
 							await markBridgeBrowserConnected(sessionId, token);
+							console.info(`${LOG_PREFIX} sse.ready`, { sessionId });
 
 							sendSseData({ type: "ready", sessionId });
 
@@ -219,10 +225,16 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 					"Content-Type": "text/event-stream; charset=utf-8",
 					"Cache-Control": "no-cache, no-transform",
 					Connection: "keep-alive",
+					"X-Accel-Buffering": "no",
+					"Content-Encoding": "none",
 				},
 			});
 		})
 		.catch((error) => {
+			console.error(`${LOG_PREFIX} sse.error`, {
+				sessionId,
+				error: error instanceof Error ? error.message : String(error),
+			});
 			const bridgeError = toBridgeError(error);
 			return Response.json(
 				{
@@ -248,7 +260,7 @@ function mergeBridgeSessionStream(input: {
 		sessionId: input.session.sessionId,
 		token: input.session.token,
 		expiresAt: input.session.expiresAt,
-	})}\\n`;
+	})}\n`;
 
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
@@ -299,7 +311,7 @@ function createGeminiRequest(input: {
 
 	const trimmedDocument = input.payload.document?.trim();
 	const message = trimmedDocument
-		? `${input.payload.message.trim()}\\n\\nDocument:\\n${trimmedDocument}`
+		? `${input.payload.message.trim()}\n\nDocument:\n${trimmedDocument}`
 		: input.payload.message.trim();
 
 	return new Request(input.request.url, {
@@ -333,6 +345,11 @@ async function handlePost(request: Request): Promise<Response> {
 	}
 
 	if (parsed.data.type === "bridge.dispatch") {
+		console.info(`${LOG_PREFIX} dispatch.in`, {
+			sessionId: parsed.data.sessionId,
+			requestId: parsed.data.request.requestId,
+			requestType: parsed.data.request.type,
+		});
 		try {
 			const response = await dispatchBridgeRequest({
 				sessionId: parsed.data.sessionId,
@@ -340,8 +357,18 @@ async function handlePost(request: Request): Promise<Response> {
 				request: parsed.data.request,
 				timeoutMs: parsed.data.timeoutMs,
 			});
+			console.info(`${LOG_PREFIX} dispatch.ok`, {
+				sessionId: parsed.data.sessionId,
+				requestId: parsed.data.request.requestId,
+				responseType: response.type,
+			});
 			return Response.json({ ok: true, response });
 		} catch (error) {
+			console.error(`${LOG_PREFIX} dispatch.error`, {
+				sessionId: parsed.data.sessionId,
+				requestId: parsed.data.request.requestId,
+				error: error instanceof Error ? error.message : String(error),
+			});
 			const bridgeError = toBridgeError(error);
 			return createSafeError(
 				bridgeError.code,
@@ -352,14 +379,28 @@ async function handlePost(request: Request): Promise<Response> {
 	}
 
 	if (parsed.data.type === "bridge.respond") {
+		console.info(`${LOG_PREFIX} respond.in`, {
+			sessionId: parsed.data.sessionId,
+			requestId: parsed.data.response.requestId,
+			responseType: parsed.data.response.type,
+		});
 		try {
 			await resolveBridgeResponse({
 				sessionId: parsed.data.sessionId,
 				token: parsed.data.token,
 				response: parsed.data.response,
 			});
+			console.info(`${LOG_PREFIX} respond.ok`, {
+				sessionId: parsed.data.sessionId,
+				requestId: parsed.data.response.requestId,
+			});
 			return Response.json({ ok: true });
 		} catch (error) {
+			console.error(`${LOG_PREFIX} respond.error`, {
+				sessionId: parsed.data.sessionId,
+				requestId: parsed.data.response.requestId,
+				error: error instanceof Error ? error.message : String(error),
+			});
 			const bridgeError = toBridgeError(error);
 			return createSafeError(
 				bridgeError.code,
@@ -371,6 +412,9 @@ async function handlePost(request: Request): Promise<Response> {
 
 	const chatHandler = createGeminiChatHandler();
 	const session = await createBridgeSession();
+	console.info(`${LOG_PREFIX} run.session.created`, {
+		sessionId: session.sessionId,
+	});
 	const chatRequest = createGeminiRequest({
 		request,
 		payload: parsed.data,

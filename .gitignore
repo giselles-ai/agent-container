@@ -22,3 +22,6 @@ opensrc/
 .env*.local
 
 .turbo
+
+# test
+.sandbox-local

@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import type { RpaAction, SnapshotField } from "@giselles-ai/browser-tool";
 import { z } from "zod";
 import type { BridgeClient } from "../bridge-client.js";
@@ -21,6 +22,17 @@ type PlannedActions = {
 	actions: RpaAction[];
 	warnings: string[];
 };
+
+type PlannerModule = {
+	planActions: (input: {
+		instruction: string;
+		document?: string;
+		fields: SnapshotField[];
+	}) => Promise<PlannedActions>;
+};
+
+const PLANNER_RUNTIME_DIST_PATH =
+	"/vercel/sandbox/packages/browser-tool/dist/planner/index.js";
 
 function isMockPlannerEnabled(): boolean {
 	const value = process.env.RPA_MCP_MOCK_PLAN?.trim().toLowerCase();
@@ -66,16 +78,28 @@ function buildMockPlan(input: {
 	return { actions, warnings };
 }
 
+async function loadPlannerModule(): Promise<PlannerModule> {
+	return (await import(
+		pathToFileURL(PLANNER_RUNTIME_DIST_PATH).href
+	)) as PlannerModule;
+}
+
 export async function runFillForm(
 	input: FillFormInput,
 	bridgeClient: BridgeClient,
 ): Promise<FillFormOutput> {
 	const parsed = fillFormInputSchema.parse(input);
 
-	const fields = await bridgeClient.requestSnapshot({
-		instruction: parsed.instruction,
-		document: parsed.document,
-	});
+	let fields: SnapshotField[];
+	try {
+		fields = await bridgeClient.requestSnapshot({
+			instruction: parsed.instruction,
+			document: parsed.document,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`[fillForm:snapshot] ${message}`);
+	}
 
 	let planned: PlannedActions;
 
@@ -85,20 +109,29 @@ export async function runFillForm(
 			fields,
 		});
 	} else {
-		const { planActions } = await import(
-			"@giselles-ai/browser-tool/planner/runtime"
-		);
-		planned = await planActions({
-			instruction: parsed.instruction,
-			document: parsed.document,
-			fields,
-		});
+		try {
+			const { planActions } = await loadPlannerModule();
+			planned = await planActions({
+				instruction: parsed.instruction,
+				document: parsed.document,
+				fields,
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`[fillForm:planner] ${message}`);
+		}
 	}
 
-	const report = await bridgeClient.requestExecute({
-		actions: planned.actions,
-		fields,
-	});
+	let report;
+	try {
+		report = await bridgeClient.requestExecute({
+			actions: planned.actions,
+			fields,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`[fillForm:execute] ${message}`);
+	}
 
 	return {
 		applied: report.applied,

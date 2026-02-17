@@ -129,4 +129,15 @@ pnpm build
 pnpm typecheck
 pnpm format
 pnpm snapshot:rpa
+pnpm sandbox:local:rpa
 ```
+
+## Local sandbox reproduction
+
+`pnpm sandbox:local:rpa` でローカルに `/vercel/sandbox` 相当の構成を `.sandbox-local/vercel/sandbox` として作成し、以下を実施します。
+
+- `@giselles-ai/browser-tool` build
+- `@giselles/mcp-server` build
+- `packages/browser-tool/dist/planner/index.js` の import 検証
+
+これはローカル事前検証用です。実行環境の Sandbox では `snapshot:rpa` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。

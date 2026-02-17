@@ -49,6 +49,8 @@ export type AgentHookState = {
 	sendMessage: (input: { message: string; document?: string }) => Promise<void>;
 };
 
+const LOG_PREFIX = "[agent-bridge-client]";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
 }
@@ -176,10 +178,23 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		async (payload: Record<string, unknown>) => {
 			const currentSession = sessionRef.current;
 			if (!currentSession) {
+				console.warn(`${LOG_PREFIX} respond.skip.no-session`, {
+					payloadType: payload.type,
+				});
 				return;
 			}
 
-			await fetch(normalizedEndpoint, {
+			const requestId =
+				typeof payload.requestId === "string" ? payload.requestId : undefined;
+			const responseType =
+				typeof payload.type === "string" ? payload.type : undefined;
+			console.info(`${LOG_PREFIX} respond.out`, {
+				sessionId: currentSession.sessionId,
+				requestId,
+				responseType,
+			});
+
+			const response = await fetch(normalizedEndpoint, {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
@@ -190,6 +205,12 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 					token: currentSession.token,
 					response: payload,
 				}),
+			});
+			console.info(`${LOG_PREFIX} respond.result`, {
+				sessionId: currentSession.sessionId,
+				requestId,
+				status: response.status,
+				ok: response.ok,
 			});
 		},
 		[normalizedEndpoint],
@@ -220,7 +241,14 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				}
 
 				if (event.type === "snapshot_request") {
+					console.info(`${LOG_PREFIX} sse.snapshot_request`, {
+						requestId,
+					});
 					const fields = snapshot();
+					console.info(`${LOG_PREFIX} sse.snapshot_result`, {
+						requestId,
+						fieldCount: fields.length,
+					});
 					await handleBridgeResponse({
 						type: "snapshot_response",
 						requestId,
@@ -230,6 +258,12 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				}
 
 				if (event.type === "execute_request") {
+					console.info(`${LOG_PREFIX} sse.execute_request`, {
+						requestId,
+						actionCount: Array.isArray(event.actions)
+							? event.actions.length
+							: 0,
+					});
 					const actions = Array.isArray(event.actions)
 						? (event.actions as RpaAction[])
 						: [];
@@ -238,6 +272,11 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 						: [];
 
 					const report = execute(actions, fields);
+					console.info(`${LOG_PREFIX} sse.execute_result`, {
+						requestId,
+						applied: report.applied,
+						skipped: report.skipped,
+					});
 					setWarnings((current) =>
 						dedupeStringArray([...current, ...report.warnings]),
 					);
@@ -284,6 +323,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		const source = new EventSource(
 			`${normalizedEndpoint}?type=bridge.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
 		);
+		console.info(`${LOG_PREFIX} sse.connect`, {
+			sessionId: currentSession.sessionId,
+		});
 		eventSourceRef.current = source;
 
 		source.onopen = () => {
@@ -291,14 +333,35 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				return;
 			}
 			setBridgeStatus("connected");
+			console.info(`${LOG_PREFIX} sse.open`, {
+				sessionId: currentSession.sessionId,
+			});
 		};
 
 		source.onmessage = (message) => {
+			console.info(`${LOG_PREFIX} sse.message.raw`, {
+				sessionId: currentSession.sessionId,
+				data: message.data,
+			});
 			try {
 				const payload = JSON.parse(message.data) as unknown;
+				console.info(`${LOG_PREFIX} sse.message.parsed`, {
+					sessionId: currentSession.sessionId,
+					type:
+						typeof payload === "object" &&
+						payload &&
+						"type" in payload &&
+						typeof (payload as { type?: unknown }).type === "string"
+							? (payload as { type: string }).type
+							: "unknown",
+				});
 				void handleBridgeEvent(payload);
-			} catch {
-				// Ignore malformed bridge events.
+			} catch (error) {
+				console.error(`${LOG_PREFIX} sse.message.parse_error`, {
+					sessionId: currentSession.sessionId,
+					error: error instanceof Error ? error.message : String(error),
+					data: message.data,
+				});
 			}
 		};
 
@@ -308,6 +371,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 			}
 
 			setBridgeStatus("connecting");
+			console.warn(`${LOG_PREFIX} sse.error`, {
+				sessionId: currentSession.sessionId,
+			});
 			if (!reconnectTimerRef.current) {
 				reconnectTimerRef.current = setTimeout(() => {
 					reconnectTimerRef.current = null;
@@ -342,6 +408,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				}
 
 				sessionRef.current = { sessionId, token, expiresAt };
+				console.info(`${LOG_PREFIX} stream.bridge_session`, {
+					sessionId,
+				});
 				connect();
 				return;
 			}
@@ -497,6 +566,10 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 			]);
 
 			try {
+				console.info(`${LOG_PREFIX} run.start`, {
+					messageLength: trimmedMessage.length,
+					hasDocument: Boolean(document?.trim()),
+				});
 				const response = await fetch(normalizedEndpoint, {
 					method: "POST",
 					headers: {
@@ -514,6 +587,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				if (!response.ok || !response.body) {
 					throw new Error(`Failed to start stream (${response.status}).`);
 				}
+				console.info(`${LOG_PREFIX} run.stream.open`, {
+					status: response.status,
+				});
 
 				const reader = response.body.getReader();
 				const decoder = new TextDecoder();
