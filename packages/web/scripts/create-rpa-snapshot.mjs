@@ -246,6 +246,31 @@ async function main() {
 			],
 		});
 
+		const mcpServerDistPath = `${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`;
+		const geminiSettings = {
+			security: {
+				auth: {
+					selectedType: "gemini-api-key",
+				},
+			},
+			mcpServers: {
+				rpa_bridge: {
+					command: "node",
+					args: [mcpServerDistPath],
+					cwd: SANDBOX_ROOT,
+					env: {},
+				},
+			},
+		};
+
+		console.log("[snapshot] writing gemini settings.json...");
+		await sandbox.writeFiles([
+			{
+				path: "/home/vercel-sandbox/.gemini/settings.json",
+				content: Buffer.from(JSON.stringify(geminiSettings, null, 2)),
+			},
+		]);
+
 		console.log("[snapshot] creating snapshot (sandbox will be stopped)...");
 		const snapshot = await sandbox.snapshot();
 
@@ -257,12 +282,6 @@ async function main() {
 		console.log(`expiresAt: ${snapshot.expiresAt.toISOString()}`);
 		console.log("\nSet this in packages/web/.env.local:");
 		console.log(`RPA_SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
-		console.log(`RPA_SANDBOX_REPO_ROOT=${SANDBOX_ROOT}`);
-		console.log(
-			`RPA_MCP_SERVER_DIST_PATH=${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
-		);
-		console.log(`RPA_MCP_SERVER_CWD=${SANDBOX_ROOT}`);
-		console.log("RPA_SKIP_SANDBOX_BUILD=1");
 	} catch (error) {
 		console.error("[snapshot] failed:");
 		console.error(error instanceof Error ? error.message : String(error));
