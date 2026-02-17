@@ -14,9 +14,6 @@ const TIMEOUT_MS = Number.parseInt(
 	process.env.RPA_SNAPSHOT_TIMEOUT_MS || "2700000",
 	10,
 );
-const GEMINI_PACKAGE =
-	process.env.RPA_GEMINI_PACKAGE?.trim() || "@google/gemini-cli";
-
 const INCLUDE_PATHS = [
 	"package.json",
 	"pnpm-lock.yaml",
@@ -197,7 +194,7 @@ async function main() {
 		console.log("[snapshot] installing gemini cli...");
 		await runCommandOrThrow(sandbox, {
 			cmd: "npm",
-			args: ["install", "-g", GEMINI_PACKAGE],
+			args: ["install", "-g", "@google/gemini-cli"],
 		});
 
 		console.log("[snapshot] validating artifacts...");
