@@ -20,7 +20,6 @@ const INCLUDE_PATHS = [
 	"pnpm-lock.yaml",
 	"pnpm-workspace.yaml",
 	"tsconfig.base.json",
-	"packages/mcp-server",
 	"packages/browser-tool",
 	"packages/agent",
 ];
@@ -220,13 +219,12 @@ async function main() {
 						"corepack pnpm install --no-frozen-lockfile",
 						"--filter @giselles-ai/browser-tool...",
 						"--filter @giselles-ai/agent...",
-						"--filter @giselles/mcp-server...",
 					].join(" "),
 				].join("\n"),
 			],
 		});
 
-		console.log("[snapshot] building browser-tool + mcp-server...");
+		console.log("[snapshot] building browser-tool (planner + mcp-server)...");
 		await runCommandOrThrow(sandbox, {
 			cmd: "bash",
 			args: [
@@ -235,7 +233,6 @@ async function main() {
 					"set -e",
 					`cd ${SANDBOX_ROOT}`,
 					"corepack pnpm --filter @giselles-ai/browser-tool run build",
-					"corepack pnpm --filter @giselles/mcp-server run build",
 				].join("\n"),
 			],
 		});
@@ -247,7 +244,7 @@ async function main() {
 				"-lc",
 				[
 					"set -e",
-					`test -f ${SANDBOX_ROOT}/packages/mcp-server/dist/index.js`,
+					`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
 					`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/planner/index.js`,
 					"which gemini",
 				].join("\n"),
@@ -267,7 +264,7 @@ async function main() {
 		console.log(`RPA_SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
 		console.log(`RPA_SANDBOX_REPO_ROOT=${SANDBOX_ROOT}`);
 		console.log(
-			`RPA_MCP_SERVER_DIST_PATH=${SANDBOX_ROOT}/packages/mcp-server/dist/index.js`,
+			`RPA_MCP_SERVER_DIST_PATH=${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
 		);
 		console.log(`RPA_MCP_SERVER_CWD=${SANDBOX_ROOT}`);
 		console.log("RPA_SKIP_SANDBOX_BUILD=1");

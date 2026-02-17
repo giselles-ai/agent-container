@@ -9,7 +9,7 @@ import {
 	type ExecutionReport,
 	type RpaAction,
 	type SnapshotField,
-} from "@giselles-ai/browser-tool";
+} from "../types";
 
 function requiredEnv(name: string): string {
 	const value = process.env[name]?.trim();

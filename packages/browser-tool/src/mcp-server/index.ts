@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createBridgeClientFromEnv } from "./bridge-client.js";
-import { fillFormInputShape, runFillForm } from "./tools/fill-form.js";
+import { createBridgeClientFromEnv } from "./bridge-client";
+import { fillFormInputShape, runFillForm } from "./tools/fill-form";
 
 const server = new McpServer({
 	name: "giselles-rpa-mcp-server",

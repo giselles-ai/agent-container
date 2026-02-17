@@ -94,7 +94,7 @@ async function discoverRepoRoot(
 			[
 				"set -e",
 				'for d in "$RPA_SANDBOX_REPO_ROOT" /vercel/sandbox /workspace /home/vercel-sandbox; do',
-				'  if [ -n "$d" ] && [ -f "$d/pnpm-workspace.yaml" ] && [ -d "$d/packages/mcp-server" ]; then',
+				'  if [ -n "$d" ] && [ -f "$d/pnpm-workspace.yaml" ] && [ -d "$d/packages/browser-tool" ]; then',
 				'    echo "$d"',
 				"    exit 0",
 				"  fi",
@@ -130,13 +130,13 @@ async function ensureMcpDistPaths(input: {
 	if (!repoRoot) {
 		throw new Error(
 			[
-				"Failed to locate sandbox repo root containing packages/mcp-server.",
+				"Failed to locate sandbox repo root containing packages/browser-tool.",
 				"Set RPA_SANDBOX_REPO_ROOT or RPA_MCP_SERVER_DIST_PATH to resolve this.",
 			].join(" "),
 		);
 	}
 
-	const mcpServerDistPath = `${repoRoot}/packages/mcp-server/dist/index.js`;
+	const mcpServerDistPath = `${repoRoot}/packages/browser-tool/dist/mcp-server/index.js`;
 	const plannerDistPath = `${repoRoot}/packages/browser-tool/dist/planner/index.js`;
 
 	const checkDistReady = async () => {
@@ -170,7 +170,7 @@ async function ensureMcpDistPaths(input: {
 		if (!skipSandboxBuild) {
 			input.enqueueEvent({
 				type: "stderr",
-				content: `[info] Building MCP server in sandbox at ${repoRoot}`,
+				content: `[info] Building browser-tool (planner + mcp-server) in sandbox at ${repoRoot}`,
 			});
 
 			const buildResult = await runCommandCapture(input.sandbox, {
@@ -180,7 +180,6 @@ async function ensureMcpDistPaths(input: {
 					[
 						"set -e",
 						'pnpm --dir "$REPO_ROOT" --filter @giselles-ai/browser-tool run build',
-						'pnpm --dir "$REPO_ROOT" --filter @giselles/mcp-server run build',
 					].join("\n"),
 				],
 				env: {

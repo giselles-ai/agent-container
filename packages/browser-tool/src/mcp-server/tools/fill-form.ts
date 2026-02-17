@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
-import type { RpaAction, SnapshotField } from "@giselles-ai/browser-tool";
+import type { RpaAction, SnapshotField } from "../../types";
 import { z } from "zod";
-import type { BridgeClient } from "../bridge-client.js";
+import type { BridgeClient } from "../bridge-client";
 
 export const fillFormInputShape = {
 	instruction: z.string().min(1),

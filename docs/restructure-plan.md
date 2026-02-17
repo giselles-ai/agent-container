@@ -15,7 +15,6 @@
 packages/
 ├── agent/         @giselles-ai/agent
 ├── browser-tool/  @giselles-ai/browser-tool
-├── mcp-server/    @giselles/mcp-server
 └── web/           demo app
 ```
 
@@ -33,6 +32,7 @@ packages/
 - `./dom`: `snapshot`, `execute`
 - `./planner`: `planActions`
 - `./planner/runtime`: runtime import 用 alias
+- `./mcp-server`: sandbox 内 MCP server エントリポイント
 
 ### `@giselles-ai/agent`
 
@@ -57,14 +57,13 @@ export const POST = handler.POST;
 2. サーバーが bridge session を作成し、NDJSON 先頭で `bridge.session` を返す。
 3. クライアントが自動で `GET /api/agent?type=bridge.events...` に接続する。
 4. SSE の `snapshot_request` / `execute_request` を DOM で実行し、`bridge.respond` で返す。
-5. sandbox 内 MCP (`@giselles/mcp-server`) は `bridge.dispatch` を呼び、planner は `@giselles-ai/browser-tool/planner/runtime` を dynamic import する。
+5. sandbox 内 MCP (`@giselles-ai/browser-tool/mcp-server`) は `bridge.dispatch` を呼び、planner は `@giselles-ai/browser-tool/planner/runtime` を dynamic import する。
 
-## mcp-server 変更点
+## mcp-server 統合変更点
 
-- `@giselles/browser-tool-sdk` / `@giselles/browser-tool-planner` 依存を削除
-- `@giselles-ai/browser-tool` へ置換
-- dispatch URL を `/api/agent` + `type: "bridge.dispatch"` へ変更
-- planner import を `@giselles-ai/browser-tool/planner/runtime` へ変更
+- 旧 mcp-server パッケージを廃止し、`@giselles-ai/browser-tool/mcp-server` に統合
+- browser-tool の subpath export に `./mcp-server` を追加
+- sandbox 側の dist 参照を `packages/browser-tool/dist/mcp-server/index.js` に統一
 
 ## web 変更点
 
@@ -78,7 +77,6 @@ export const POST = handler.POST;
 
 - `pnpm --filter @giselles-ai/browser-tool build`
 - `pnpm --filter @giselles-ai/agent build`
-- `pnpm --filter @giselles/mcp-server build`
 - `pnpm --filter demo build`
 - `pnpm typecheck`
 

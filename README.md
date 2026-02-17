@@ -11,8 +11,7 @@ Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動�
   - 型 + Zod スキーマ
   - DOM 操作 (`snapshot` / `execute`)
   - planner (`planActions`)
-- `packages/mcp-server` — `@giselles/mcp-server`
-  - Gemini CLI から呼ばれる MCP server
+  - MCP server (`./mcp-server` subpath export)
 - `packages/web` — Next.js デモアプリ
 
 ## Prerequisites
@@ -55,7 +54,7 @@ Optional:
 
 ```bash
 RPA_SANDBOX_REPO_ROOT=/vercel/sandbox
-RPA_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/mcp-server/dist/index.js
+RPA_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/browser-tool/dist/mcp-server/index.js
 RPA_MCP_SERVER_CWD=/vercel/sandbox
 RPA_SKIP_SANDBOX_BUILD=1
 GISELLE_PROTECTION_PASSWORD=...
@@ -111,7 +110,7 @@ const { status, messages, tools, error, sendMessage } = useAgent({
 
 - `gemini` CLI
 - built `packages/browser-tool/dist/planner/index.js`
-- built `packages/mcp-server/dist/index.js`
+- built `packages/browser-tool/dist/mcp-server/index.js`
 
 Script output で以下の推奨値が表示されます。
 
@@ -137,7 +136,7 @@ pnpm sandbox:local:rpa
 `pnpm sandbox:local:rpa` でローカルに `/vercel/sandbox` 相当の構成を `.sandbox-local/vercel/sandbox` として作成し、以下を実施します。
 
 - `@giselles-ai/browser-tool` build
-- `@giselles/mcp-server` build
+- `packages/browser-tool/dist/mcp-server/index.js` の存在検証
 - `packages/browser-tool/dist/planner/index.js` の import 検証
 
 これはローカル事前検証用です。実行環境の Sandbox では `snapshot:rpa` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。

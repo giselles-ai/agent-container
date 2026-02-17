@@ -18,7 +18,6 @@ const INCLUDE_PATHS = [
 	"pnpm-workspace.yaml",
 	"tsconfig.base.json",
 	"packages/browser-tool",
-	"packages/mcp-server",
 ];
 
 function run(cmd, args, cwd) {
@@ -74,21 +73,14 @@ async function main() {
 			"--no-frozen-lockfile",
 			"--filter",
 			"@giselles-ai/browser-tool...",
-			"--filter",
-			"@giselles/mcp-server...",
 		],
 		LOCAL_SANDBOX_ROOT,
 	);
 
-	console.log("[local-sandbox] building browser-tool + mcp-server...");
+	console.log("[local-sandbox] building browser-tool (planner + mcp-server)...");
 	await run(
 		"corepack",
 		["pnpm", "--filter", "@giselles-ai/browser-tool", "build"],
-		LOCAL_SANDBOX_ROOT,
-	);
-	await run(
-		"corepack",
-		["pnpm", "--filter", "@giselles/mcp-server", "build"],
 		LOCAL_SANDBOX_ROOT,
 	);
 
@@ -98,7 +90,7 @@ async function main() {
 	);
 	const mcpDistPath = path.join(
 		LOCAL_SANDBOX_ROOT,
-		"packages/mcp-server/dist/index.js",
+		"packages/browser-tool/dist/mcp-server/index.js",
 	);
 
 	await assertExists(plannerDistPath);
@@ -120,6 +112,9 @@ async function main() {
 	console.log(`RPA_SANDBOX_ROOT=${LOCAL_SANDBOX_ROOT}`);
 	console.log(
 		`Planner path = ${LOCAL_SANDBOX_ROOT}/packages/browser-tool/dist/planner/index.js`,
+	);
+	console.log(
+		`MCP server path = ${LOCAL_SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
 	);
 }
 

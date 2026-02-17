@@ -66,28 +66,12 @@ importers:
 
   packages/browser-tool:
     dependencies:
-      ai:
-        specifier: 6.0.59
-        version: 6.0.59(zod@4.3.6)
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      tsup:
-        specifier: 8.5.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/mcp-server:
-    dependencies:
-      '@giselles-ai/browser-tool':
-        specifier: workspace:*
-        version: link:../browser-tool
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.26.0(zod@4.3.6)
+      ai:
+        specifier: 6.0.59
+        version: 6.0.59(zod@4.3.6)
       zod:
         specifier: 4.3.6
         version: 4.3.6

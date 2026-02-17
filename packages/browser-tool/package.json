@@ -3,6 +3,9 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
+	"bin": {
+		"giselles-mcp-server": "./dist/mcp-server/index.js"
+	},
 	"sideEffects": false,
 	"exports": {
 		".": {
@@ -24,6 +27,11 @@
 			"types": "./dist/planner/index.d.ts",
 			"import": "./dist/planner/index.js",
 			"default": "./dist/planner/index.js"
+		},
+		"./mcp-server": {
+			"types": "./dist/mcp-server/index.d.ts",
+			"import": "./dist/mcp-server/index.js",
+			"default": "./dist/mcp-server/index.js"
 		}
 	},
 	"scripts": {
@@ -32,10 +40,12 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.0.0",
 		"ai": "6.0.59",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {
+		"@types/node": "25.0.10",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3"
 	}

@@ -22,4 +22,11 @@ export default defineConfig([
 		dts: true,
 		clean: false,
 	},
+	{
+		entry: ["src/mcp-server/index.ts"],
+		outDir: "dist/mcp-server",
+		format: ["esm"],
+		dts: true,
+		clean: false,
+	},
 ]);
