@@ -6,13 +6,11 @@ export default defineConfig([
 		outDir: "dist",
 		format: ["esm"],
 		dts: true,
-		clean: true,
 	},
 	{
 		entry: ["src/react/index.ts"],
 		outDir: "dist/react",
 		format: ["esm"],
 		dts: true,
-		clean: false,
 	},
 ]);
