@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const DEFAULT_CLOUD_API_URL = "https://cloud.giselles.ai";
+const DEFAULT_BASE_URL = "https://studio.giselles.ai";
 
 const agentRunSchema = z.object({
 	type: z.literal("agent.run"),
@@ -38,26 +38,22 @@ function badGatewayResponse(message: string): Response {
 }
 
 export type AgentRunnerOptions = {
-	apiKey: string;
-	cloudApiUrl?: string;
+	apiKey?: string;
+	baseUrl?: string;
 };
 
 export type AgentRunnerHandler = {
 	POST: (request: Request) => Promise<Response>;
 };
 
-export function handleAgentRunner(options: AgentRunnerOptions): AgentRunnerHandler {
-	const apiKey = options.apiKey?.trim();
-	if (!apiKey) {
-		throw new Error(
-			"`apiKey` is required for @giselles-ai/agent cloud mode. Set GISELLE_SANDBOX_AGENT_API_KEY.",
-		);
-	}
+export function handleAgentRunner(options?: AgentRunnerOptions): AgentRunnerHandler {
+	const apiKey =
+		options?.apiKey?.trim() || process.env.GISELLE_API_KEY?.trim() || "";
 
-	const cloudApiUrl = trimTrailingSlash(
-		options.cloudApiUrl?.trim() || DEFAULT_CLOUD_API_URL,
+	const baseUrl = trimTrailingSlash(
+		options?.baseUrl?.trim() || DEFAULT_BASE_URL,
 	);
-	const endpoint = `${cloudApiUrl}/api/agent`;
+	const endpoint = `${baseUrl}/api/agent`;
 
 	return {
 		POST: async (request: Request): Promise<Response> => {
