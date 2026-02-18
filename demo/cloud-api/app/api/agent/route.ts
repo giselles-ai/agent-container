@@ -16,8 +16,7 @@ import {
 	bridgeResponseSchema,
 } from "@giselles-ai/browser-tool";
 import { z } from "zod";
-import { verifyApiKey } from "@/lib/auth";
-import { jsonWithCors, preflightResponse, withCors } from "@/lib/cors";
+import { jsonWithCors, preflightResponse, withCors } from "../../../lib/cors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +83,7 @@ function createSafeError(
 	return jsonWithCors({ ok: false, errorCode: code, message }, { status });
 }
 
-function createBridgeEventsRoute(request: Request): Promise<Response> {
+async function createBridgeEventsRoute(request: Request): Promise<Response> {
 	const url = new URL(request.url);
 	const mode = url.searchParams.get("type") ?? "";
 	if (mode !== "bridge.events") {
@@ -430,18 +429,6 @@ async function handlePost(request: Request): Promise<Response> {
 				bridgeError.status,
 			);
 		}
-	}
-
-	const authResult = await verifyApiKey(request);
-	if (!authResult.ok) {
-		return jsonWithCors(
-			{
-				ok: false,
-				errorCode: authResult.errorCode,
-				message: authResult.message,
-			},
-			{ status: authResult.status },
-		);
 	}
 
 	try {
