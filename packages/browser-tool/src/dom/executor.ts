@@ -1,4 +1,8 @@
-import type { ExecutionReport, RpaAction, SnapshotField } from "../types";
+import type {
+	BrowserToolAction,
+	ExecutionReport,
+	SnapshotField,
+} from "../types";
 
 function escapeForSelector(value: string): string {
 	if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -20,11 +24,11 @@ function resolveElement(
 	fields: SnapshotField[],
 	root: ParentNode,
 ): Element | null {
-	if (actionFieldId.startsWith("rpa:")) {
-		const rpaId = actionFieldId.slice("rpa:".length);
+	if (actionFieldId.startsWith("bt:")) {
+		const browserToolId = actionFieldId.slice("bt:".length);
 		const direct = safeQuery(
 			root,
-			`[data-rpa-id="${escapeForSelector(rpaId)}"]`,
+			`[data-browser-tool-id="${escapeForSelector(browserToolId)}"]`,
 		);
 		if (direct) {
 			return direct;
@@ -70,7 +74,7 @@ function emitInputEvents(target: Element): void {
 }
 
 export function execute(
-	actions: RpaAction[],
+	actions: BrowserToolAction[],
 	fields: SnapshotField[],
 	root: ParentNode = document,
 ): ExecutionReport {

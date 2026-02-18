@@ -33,7 +33,7 @@ type BridgeSessionRecord = {
 };
 
 declare global {
-	var __geminiRpaBridgeRedis: Redis | undefined;
+	var __geminiBrowserToolBridgeRedis: Redis | undefined;
 }
 
 export class BridgeBrokerError extends Error {
@@ -84,13 +84,13 @@ function resolveRedisUrl(): string {
 }
 
 function getRedisClient(): Redis {
-	if (!globalThis.__geminiRpaBridgeRedis) {
-		globalThis.__geminiRpaBridgeRedis = new Redis(resolveRedisUrl(), {
+	if (!globalThis.__geminiBrowserToolBridgeRedis) {
+		globalThis.__geminiBrowserToolBridgeRedis = new Redis(resolveRedisUrl(), {
 			maxRetriesPerRequest: 2,
 		});
 	}
 
-	return globalThis.__geminiRpaBridgeRedis;
+	return globalThis.__geminiBrowserToolBridgeRedis;
 }
 
 export function createBridgeSubscriber(): Redis {

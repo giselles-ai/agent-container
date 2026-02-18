@@ -131,9 +131,9 @@ function selectorIsUnique(selector: string, element: Element): boolean {
 }
 
 function buildUniqueCssSelector(element: Element): string {
-	const dataRpaId = element.getAttribute("data-rpa-id");
-	if (dataRpaId) {
-		return `[data-rpa-id="${escapeForSelector(dataRpaId)}"]`;
+	const dataBrowserToolId = element.getAttribute("data-browser-tool-id");
+	if (dataBrowserToolId) {
+		return `[data-browser-tool-id="${escapeForSelector(dataBrowserToolId)}"]`;
 	}
 
 	const id = element.getAttribute("id");
@@ -232,11 +232,15 @@ export function snapshot(root?: ParentNode): SnapshotField[] {
 			continue;
 		}
 
-		const dataRpaId = normalizeText(element.getAttribute("data-rpa-id"));
-		const selector = dataRpaId
-			? `[data-rpa-id="${escapeForSelector(dataRpaId)}"]`
+		const dataBrowserToolId = normalizeText(
+			element.getAttribute("data-browser-tool-id"),
+		);
+		const selector = dataBrowserToolId
+			? `[data-browser-tool-id="${escapeForSelector(dataBrowserToolId)}"]`
 			: buildUniqueCssSelector(element);
-		const fieldId = dataRpaId ? `rpa:${dataRpaId}` : `css:${selector}`;
+		const fieldId = dataBrowserToolId
+			? `bt:${dataBrowserToolId}`
+			: `css:${selector}`;
 
 		if (seenFieldIds.has(fieldId)) {
 			continue;

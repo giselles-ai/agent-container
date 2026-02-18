@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import {
 	type BridgeRequest,
 	type BridgeResponse,
+	type BrowserToolAction,
 	bridgeRequestSchema,
 	bridgeResponseSchema,
 	dispatchErrorSchema,
 	dispatchSuccessSchema,
 	type ExecutionReport,
-	type RpaAction,
 	type SnapshotField,
 } from "../types";
 
@@ -69,7 +69,7 @@ export class BridgeClient {
 	}
 
 	async requestExecute(input: {
-		actions: RpaAction[];
+		actions: BrowserToolAction[];
 		fields: SnapshotField[];
 	}): Promise<ExecutionReport> {
 		const response = await this.dispatch({
@@ -118,7 +118,7 @@ export class BridgeClient {
 				[
 					"Bridge dispatch network request failed.",
 					`baseUrl=${this.baseUrl}`,
-					"Ensure RPA_BRIDGE_BASE_URL is reachable from the sandbox runtime.",
+					"Ensure BROWSER_TOOL_BRIDGE_BASE_URL is reachable from the sandbox runtime.",
 					`cause=${message}`,
 				].join(" "),
 			);
@@ -156,9 +156,9 @@ export function createBridgeClientFromEnv(): BridgeClient {
 	);
 
 	return new BridgeClient({
-		baseUrl: requiredEnv("RPA_BRIDGE_BASE_URL"),
-		sessionId: requiredEnv("RPA_BRIDGE_SESSION_ID"),
-		token: requiredEnv("RPA_BRIDGE_TOKEN"),
+		baseUrl: requiredEnv("BROWSER_TOOL_BRIDGE_BASE_URL"),
+		sessionId: requiredEnv("BROWSER_TOOL_BRIDGE_SESSION_ID"),
+		token: requiredEnv("BROWSER_TOOL_BRIDGE_TOKEN"),
 		vercelProtectionBypass,
 		giselleProtectionBypass,
 	});

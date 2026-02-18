@@ -1,9 +1,9 @@
 "use client";
 
 import type {
+	BrowserToolAction,
+	BrowserToolStatus,
 	ExecutionReport,
-	RpaAction,
-	RpaStatus,
 	SnapshotField,
 } from "@giselles-ai/browser-tool";
 import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
@@ -22,35 +22,40 @@ type RunInput = {
 	document?: string;
 };
 
-type RpaPlan = {
+type BrowserToolPlan = {
 	fields: SnapshotField[];
-	actions: RpaAction[];
+	actions: BrowserToolAction[];
 	warnings: string[];
 };
 
-export type RpaProviderProps = {
+export type BrowserToolProviderProps = {
 	endpoint: string;
 	children: ReactNode;
 };
 
-export type RpaContextValue = {
+export type BrowserToolContextValue = {
 	endpoint: string;
-	status: RpaStatus;
-	lastPlan: RpaPlan | null;
+	status: BrowserToolStatus;
+	lastPlan: BrowserToolPlan | null;
 	lastExecution: ExecutionReport | null;
 	error: string | null;
 	setError: Dispatch<SetStateAction<string | null>>;
-	run: (input: RunInput) => Promise<RpaPlan>;
-	apply: (actions: RpaAction[], fields: SnapshotField[]) => ExecutionReport;
+	run: (input: RunInput) => Promise<BrowserToolPlan>;
+	apply: (
+		actions: BrowserToolAction[],
+		fields: SnapshotField[],
+	) => ExecutionReport;
 };
 
-export const RpaContext = createContext<RpaContextValue | null>(null);
+export const BrowserToolContext = createContext<BrowserToolContextValue | null>(
+	null,
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
 }
 
-function isAction(value: unknown): value is RpaAction {
+function isAction(value: unknown): value is BrowserToolAction {
 	if (
 		!isRecord(value) ||
 		typeof value.action !== "string" ||
@@ -80,16 +85,19 @@ function parseWarnings(value: unknown): string[] {
 	return value.filter((item): item is string => typeof item === "string");
 }
 
-export function RpaProvider({ endpoint, children }: RpaProviderProps) {
-	const [status, setStatus] = useState<RpaStatus>("idle");
-	const [lastPlan, setLastPlan] = useState<RpaPlan | null>(null);
+export function BrowserToolProvider({
+	endpoint,
+	children,
+}: BrowserToolProviderProps) {
+	const [status, setStatus] = useState<BrowserToolStatus>("idle");
+	const [lastPlan, setLastPlan] = useState<BrowserToolPlan | null>(null);
 	const [lastExecution, setLastExecution] = useState<ExecutionReport | null>(
 		null,
 	);
 	const [error, setError] = useState<string | null>(null);
 
 	const run = useCallback(
-		async ({ instruction, document }: RunInput): Promise<RpaPlan> => {
+		async ({ instruction, document }: RunInput): Promise<BrowserToolPlan> => {
 			const trimmedInstruction = instruction.trim();
 			if (!trimmedInstruction) {
 				throw new Error("Instruction is required.");
@@ -132,7 +140,7 @@ export function RpaProvider({ endpoint, children }: RpaProviderProps) {
 					? parseWarnings(payload.warnings)
 					: [];
 
-				const plan: RpaPlan = {
+				const plan: BrowserToolPlan = {
 					fields,
 					actions,
 					warnings,
@@ -156,27 +164,30 @@ export function RpaProvider({ endpoint, children }: RpaProviderProps) {
 		[endpoint],
 	);
 
-	const apply = useCallback((actions: RpaAction[], fields: SnapshotField[]) => {
-		setError(null);
-		setStatus("applying");
+	const apply = useCallback(
+		(actions: BrowserToolAction[], fields: SnapshotField[]) => {
+			setError(null);
+			setStatus("applying");
 
-		try {
-			const report = execute(actions, fields);
-			setLastExecution(report);
-			setStatus("idle");
-			return report;
-		} catch (applyError) {
-			const message =
-				applyError instanceof Error
-					? applyError.message
-					: "Failed to apply actions.";
-			setError(message);
-			setStatus("error");
-			throw applyError;
-		}
-	}, []);
+			try {
+				const report = execute(actions, fields);
+				setLastExecution(report);
+				setStatus("idle");
+				return report;
+			} catch (applyError) {
+				const message =
+					applyError instanceof Error
+						? applyError.message
+						: "Failed to apply actions.";
+				setError(message);
+				setStatus("error");
+				throw applyError;
+			}
+		},
+		[],
+	);
 
-	const contextValue = useMemo<RpaContextValue>(
+	const contextValue = useMemo<BrowserToolContextValue>(
 		() => ({
 			endpoint,
 			status,
@@ -191,6 +202,8 @@ export function RpaProvider({ endpoint, children }: RpaProviderProps) {
 	);
 
 	return (
-		<RpaContext.Provider value={contextValue}>{children}</RpaContext.Provider>
+		<BrowserToolContext.Provider value={contextValue}>
+			{children}
+		</BrowserToolContext.Provider>
 	);
 }

@@ -9,12 +9,12 @@ import { runGetFormSnapshot } from "./tools/get-form-snapshot";
 
 const server = new McpServer(
 	{
-		name: "giselles-rpa-mcp-server",
+		name: "giselles-browser-tool-mcp-server",
 		version: "0.2.0",
 	},
 	{
 		instructions: [
-			"You are an RPA agent that fills web forms on behalf of the user.",
+			"You are a Browser Tool agent that fills web forms on behalf of the user.",
 			"",
 			"When the user asks you to fill a form or interact with a web page, follow these steps in order:",
 			"",

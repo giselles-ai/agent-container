@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 const LOCAL_SANDBOX_ROOT =
-	process.env.RPA_LOCAL_SANDBOX_ROOT?.trim() ||
+	process.env.BROWSER_TOOL_LOCAL_SANDBOX_ROOT?.trim() ||
 	path.join(REPO_ROOT, ".sandbox-local", "vercel", "sandbox");
 
 const INCLUDE_PATHS = [
@@ -93,7 +93,7 @@ async function main() {
 
 	console.log("");
 	console.log("Local sandbox is ready.");
-	console.log(`RPA_SANDBOX_ROOT=${LOCAL_SANDBOX_ROOT}`);
+	console.log(`BROWSER_TOOL_SANDBOX_ROOT=${LOCAL_SANDBOX_ROOT}`);
 	console.log(
 		`MCP server path = ${LOCAL_SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
 	);

@@ -14,16 +14,16 @@ GeminiCLI
   │
   │  MCP tool_call: fillForm({ instruction, document? })
   ▼
-MCP Server (giselles-rpa-mcp-server)
+MCP Server (giselles-browser-tool-mcp-server)
   │
   ├─ Step 1: BridgeClient.requestSnapshot()
   │    → ブラウザからフォームフィールド一覧 (SnapshotField[]) を取得
   │
   ├─ Step 2: Planner (gpt-4o-mini)
-  │    → instruction + fields を入力に RpaAction[] を生成   ← ★ LLM の二重呼び出し
+  │    → instruction + fields を入力に BrowserToolAction[] を生成   ← ★ LLM の二重呼び出し
   │
   └─ Step 3: BridgeClient.requestExecute()
-       → RpaAction[] をブラウザ上で実行し ExecutionReport を返却
+       → BrowserToolAction[] をブラウザ上で実行し ExecutionReport を返却
 ```
 
 ### 問題
@@ -140,13 +140,13 @@ export async function runGetFormSnapshot(
 import { z } from "zod";
 import {
   type ExecutionReport,
-  rpaActionSchema,
+  browserToolActionSchema,
   snapshotFieldSchema,
 } from "../../types";
 import type { BridgeClient } from "../bridge-client";
 
 export const executeFormActionsInputShape = {
-  actions: z.array(rpaActionSchema),
+  actions: z.array(browserToolActionSchema),
   fields: z.array(snapshotFieldSchema),
 };
 
@@ -179,7 +179,7 @@ import {
 } from "./tools/execute-form-actions";
 
 const server = new McpServer({
-  name: "giselles-rpa-mcp-server",
+  name: "giselles-browser-tool-mcp-server",
   version: "0.2.0",
 });
 
@@ -289,14 +289,14 @@ export default defineConfig([
 
 ### 3.8 `packages/agent/src/react/provider.tsx` の変更ポイント
 
-`PlanResult` の import を削除し、同等の型をローカルに定義するか、`SnapshotField[]` + `RpaAction[]` + `string[]` に展開する。
+`PlanResult` の import を削除し、同等の型をローカルに定義するか、`SnapshotField[]` + `BrowserToolAction[]` + `string[]` に展開する。
 
 ## 4. 変更しないもの
 
 | ファイル | 理由 |
 |---|---|
 | `packages/browser-tool/src/mcp-server/bridge-client.ts` | `requestSnapshot`, `requestExecute` はそのまま活用 |
-| `packages/browser-tool/src/types.ts` (大部分) | `SnapshotField`, `RpaAction`, `ExecutionReport` 等の型はそのまま |
+| `packages/browser-tool/src/types.ts` (大部分) | `SnapshotField`, `BrowserToolAction`, `ExecutionReport` 等の型はそのまま |
 | `packages/browser-tool/src/dom/` | ブラウザ側の snapshot/execute ロジックは変更不要 |
 
 ## 5. 検証方法

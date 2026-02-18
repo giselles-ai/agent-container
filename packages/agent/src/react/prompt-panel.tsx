@@ -1,8 +1,8 @@
 "use client";
 
-import type { RpaAction } from "@giselles-ai/browser-tool";
+import type { BrowserToolAction } from "@giselles-ai/browser-tool";
 import { useMemo, useState } from "react";
-import { useRpa } from "./use-rpa";
+import { useBrowserTool } from "./use-browser-tool";
 
 export type PromptPanelProps = {
 	defaultInstruction?: string;
@@ -10,7 +10,7 @@ export type PromptPanelProps = {
 	mount?: "bottom-right" | "inline";
 };
 
-function describeAction(action: RpaAction): string {
+function describeAction(action: BrowserToolAction): string {
 	if (action.action === "click") {
 		return `click ${action.fieldId}`;
 	}
@@ -26,7 +26,7 @@ export function PromptPanel({
 	mount = "bottom-right",
 }: PromptPanelProps) {
 	const { status, run, apply, lastPlan, lastExecution, error, setError } =
-		useRpa();
+		useBrowserTool();
 	const [instruction, setInstruction] = useState(defaultInstruction);
 	const [documentText, setDocumentText] = useState(defaultDocument);
 	const [notice, setNotice] = useState<string | null>(null);
@@ -95,7 +95,7 @@ export function PromptPanel({
 			<div className="rounded-2xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
 				<div className="mb-3 flex items-center justify-between">
 					<p className="text-xs uppercase tracking-[0.15em] text-cyan-300">
-						RPA Prompt Panel
+						Browser Tool Prompt Panel
 					</p>
 					<p className="text-[11px] text-slate-400">status: {status}</p>
 				</div>

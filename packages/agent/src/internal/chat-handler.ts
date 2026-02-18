@@ -53,9 +53,9 @@ function buildMcpEnv(input: {
 	giselleProtectionBypass?: string;
 }): Record<string, string> {
 	const env: Record<string, string> = {
-		RPA_BRIDGE_BASE_URL: input.bridgeBaseUrl,
-		RPA_BRIDGE_SESSION_ID: input.bridgeSessionId,
-		RPA_BRIDGE_TOKEN: input.bridgeToken,
+		BROWSER_TOOL_BRIDGE_BASE_URL: input.bridgeBaseUrl,
+		BROWSER_TOOL_BRIDGE_SESSION_ID: input.bridgeSessionId,
+		BROWSER_TOOL_BRIDGE_TOKEN: input.bridgeToken,
 	};
 
 	if (input.oidcToken) {
@@ -197,7 +197,9 @@ export function createGeminiChatHandler(
 
 				(async () => {
 					const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-					const sandboxSnapshotId = requiredEnv("RPA_SANDBOX_SNAPSHOT_ID");
+					const sandboxSnapshotId = requiredEnv(
+						"BROWSER_TOOL_SANDBOX_SNAPSHOT_ID",
+					);
 					const oidcToken =
 						extractTokenFromRequest(request) ??
 						process.env.VERCEL_OIDC_TOKEN ??
@@ -213,7 +215,7 @@ export function createGeminiChatHandler(
 						process.env.GISELLE_PROTECTION_PASSWORD?.trim() || undefined;
 
 					const bridgeBaseUrl =
-						process.env.RPA_BRIDGE_BASE_URL?.trim() ||
+						process.env.BROWSER_TOOL_BRIDGE_BASE_URL?.trim() ||
 						new URL(request.url).origin;
 
 					const {

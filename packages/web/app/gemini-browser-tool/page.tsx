@@ -12,7 +12,7 @@ function DemoForm() {
 	return (
 		<div className="mx-auto max-w-3xl rounded-2xl border border-slate-700/60 bg-slate-900/50 p-6 shadow-2xl backdrop-blur">
 			<p className="text-xs uppercase tracking-[0.18em] text-cyan-300/80">
-				Gemini RPA Agent
+				Gemini Browser Tool Agent
 			</p>
 			<h1 className="mt-2 text-3xl font-semibold">Form Autofill Prototype</h1>
 			<p className="mt-3 text-sm text-slate-300/90">
@@ -34,7 +34,7 @@ function DemoForm() {
 					<input
 						id="title"
 						name="title"
-						data-rpa-id="title"
+						data-browser-tool-id="title"
 						type="text"
 						value={title}
 						onChange={(event) => setTitle(event.target.value)}
@@ -53,7 +53,7 @@ function DemoForm() {
 					<textarea
 						id="body"
 						name="body"
-						data-rpa-id="body"
+						data-browser-tool-id="body"
 						value={body}
 						onChange={(event) => setBody(event.target.value)}
 						placeholder="Enter body"
@@ -72,7 +72,7 @@ function DemoForm() {
 					<select
 						id="category"
 						name="category"
-						data-rpa-id="category"
+						data-browser-tool-id="category"
 						value={category}
 						onChange={(event) => setCategory(event.target.value)}
 						className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
@@ -87,7 +87,7 @@ function DemoForm() {
 					<input
 						type="checkbox"
 						name="publish"
-						data-rpa-id="publish"
+						data-browser-tool-id="publish"
 						checked={publish}
 						onChange={(event) => setPublish(event.target.checked)}
 						className="h-4 w-4 rounded border-slate-500 bg-slate-950 text-cyan-400"
@@ -108,7 +108,7 @@ function DemoForm() {
 	);
 }
 
-export default function GeminiRpaPage() {
+export default function GeminiBrowserToolPage() {
 	const [input, setInput] = useState("");
 	const [documentText, setDocumentText] = useState("");
 
@@ -188,7 +188,7 @@ export default function GeminiRpaPage() {
 				<div className="rounded-2xl border border-slate-700 bg-slate-950/90 p-4">
 					<div className="mb-3 flex items-center justify-between">
 						<p className="text-xs uppercase tracking-[0.15em] text-cyan-300">
-							Gemini RPA Chat
+							Gemini Browser Tool Chat
 						</p>
 						<p className="text-[11px] text-slate-400">status: {status}</p>
 					</div>

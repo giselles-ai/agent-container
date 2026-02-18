@@ -7,7 +7,7 @@
    - `POST /api/agent` (`agent.run` / `bridge.dispatch` / `bridge.respond`)
    - `GET /api/agent?type=bridge.events&sessionId&token`
 3. planner は `@giselles-ai/browser-tool` に同梱する。
-4. `packages/web` は `/gemini-rpa` を `useAgent` 化し、`/` は簡易ランディングにする。
+4. `packages/web` は `/gemini-browser-tool` を `useAgent` 化し、`/` は簡易ランディングにする。
 
 ## 最終パッケージ構成
 
@@ -37,7 +37,7 @@ packages/
 ### `@giselles-ai/agent`
 
 - `.`: `handleAgentRunner`
-- `./react`: `useAgent`, `RpaProvider`, `PromptPanel`, `useRpa`
+- `./react`: `useAgent`, `BrowserToolProvider`, `PromptPanel`, `useBrowserTool`
 
 ## Route Handler
 
@@ -68,8 +68,8 @@ export const POST = handler.POST;
 ## web 変更点
 
 - 追加: `app/api/agent/route.ts`
-- 削除: `app/api/gemini-rpa/[...slug]/route.ts`, `app/api/rpa/route.ts`, `app/api/chat/route.ts`
-- `app/gemini-rpa/page.tsx` を `useBridge` -> `useAgent` へ移行
+- 削除: `app/api/gemini-browser-tool/[...slug]/route.ts`, `app/api/browser-tool/route.ts`, `app/api/chat/route.ts`
+- `app/gemini-browser-tool/page.tsx` を `useBridge` -> `useAgent` へ移行
 - `app/page.tsx` を簡易ランディング化
 - snapshot 作成スクリプトを `browser-tool` ベースへ更新
 
@@ -80,4 +80,4 @@ export const POST = handler.POST;
 - `pnpm --filter demo build`
 - `pnpm typecheck`
 
-上記が通り、`/gemini-rpa` で snapshot -> plan -> execute の往復が動作すること。
+上記が通り、`/gemini-browser-tool` で snapshot -> plan -> execute の往復が動作すること。

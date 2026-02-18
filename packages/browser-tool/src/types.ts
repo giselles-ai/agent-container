@@ -31,7 +31,7 @@ export type SelectAction = {
 	value: string;
 };
 
-export type RpaAction = FillAction | ClickAction | SelectAction;
+export type BrowserToolAction = FillAction | ClickAction | SelectAction;
 
 export type ExecutionReport = {
 	applied: number;
@@ -39,7 +39,7 @@ export type ExecutionReport = {
 	warnings: string[];
 };
 
-export type RpaStatus =
+export type BrowserToolStatus =
 	| "idle"
 	| "snapshotting"
 	| "planning"
@@ -92,7 +92,7 @@ export const selectActionSchema = z.object({
 	value: z.string(),
 });
 
-export const rpaActionSchema = z.discriminatedUnion("action", [
+export const browserToolActionSchema = z.discriminatedUnion("action", [
 	fillActionSchema,
 	clickActionSchema,
 	selectActionSchema,
@@ -114,7 +114,7 @@ export const snapshotRequestSchema = z.object({
 export const executeRequestSchema = z.object({
 	type: z.literal("execute_request"),
 	requestId: z.string().min(1),
-	actions: z.array(rpaActionSchema),
+	actions: z.array(browserToolActionSchema),
 	fields: z.array(snapshotFieldSchema),
 });
 

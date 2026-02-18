@@ -135,12 +135,12 @@ import パスの `@giselles-ai/browser-tool` は相対パスに変更する（�
 - `mcpServerDistPath` → `${repoRoot}/packages/browser-tool/dist/mcp-server/index.js`
 - `@giselles/mcp-server` のビルドコマンド → 削除（browser-tool のビルドに含まれる）
 
-#### `scripts/prepare-local-rpa-sandbox.mjs`
+#### `scripts/prepare-local-browser-tool-sandbox.mjs`
 
 - `--filter @giselles/mcp-server` → 削除（browser-tool ビルドでカバー）
 - `packages/mcp-server/dist/index.js` → `packages/browser-tool/dist/mcp-server/index.js`
 
-#### `packages/web/scripts/create-rpa-snapshot.mjs`
+#### `packages/web/scripts/create-browser-tool-snapshot.mjs`
 
 - `INCLUDE_PATHS` から `"packages/mcp-server"` を削除
 - `--filter @giselles/mcp-server` → 削除
@@ -187,8 +187,8 @@ pnpm typecheck
 | `packages/browser-tool/package.json` | exports, bin, dependencies 追加 |
 | `packages/browser-tool/tsup.ts` | ビルドエントリ追加 |
 | `packages/agent/src/internal/chat-handler.ts` | パス参照更新、ビルドコマンド簡素化 |
-| `scripts/prepare-local-rpa-sandbox.mjs` | パス参照更新、filter 簡素化 |
-| `packages/web/scripts/create-rpa-snapshot.mjs` | パス参照更新、filter 簡素化 |
+| `scripts/prepare-local-browser-tool-sandbox.mjs` | パス参照更新、filter 簡素化 |
+| `packages/web/scripts/create-browser-tool-snapshot.mjs` | パス参照更新、filter 簡素化 |
 | `docs/restructure-plan.md` | パッケージ構成の記述更新 |
 | `README.md` | パッケージ一覧の記述更新 |
 | `packages/mcp-server/` | 削除 |

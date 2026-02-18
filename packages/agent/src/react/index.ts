@@ -1,5 +1,5 @@
 export { PromptPanel } from "./prompt-panel";
-export { RpaProvider } from "./provider";
+export { BrowserToolProvider } from "./provider";
 export type {
 	AgentHookState,
 	AgentMessage,
@@ -8,4 +8,4 @@ export type {
 	UseAgentOptions,
 } from "./use-agent";
 export { useAgent } from "./use-agent";
-export { useRpa } from "./use-rpa";
+export { useBrowserTool } from "./use-browser-tool";

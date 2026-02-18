@@ -20,7 +20,7 @@ Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動�
 - OpenAI API key
 - Gemini API key
 - Redis URL
-- `RPA_SANDBOX_SNAPSHOT_ID`
+- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
 
 ## Setup
 
@@ -38,7 +38,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 OPENAI_API_KEY=...
 GEMINI_API_KEY=...
-RPA_SANDBOX_SNAPSHOT_ID=...
+BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=...
 REDIS_URL=...
 ```
 
@@ -52,10 +52,10 @@ Redis fallback env names:
 Optional:
 
 ```bash
-RPA_SANDBOX_REPO_ROOT=/vercel/sandbox
-RPA_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/browser-tool/dist/mcp-server/index.js
-RPA_MCP_SERVER_CWD=/vercel/sandbox
-RPA_SKIP_SANDBOX_BUILD=1
+BROWSER_TOOL_SANDBOX_REPO_ROOT=/vercel/sandbox
+BROWSER_TOOL_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/browser-tool/dist/mcp-server/index.js
+BROWSER_TOOL_MCP_SERVER_CWD=/vercel/sandbox
+BROWSER_TOOL_SKIP_SANDBOX_BUILD=1
 GISELLE_PROTECTION_PASSWORD=...
 VERCEL_PROTECTION_BYPASS=...
 ```
@@ -105,18 +105,18 @@ const { status, messages, tools, error, sendMessage } = useAgent({
 
 ## Create Sandbox Snapshot
 
-`pnpm snapshot:rpa` で以下を含む snapshot を作成します。
+`pnpm snapshot:browser-tool` で以下を含む snapshot を作成します。
 
 - `gemini` CLI
 - built `packages/browser-tool/dist/mcp-server/index.js`
 
 Script output で以下の推奨値が表示されます。
 
-- `RPA_SANDBOX_SNAPSHOT_ID`
-- `RPA_SANDBOX_REPO_ROOT`
-- `RPA_MCP_SERVER_DIST_PATH`
-- `RPA_MCP_SERVER_CWD`
-- `RPA_SKIP_SANDBOX_BUILD=1`
+- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
+- `BROWSER_TOOL_SANDBOX_REPO_ROOT`
+- `BROWSER_TOOL_MCP_SERVER_DIST_PATH`
+- `BROWSER_TOOL_MCP_SERVER_CWD`
+- `BROWSER_TOOL_SKIP_SANDBOX_BUILD=1`
 
 ## Commands
 
@@ -125,15 +125,15 @@ pnpm dev
 pnpm build
 pnpm typecheck
 pnpm format
-pnpm snapshot:rpa
-pnpm sandbox:local:rpa
+pnpm snapshot:browser-tool
+pnpm sandbox:local:browser-tool
 ```
 
 ## Local sandbox reproduction
 
-`pnpm sandbox:local:rpa` でローカルに `/vercel/sandbox` 相当の構成を `.sandbox-local/vercel/sandbox` として作成し、以下を実施します。
+`pnpm sandbox:local:browser-tool` でローカルに `/vercel/sandbox` 相当の構成を `.sandbox-local/vercel/sandbox` として作成し、以下を実施します。
 
 - `@giselles-ai/browser-tool` build
 - `packages/browser-tool/dist/mcp-server/index.js` の存在検証
 
-これはローカル事前検証用です。実行環境の Sandbox では `snapshot:rpa` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。
+これはローカル事前検証用です。実行環境の Sandbox では `snapshot:browser-tool` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。

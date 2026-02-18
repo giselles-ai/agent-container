@@ -7,7 +7,7 @@ export default function Page() {
 				</p>
 				<h1 className="mt-2 text-3xl font-semibold">Agent Runner Prototype</h1>
 				<p className="mt-3 text-sm text-slate-300/90">
-					Open the Gemini RPA demo to run browser automation through
+					Open the Gemini Browser Tool demo to run browser automation through
 					<code className="mx-1 rounded bg-slate-800 px-1 py-0.5">
 						/api/agent
 					</code>
@@ -18,10 +18,10 @@ export default function Page() {
 					.
 				</p>
 				<a
-					href="/gemini-rpa"
+					href="/gemini-browser-tool"
 					className="mt-5 inline-flex rounded-md border border-slate-600 px-3 py-2 text-sm text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
 				>
-					Open Gemini RPA Demo
+					Open Gemini Browser Tool Demo
 				</a>
 			</section>
 		</main>

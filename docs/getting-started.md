@@ -10,7 +10,7 @@
 - Redis
 - Vercel Sandbox が使える環境
 - `GEMINI_API_KEY`
-- `RPA_SANDBOX_SNAPSHOT_ID`
+- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
 
 ## 1. パッケージインストール
 
@@ -24,12 +24,12 @@ pnpm add @giselles-ai/agent @giselles-ai/browser-tool
 
 ```env
 GEMINI_API_KEY=...
-RPA_SANDBOX_SNAPSHOT_ID=...
+BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=...
 REDIS_URL=redis://...
 
 # optional
-RPA_BRIDGE_BASE_URL=https://your-app.vercel.app
-RPA_SKIP_SANDBOX_BUILD=false
+BROWSER_TOOL_BRIDGE_BASE_URL=https://your-app.vercel.app
+BROWSER_TOOL_SKIP_SANDBOX_BUILD=false
 VERCEL_PROTECTION_BYPASS=...
 GISELLE_PROTECTION_PASSWORD=...
 ```
@@ -49,13 +49,13 @@ export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-## 4. フォームに `data-rpa-id` を付与
+## 4. フォームに `data-browser-tool-id` を付与
 
 ```tsx
-<input data-rpa-id="title" />
-<textarea data-rpa-id="body" />
-<select data-rpa-id="category" />
-<input type="checkbox" data-rpa-id="publish" />
+<input data-browser-tool-id="title" />
+<textarea data-browser-tool-id="body" />
+<select data-browser-tool-id="category" />
+<input type="checkbox" data-browser-tool-id="publish" />
 ```
 
 ## 5. `useAgent()` を使う

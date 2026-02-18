@@ -1,6 +1,9 @@
 "use client";
 
-import type { RpaAction, SnapshotField } from "@giselles-ai/browser-tool";
+import type {
+	BrowserToolAction,
+	SnapshotField,
+} from "@giselles-ai/browser-tool";
 import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -265,7 +268,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 							: 0,
 					});
 					const actions = Array.isArray(event.actions)
-						? (event.actions as RpaAction[])
+						? (event.actions as BrowserToolAction[])
 						: [];
 					const fields = Array.isArray(event.fields)
 						? (event.fields as SnapshotField[])

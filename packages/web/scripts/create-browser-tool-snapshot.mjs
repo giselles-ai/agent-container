@@ -8,10 +8,11 @@ import { Sandbox } from "@vercel/sandbox";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "../../..");
-const SANDBOX_ROOT = process.env.RPA_SANDBOX_ROOT?.trim() || "/vercel/sandbox";
-const RUNTIME = process.env.RPA_SNAPSHOT_RUNTIME?.trim() || "node24";
+const SANDBOX_ROOT =
+	process.env.BROWSER_TOOL_SANDBOX_ROOT?.trim() || "/vercel/sandbox";
+const RUNTIME = process.env.BROWSER_TOOL_SNAPSHOT_RUNTIME?.trim() || "node24";
 const TIMEOUT_MS = Number.parseInt(
-	process.env.RPA_SNAPSHOT_TIMEOUT_MS || "2700000",
+	process.env.BROWSER_TOOL_SNAPSHOT_TIMEOUT_MS || "2700000",
 	10,
 );
 const BASE_SNAPSHOT_ID = process.env.BASE_SNAPSHOT_ID?.trim() || "";
@@ -115,7 +116,9 @@ async function runCommandOrThrow(sandbox, input) {
 
 async function main() {
 	if (!Number.isFinite(TIMEOUT_MS) || TIMEOUT_MS <= 0) {
-		throw new Error(`Invalid RPA_SNAPSHOT_TIMEOUT_MS: ${String(TIMEOUT_MS)}`);
+		throw new Error(
+			`Invalid BROWSER_TOOL_SNAPSHOT_TIMEOUT_MS: ${String(TIMEOUT_MS)}`,
+		);
 	}
 
 	console.log("[snapshot] collecting local files...");
@@ -254,7 +257,7 @@ async function main() {
 				},
 			},
 			mcpServers: {
-				rpa_bridge: {
+				browser_tool_bridge: {
 					command: "node",
 					args: [mcpServerDistPath],
 					cwd: SANDBOX_ROOT,
@@ -281,7 +284,7 @@ async function main() {
 		console.log(`createdAt: ${snapshot.createdAt.toISOString()}`);
 		console.log(`expiresAt: ${snapshot.expiresAt.toISOString()}`);
 		console.log("\nSet this in packages/web/.env.local:");
-		console.log(`RPA_SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
+		console.log(`BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
 	} catch (error) {
 		console.error("[snapshot] failed:");
 		console.error(error instanceof Error ? error.message : String(error));

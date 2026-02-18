@@ -1,13 +1,13 @@
 import { z } from "zod";
 import {
+	browserToolActionSchema,
 	type ExecutionReport,
-	rpaActionSchema,
 	snapshotFieldSchema,
 } from "../../types";
 import type { BridgeClient } from "../bridge-client";
 
 export const executeFormActionsInputShape = {
-	actions: z.array(rpaActionSchema),
+	actions: z.array(browserToolActionSchema),
 	fields: z.array(snapshotFieldSchema),
 };
 
