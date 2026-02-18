@@ -611,7 +611,7 @@ export default function AgentChatPage(
 						Gemini CLI
 					</p>
 					<h1 className="mt-2 text-3xl font-semibold text-slate-50">
-						Chat with pptx Agent
+						Chat with Agent
 					</h1>
 					<p className="mt-2 text-sm text-slate-400">
 						Streamed JSON events over NDJSON (mocked Gemini CLI).
