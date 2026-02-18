@@ -6,10 +6,10 @@ Cloud モードと Self-hosted モードの両方を扱います。
 ## Packages / Apps
 
 - `packages/agent` — `@giselles-ai/agent` (Cloud mode client/proxy package)
-  - サーバー: `handleAgentRunner({ apiKey, cloudApiUrl? }) -> { POST }`
+  - サーバー: `handleAgentRunner({ apiKey?, baseUrl? }) -> { POST }`
   - クライアント: `useAgent()` (`bridgeUrl` 対応)
 - `packages/agent-self` — `@giselles-ai/agent-self` (Self-hosted package)
-  - サーバー: `handleAgentRunner({ tools? }) -> { GET, POST }`
+  - サーバー: `createAgentApiHandler() -> { GET, POST }`
   - React: `@giselles-ai/agent/react` を再エクスポート
 - `packages/agent-core` — 内部パッケージ (private)
   - Redis bridge broker + Gemini chat handler
@@ -53,10 +53,13 @@ export const runtime = "nodejs";
 
 const handler = handleAgentRunner({
   apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+  baseUrl: "https://studio.giselles.ai/agent-api",
 });
 
 export const POST = handler.POST;
 ```
+
+`baseUrl` 未指定の場合、`https://studio.giselles.ai/agent-api` が既定接続先になります。
 
 ### Bridge behavior
 
@@ -83,13 +86,32 @@ Redis fallback env names:
 ### Route handler (`@giselles-ai/agent-self`)
 
 ```ts
-import { handleAgentRunner } from "@giselles-ai/agent-self";
+import { createAgentApiHandler } from "@giselles-ai/agent-self";
 
 export const runtime = "nodejs";
 
-const handler = handleAgentRunner({ tools: { browser: true } });
+const handler = createAgentApiHandler({
+  baseUrl: process.env.GISELLE_SANDBOX_AGENT_BASE_URL!,
+});
 
 export const GET = handler.GET;
+export const POST = handler.POST;
+```
+
+`baseUrl` は任意で、指定しない場合は `self-hosted` route の
+`request.url.origin + request.url.pathname`（例: `https://localhost:3000/agent-api`）を既定で使います。
+
+### Self proxy routing (`@giselles-ai/agent`)
+
+```ts
+import { handleAgentRunner } from "@giselles-ai/agent";
+
+export const runtime = "nodejs";
+
+const handler = handleAgentRunner({
+  baseUrl: "http://localhost:3000/agent-api",
+});
+
 export const POST = handler.POST;
 ```
 

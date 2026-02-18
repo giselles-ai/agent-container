@@ -66,6 +66,40 @@ function createSafeError(
 	return Response.json({ ok: false, errorCode: code, message }, { status });
 }
 
+function parseAbsoluteEndpoint(baseUrl: string): string | null {
+	try {
+		const url = new URL(baseUrl);
+		if (url.protocol !== "http:" && url.protocol !== "https:") {
+			return null;
+		}
+		return url.toString();
+	} catch {
+		return null;
+	}
+}
+
+type BridgeUrlResolutionResult =
+	| { ok: true; bridgeUrl: string }
+	| { ok: false; message: string };
+
+function resolveBridgeUrl(input: { baseUrl?: string }): BridgeUrlResolutionResult {
+	const baseUrl = input.baseUrl?.trim();
+	if (!baseUrl) {
+		return { ok: true, bridgeUrl: "" };
+	}
+
+	const endpoint = parseAbsoluteEndpoint(baseUrl);
+	if (!endpoint) {
+		return {
+			ok: false,
+			message:
+				"`baseUrl` must be an absolute HTTP(S) endpoint URL, e.g. https://example.com/agent-api.",
+		};
+	}
+
+	return { ok: true, bridgeUrl: endpoint };
+}
+
 function createBridgeEventsRoute(request: Request): Promise<Response> {
 	const url = new URL(request.url);
 	const mode = url.searchParams.get("type") ?? "";
@@ -249,6 +283,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 function mergeBridgeSessionStream(input: {
 	chatResponse: Response;
 	session: { sessionId: string; token: string; expiresAt: number };
+	bridgeUrl: string;
 }): Response {
 	if (!input.chatResponse.body) {
 		return input.chatResponse;
@@ -260,6 +295,7 @@ function mergeBridgeSessionStream(input: {
 		sessionId: input.session.sessionId,
 		token: input.session.token,
 		expiresAt: input.session.expiresAt,
+		bridgeUrl: input.bridgeUrl,
 	})}\n`;
 
 	const stream = new ReadableStream<Uint8Array>({
@@ -328,7 +364,12 @@ function createGeminiRequest(input: {
 	});
 }
 
-async function handlePost(request: Request): Promise<Response> {
+async function handlePost(
+	request: Request,
+	options?: {
+		baseUrl?: string;
+	},
+): Promise<Response> {
 	const payload = await request.json().catch(() => null);
 	const parsed = postBodySchema.safeParse(payload);
 
@@ -421,23 +462,42 @@ async function handlePost(request: Request): Promise<Response> {
 		session,
 	});
 	const chatResponse = await chatHandler(chatRequest);
+	const requestUrl = new URL(request.url);
+	const resolvedBridgeUrl = resolveBridgeUrl({ baseUrl: options?.baseUrl });
+	if (!resolvedBridgeUrl.ok) {
+		return createSafeError(
+			"INVALID_CONFIG",
+			resolvedBridgeUrl.message,
+			500,
+		);
+	}
 
 	return mergeBridgeSessionStream({
 		chatResponse,
 		session,
+		bridgeUrl:
+			resolvedBridgeUrl.bridgeUrl || `${requestUrl.origin}${requestUrl.pathname}`,
 	});
 }
 
-export function handleAgentRunner(_options?: {
+export function createAgentApiHandler(_options?: {
 	tools?: {
 		browser?: boolean;
 	};
+	baseUrl?: string;
 }): {
 	GET: (request: Request) => Promise<Response>;
 	POST: (request: Request) => Promise<Response>;
 } {
+	const options = {
+		baseUrl: _options?.baseUrl?.trim(),
+		tools: _options?.tools,
+	};
+
 	return {
 		GET: async (request: Request) => createBridgeEventsRoute(request),
-		POST: async (request: Request) => handlePost(request),
+		POST: async (request: Request) => handlePost(request, options),
 	};
 }
+
+export const handleAgentRunner = createAgentApiHandler;

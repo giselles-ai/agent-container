@@ -181,6 +181,9 @@ importers:
       '@giselles-ai/agent':
         specifier: workspace:*
         version: link:../agent
+      '@giselles-ai/agent-self':
+        specifier: workspace:*
+        version: link:../agent-self
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool
