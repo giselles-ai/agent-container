@@ -284,7 +284,7 @@ async function main() {
 		console.log(`createdAt: ${snapshot.createdAt.toISOString()}`);
 		console.log(`expiresAt: ${snapshot.expiresAt.toISOString()}`);
 		console.log("\nSet this in packages/web/.env.local:");
-		console.log(`BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
+		console.log(`SANDBOX_SNAPSHOT_ID=${snapshot.snapshotId}`);
 	} catch (error) {
 		console.error("[snapshot] failed:");
 		console.error(error instanceof Error ? error.message : String(error));

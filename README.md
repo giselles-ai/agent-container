@@ -72,7 +72,7 @@ export const POST = handler.POST;
 
 ```bash
 GEMINI_API_KEY=...
-BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=...
+SANDBOX_SNAPSHOT_ID=...
 REDIS_URL=...
 ```
 
@@ -134,7 +134,7 @@ const { status, messages, tools, error, sendMessage } = useAgent({
 
 Script output で以下の推奨値が表示されます。
 
-- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
+- `SANDBOX_SNAPSHOT_ID`
 - `BROWSER_TOOL_SANDBOX_REPO_ROOT`
 - `BROWSER_TOOL_MCP_SERVER_DIST_PATH`
 - `BROWSER_TOOL_MCP_SERVER_CWD`

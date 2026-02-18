@@ -8,7 +8,7 @@ agent-container の API を Giselles Cloud Service として提供し、ユー�
 
 | 項目 | Before (現状) | After (Cloud Service) |
 |---|---|---|
-| ユーザーが設定する環境変数 | `GEMINI_API_KEY`, `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_SANDBOX_AGENT_API_KEY` |
+| ユーザーが設定する環境変数 | `GEMINI_API_KEY`, `SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_SANDBOX_AGENT_API_KEY` |
 | 必要な外部アカウント | Google AI Studio, Vercel, Redis Cloud | なし (Giselles のみ) |
 | API handler のインポート | `@giselles-ai/agent` | `@giselles-ai/agent` (同名だがcloud版) |
 | route.ts に export する HTTP method | `GET`, `POST` | `POST` のみ |
@@ -51,7 +51,7 @@ Cloud版は SSE が `bridgeUrl` 経由で直接 Cloud API に行くため GET ha
 Browser (use-agent.ts)
   └─ /api/agent (User's Next.js)
        ├─ Gemini API (GEMINI_API_KEY)
-       ├─ Vercel Sandbox (BROWSER_TOOL_SANDBOX_SNAPSHOT_ID)
+       ├─ Vercel Sandbox (SANDBOX_SNAPSHOT_ID)
        └─ Redis (REDIS_URL)
 ```
 
@@ -667,7 +667,7 @@ GISELLE_SANDBOX_AGENT_API_KEY=gsl_xxxxxxxxxxxxx
 
 ```env
 GEMINI_API_KEY=
-BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=
+SANDBOX_SNAPSHOT_ID=
 REDIS_URL=
 # Optional
 # BROWSER_TOOL_BRIDGE_BASE_URL=
@@ -679,7 +679,7 @@ REDIS_URL=
 
 ```env
 GEMINI_API_KEY=
-BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=
+SANDBOX_SNAPSHOT_ID=
 REDIS_URL=
 CLOUD_API_ORIGIN=https://cloud.giselles.ai
 # API Key 検証用 (Giselle Cloud の既存機能を利用)

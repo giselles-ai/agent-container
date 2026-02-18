@@ -198,8 +198,8 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				responseType,
 			});
 
-				const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
-				const response = await fetch(bridgeBase, {
+			const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
+			const response = await fetch(bridgeBase, {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",

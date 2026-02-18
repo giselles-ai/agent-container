@@ -6,11 +6,7 @@ export const metadata: Metadata = {
 	description: "Cloud API runtime for the Giselles sandbox agent bridge.",
 };
 
-export default function RootLayout({
-	children,
-}: {
-	children: ReactNode;
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en">
 			<body>{children}</body>

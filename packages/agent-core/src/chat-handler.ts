@@ -197,9 +197,7 @@ export function createGeminiChatHandler(
 
 				(async () => {
 					const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-					const sandboxSnapshotId = requiredEnv(
-						"BROWSER_TOOL_SANDBOX_SNAPSHOT_ID",
-					);
+					const sandboxSnapshotId = requiredEnv("SANDBOX_SNAPSHOT_ID");
 					const oidcToken =
 						extractTokenFromRequest(request) ??
 						process.env.VERCEL_OIDC_TOKEN ??
@@ -265,7 +263,6 @@ export function createGeminiChatHandler(
 						args,
 						env: {
 							GEMINI_API_KEY: geminiApiKey,
-							...(oidcToken ? { VERCEL_OIDC_TOKEN: oidcToken } : {}),
 						},
 						stdout: new Writable({
 							write(chunk, _encoding, callback) {

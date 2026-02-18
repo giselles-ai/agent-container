@@ -35,7 +35,7 @@ const server = new McpServer(
 	},
 );
 
-server.tool("getFormSnapshot", {}, async () => {
+server.registerTool("getFormSnapshot", {}, async () => {
 	try {
 		const bridgeClient = createBridgeClientFromEnv();
 		const output = await runGetFormSnapshot(bridgeClient);
@@ -70,9 +70,9 @@ server.tool("getFormSnapshot", {}, async () => {
 	}
 });
 
-server.tool(
+server.registerTool(
 	"executeFormActions",
-	executeFormActionsInputShape,
+	{ inputSchema: executeFormActionsInputShape },
 	async (input) => {
 		try {
 			const bridgeClient = createBridgeClientFromEnv();

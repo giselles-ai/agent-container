@@ -2,8 +2,7 @@ import { z } from "zod";
 
 const DEFAULT_ENDPOINT = "https://studio.giselles.ai/agent-api";
 const DEBUG_ENABLED =
-	process.env.GISELLE_AGENT_DEBUG === "true" ||
-	process.env.DEBUG === "1";
+	process.env.GISELLE_AGENT_DEBUG === "true" || process.env.DEBUG === "1";
 
 type DebugContext = {
 	baseUrl?: string;
@@ -84,7 +83,9 @@ type EndpointResolutionResult =
 	| { ok: true; endpoint: string }
 	| { ok: false; message: string };
 
-function resolveEndpoint(input: { baseUrl?: string }): EndpointResolutionResult {
+function resolveEndpoint(input: {
+	baseUrl?: string;
+}): EndpointResolutionResult {
 	const baseUrl = input.baseUrl?.trim();
 	if (baseUrl) {
 		const endpoint = parseAbsoluteEndpoint(baseUrl);
@@ -123,7 +124,9 @@ export type AgentRunnerHandler = {
 	POST: (request: Request) => Promise<Response>;
 };
 
-export function handleAgentRunner(options?: AgentRunnerOptions): AgentRunnerHandler {
+export function handleAgentRunner(
+	options?: AgentRunnerOptions,
+): AgentRunnerHandler {
 	const apiKey = resolveApiKey(options);
 	const optionSnapshot = {
 		baseUrl: options?.baseUrl?.trim(),

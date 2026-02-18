@@ -1,21 +1,21 @@
 import {
-	bridgeRequestSchema,
-	bridgeResponseSchema,
-} from "@giselles-ai/browser-tool";
-import { z } from "zod";
-import {
 	assertBridgeSession,
 	BRIDGE_SSE_KEEPALIVE_INTERVAL_MS,
 	bridgeRequestChannel,
 	createBridgeSession,
 	createBridgeSubscriber,
+	createGeminiChatHandler,
 	dispatchBridgeRequest,
 	markBridgeBrowserConnected,
 	resolveBridgeResponse,
 	toBridgeError,
 	touchBridgeBrowserConnected,
-	createGeminiChatHandler,
 } from "@giselles-ai/agent-core";
+import {
+	bridgeRequestSchema,
+	bridgeResponseSchema,
+} from "@giselles-ai/browser-tool";
+import { z } from "zod";
 
 const LOG_PREFIX = "[agent-bridge]";
 
@@ -82,7 +82,9 @@ type BridgeUrlResolutionResult =
 	| { ok: true; bridgeUrl: string }
 	| { ok: false; message: string };
 
-function resolveBridgeUrl(input: { baseUrl?: string }): BridgeUrlResolutionResult {
+function resolveBridgeUrl(input: {
+	baseUrl?: string;
+}): BridgeUrlResolutionResult {
 	const baseUrl = input.baseUrl?.trim();
 	if (!baseUrl) {
 		return { ok: true, bridgeUrl: "" };
@@ -465,18 +467,15 @@ async function handlePost(
 	const requestUrl = new URL(request.url);
 	const resolvedBridgeUrl = resolveBridgeUrl({ baseUrl: options?.baseUrl });
 	if (!resolvedBridgeUrl.ok) {
-		return createSafeError(
-			"INVALID_CONFIG",
-			resolvedBridgeUrl.message,
-			500,
-		);
+		return createSafeError("INVALID_CONFIG", resolvedBridgeUrl.message, 500);
 	}
 
 	return mergeBridgeSessionStream({
 		chatResponse,
 		session,
 		bridgeUrl:
-			resolvedBridgeUrl.bridgeUrl || `${requestUrl.origin}${requestUrl.pathname}`,
+			resolvedBridgeUrl.bridgeUrl ||
+			`${requestUrl.origin}${requestUrl.pathname}`,
 	});
 }
 
