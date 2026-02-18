@@ -101,7 +101,7 @@ export class BridgeClient {
 				headers["x-giselle-protection-bypass"] = this.giselleProtectionBypass;
 			}
 
-			response = await fetch(`${this.baseUrl}/api/agent`, {
+			response = await fetch(`${this.baseUrl}`, {
 				method: "POST",
 				headers,
 				body: JSON.stringify({
