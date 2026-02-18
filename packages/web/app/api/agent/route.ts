@@ -2,7 +2,9 @@ import { handleAgentRunner } from "@giselles-ai/agent";
 
 export const runtime = "nodejs";
 
-const handler = handleAgentRunner({ tools: { browser: true } });
+const handler = handleAgentRunner({
+	apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+	cloudApiUrl: process.env.GISELLE_SANDBOX_AGENT_CLOUD_API_URL,
+});
 
-export const GET = handler.GET;
 export const POST = handler.POST;

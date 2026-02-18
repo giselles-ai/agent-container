@@ -1,40 +1,31 @@
-# Getting Started — `@giselles-ai/agent`
+# Getting Started — Agent Packages
 
-`@giselles-ai/agent` を使うと、Next.js で Gemini CLI + MCP + SSE bridge を 1 つの API route (`/api/agent`) と 1 つの hook (`useAgent`) で扱えます。
+このリポジトリでは、以下 2 つの導入モードを提供します。
 
-## 前提条件
+- Cloud mode: `@giselles-ai/agent` (推奨)
+- Self-hosted mode: `@giselles-ai/agent-self`
 
-- Next.js (App Router)
-- React 19+
-- Node.js 20+
-- Redis
-- Vercel Sandbox が使える環境
-- `GEMINI_API_KEY`
-- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
+## Cloud mode (`@giselles-ai/agent`)
 
-## 1. パッケージインストール
+Cloud mode では、ユーザー側で必要なのは API key のみです。
+
+### 1. Install
 
 ```bash
 pnpm add @giselles-ai/agent @giselles-ai/browser-tool
 ```
 
-## 2. 環境変数設定
+### 2. Env
 
 `.env.local`:
 
 ```env
-GEMINI_API_KEY=...
-BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=...
-REDIS_URL=redis://...
-
+GISELLE_SANDBOX_AGENT_API_KEY=...
 # optional
-BROWSER_TOOL_BRIDGE_BASE_URL=https://your-app.vercel.app
-BROWSER_TOOL_SKIP_SANDBOX_BUILD=false
-VERCEL_PROTECTION_BYPASS=...
-GISELLE_PROTECTION_PASSWORD=...
+# GISELLE_SANDBOX_AGENT_CLOUD_API_URL=https://cloud.giselles.ai
 ```
 
-## 3. API route を作成
+### 3. Route
 
 `app/api/agent/route.ts`:
 
@@ -43,22 +34,14 @@ import { handleAgentRunner } from "@giselles-ai/agent";
 
 export const runtime = "nodejs";
 
-const handler = handleAgentRunner({ tools: { browser: true } });
+const handler = handleAgentRunner({
+  apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+});
 
-export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-## 4. フォームに `data-browser-tool-id` を付与
-
-```tsx
-<input data-browser-tool-id="title" />
-<textarea data-browser-tool-id="body" />
-<select data-browser-tool-id="category" />
-<input type="checkbox" data-browser-tool-id="publish" />
-```
-
-## 5. `useAgent()` を使う
+### 4. Hook
 
 ```tsx
 "use client";
@@ -85,34 +68,35 @@ export default function Page() {
 }
 ```
 
-## `useAgent()` 返り値
+`bridge.session` に `bridgeUrl` が含まれる場合、`useAgent()` は SSE と `bridge.respond` をその URL に直接送信します。
+`bridgeUrl` がない場合は従来どおり `endpoint` にフォールバックします。
 
-- `status`: `"idle" | "connecting" | "connected" | "running" | "error"`
-- `messages`: チャット履歴
-- `tools`: tool use / result の履歴
-- `warnings`: planner / executor の警告
-- `stderrLogs`: sandbox stderr ログ
-- `sandboxId`: sandbox id
-- `geminiSessionId`: gemini session id
-- `error`: 文字列エラー
-- `sendMessage({ message, document? })`
+## Self-hosted mode (`@giselles-ai/agent-self`)
 
-## Bridge HTTP 契約
+既存の self-hosted 構成を維持したい場合はこちらを使います。
 
-### POST `/api/agent`
+### Required env
 
-- `{ type: "agent.run", message, document?, session_id?, sandbox_id? }`
-- `{ type: "bridge.dispatch", sessionId, token, request, timeoutMs? }`
-- `{ type: "bridge.respond", sessionId, token, response }`
+```env
+GEMINI_API_KEY=...
+BROWSER_TOOL_SANDBOX_SNAPSHOT_ID=...
+REDIS_URL=redis://...
+```
 
-### GET `/api/agent?type=bridge.events&sessionId=...&token=...`
+### Route
 
-- SSE 接続 (`ready`, keepalive, `snapshot_request`, `execute_request`)
+```ts
+import { handleAgentRunner } from "@giselles-ai/agent-self";
 
-## トラブルシューティング
+export const runtime = "nodejs";
 
-- `UNAUTHORIZED`: `sessionId/token` 不一致
-- `NO_BROWSER`: SSE 接続未確立
-- `TIMEOUT`: bridge 応答タイムアウト
-- `INVALID_RESPONSE`: request/response 型不整合
+const handler = handleAgentRunner({ tools: { browser: true } });
 
+export const GET = handler.GET;
+export const POST = handler.POST;
+```
+
+## Migration note
+
+- 旧 `@giselles-ai/agent` の self-hosted サーバー実装は `@giselles-ai/agent-self` に移動しました。
+- Cloud 利用時は `@giselles-ai/agent` を使い、route は `POST` のみ export してください。

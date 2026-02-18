@@ -27,17 +27,45 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
+  apps/cloud-api:
+    dependencies:
+      '@giselles-ai/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
+      '@giselles-ai/browser-tool':
+        specifier: workspace:*
+        version: link:../../packages/browser-tool
+      next:
+        specifier: 16.1.6
+        version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.0.10
+        version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/agent:
     dependencies:
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool
-      '@vercel/sandbox':
-        specifier: ^1.0.0
-        version: 1.4.1
-      ioredis:
-        specifier: ^5.9.2
-        version: 5.9.2
       react:
         specifier: '>=19.0.0'
         version: 19.2.4
@@ -48,9 +76,71 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
     devDependencies:
+      '@types/node':
+        specifier: 25.0.10
+        version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/agent-core:
+    dependencies:
+      '@giselles-ai/browser-tool':
+        specifier: workspace:*
+        version: link:../browser-tool
+      '@vercel/sandbox':
+        specifier: ^1.0.0
+        version: 1.5.0
+      ioredis:
+        specifier: ^5.9.2
+        version: 5.9.2
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
       '@google/gemini-cli-core':
         specifier: ^0.28.2
         version: 0.28.2(@grpc/grpc-js@1.14.3)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.0.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.0.1(@opentelemetry/api@1.9.0))(express@5.2.1)
+      '@types/node':
+        specifier: 25.0.10
+        version: 25.0.10
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/agent-self:
+    dependencies:
+      '@giselles-ai/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@giselles-ai/agent-core':
+        specifier: workspace:*
+        version: link:../agent-core
+      '@giselles-ai/browser-tool':
+        specifier: workspace:*
+        version: link:../browser-tool
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
       '@types/node':
         specifier: 25.0.10
         version: 25.0.10
@@ -3384,6 +3474,7 @@ packages:
   tar@7.5.7:
     resolution: {integrity: sha512-fov56fJiRuThVFXD6o6/Q354S7pnWMJIVlDBYijsTNx6jKSE4pvrDTs6lUnmGvNyfJwFQQwWy3owKz1ucIhveQ==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   teeny-request@9.0.0:
     resolution: {integrity: sha512-resvxdc6Mgb7YEThw6G6bExlXKkv6+YbuzGg9xuXxSgxJF7Ozs+o8Y9+2R3sArdWdW8nOokoQb1yrpFB0pQK2g==}
@@ -5214,7 +5305,7 @@ snapshots:
       ai: 6.0.68(zod@4.3.6)
       fast-glob: 3.3.3
       gray-matter: 4.0.3
-      zod: 3.24.4
+      zod: 3.25.76
     optionalDependencies:
       '@vercel/sandbox': 1.4.1
       just-bash: 2.7.1

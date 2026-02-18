@@ -11,6 +11,7 @@ type BridgeSession = {
 	sessionId: string;
 	token: string;
 	expiresAt: number;
+	bridgeUrl: string | null;
 };
 
 export type AgentMessage = {
@@ -197,7 +198,8 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				responseType,
 			});
 
-			const response = await fetch(normalizedEndpoint, {
+				const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
+				const response = await fetch(bridgeBase, {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
@@ -323,8 +325,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		cleanupBridge();
 		setBridgeStatus("connecting");
 
+		const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
 		const source = new EventSource(
-			`${normalizedEndpoint}?type=bridge.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
+			`${bridgeBase}?type=bridge.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
 		);
 		console.info(`${LOG_PREFIX} sse.connect`, {
 			sessionId: currentSession.sessionId,
@@ -404,13 +407,19 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 			if (event.type === "bridge.session") {
 				const sessionId = asString(event.sessionId);
 				const token = asString(event.token);
+				const bridgeUrl = asString(event.bridgeUrl);
 				const expiresAt =
 					asNumber(event.expiresAt) ?? Date.now() + 10 * 60 * 1000;
 				if (!sessionId || !token) {
 					return;
 				}
 
-				sessionRef.current = { sessionId, token, expiresAt };
+				sessionRef.current = {
+					sessionId,
+					token,
+					expiresAt,
+					bridgeUrl,
+				};
 				console.info(`${LOG_PREFIX} stream.bridge_session`, {
 					sessionId,
 				});

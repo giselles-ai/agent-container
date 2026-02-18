@@ -1,26 +1,29 @@
 # Giselles Agent Container (Monorepo)
 
-Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動入力を行うための実験環境です。
+Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動入力を検証するモノレポです。
+Cloud モードと Self-hosted モードの両方を扱います。
 
-## Packages
+## Packages / Apps
 
-- `packages/agent` — `@giselles-ai/agent`
-  - サーバー: `handleAgentRunner()`
-  - クライアント: `useAgent()`
+- `packages/agent` — `@giselles-ai/agent` (Cloud mode client/proxy package)
+  - サーバー: `handleAgentRunner({ apiKey, cloudApiUrl? }) -> { POST }`
+  - クライアント: `useAgent()` (`bridgeUrl` 対応)
+- `packages/agent-self` — `@giselles-ai/agent-self` (Self-hosted package)
+  - サーバー: `handleAgentRunner({ tools? }) -> { GET, POST }`
+  - React: `@giselles-ai/agent/react` を再エクスポート
+- `packages/agent-core` — 内部パッケージ (private)
+  - Redis bridge broker + Gemini chat handler
 - `packages/browser-tool` — `@giselles-ai/browser-tool`
   - 型 + Zod スキーマ
   - DOM 操作 (`snapshot` / `execute`)
   - MCP server (`./mcp-server` subpath export)
-- `packages/web` — Next.js デモアプリ
+- `packages/web` — Cloud mode デモアプリ
+- `apps/cloud-api` — Cloud API サービス本体
 
 ## Prerequisites
 
 - Node.js 20+
 - pnpm 10+
-- OpenAI API key
-- Gemini API key
-- Redis URL
-- `BROWSER_TOOL_SANDBOX_SNAPSHOT_ID`
 
 ## Setup
 
@@ -33,7 +36,36 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Required env vars (Gemini + MCP + Bridge)
+## Cloud Mode (推奨)
+
+### Required env (demo app)
+
+```bash
+GISELLE_SANDBOX_AGENT_API_KEY=...
+```
+
+### Route handler (`@giselles-ai/agent`)
+
+```ts
+import { handleAgentRunner } from "@giselles-ai/agent";
+
+export const runtime = "nodejs";
+
+const handler = handleAgentRunner({
+  apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+});
+
+export const POST = handler.POST;
+```
+
+### Bridge behavior
+
+- `POST /api/agent` (`agent.run`) はユーザーの Next.js を経由して Cloud API へ proxy
+- `bridge.events` (SSE) と `bridge.respond` は `bridge.session.bridgeUrl` に直接接続
+
+## Self-hosted Mode
+
+### Required env
 
 ```bash
 GEMINI_API_KEY=...
@@ -48,41 +80,10 @@ Redis fallback env names:
 - `UPSTASH_REDIS_TLS_URL`
 - `UPSTASH_REDIS_URL`
 
-Optional:
-
-```bash
-BROWSER_TOOL_SANDBOX_REPO_ROOT=/vercel/sandbox
-BROWSER_TOOL_MCP_SERVER_DIST_PATH=/vercel/sandbox/packages/browser-tool/dist/mcp-server/index.js
-BROWSER_TOOL_MCP_SERVER_CWD=/vercel/sandbox
-BROWSER_TOOL_SKIP_SANDBOX_BUILD=1
-GISELLE_PROTECTION_PASSWORD=...
-VERCEL_PROTECTION_BYPASS=...
-```
-
-## API Contract (`/api/agent`)
-
-### POST `/api/agent`
-
-- `type: "agent.run"`
-  - input: `{ message, document?, session_id?, sandbox_id? }`
-  - response: NDJSON stream (first event is `bridge.session`)
-- `type: "bridge.dispatch"`
-  - input: `{ sessionId, token, request, timeoutMs? }`
-  - response: `{ ok: true, response }` or error payload
-- `type: "bridge.respond"`
-  - input: `{ sessionId, token, response }`
-  - response: `{ ok: true }` or error payload
-
-### GET `/api/agent?type=bridge.events&sessionId=...&token=...`
-
-- SSE stream for browser bridge requests
-
-## Minimal integration
-
-### Route handler
+### Route handler (`@giselles-ai/agent-self`)
 
 ```ts
-import { handleAgentRunner } from "@giselles-ai/agent";
+import { handleAgentRunner } from "@giselles-ai/agent-self";
 
 export const runtime = "nodejs";
 
@@ -92,7 +93,7 @@ export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-### Client hook
+## Client Hook
 
 ```ts
 import { useAgent } from "@giselles-ai/agent/react";
@@ -127,12 +128,3 @@ pnpm format
 pnpm snapshot:browser-tool
 pnpm sandbox:local:browser-tool
 ```
-
-## Local sandbox reproduction
-
-`pnpm sandbox:local:browser-tool` でローカルに `/vercel/sandbox` 相当の構成を `.sandbox-local/vercel/sandbox` として作成し、以下を実施します。
-
-- `@giselles-ai/browser-tool` build
-- `packages/browser-tool/dist/mcp-server/index.js` の存在検証
-
-これはローカル事前検証用です。実行環境の Sandbox では `snapshot:browser-tool` で生成した snapshot を使って `/vercel/sandbox` 配下に同じ成果物を配置してください。
