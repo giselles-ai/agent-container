@@ -1,8 +1,14 @@
 import { Writable } from "node:stream";
+import type { MCPServerConfig } from "@google/gemini-cli-core";
 import { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
 const GEMINI_SETTINGS_PATH = "/home/vercel-sandbox/.gemini/settings.json";
+
+interface GeminiSettings {
+	mcpServers?: Record<string, MCPServerConfig>;
+	[key: string]: unknown;
+}
 
 const requestSchema = z.object({
 	message: z.string().min(1),
@@ -80,24 +86,16 @@ async function patchGeminiSettingsEnv(
 		);
 	}
 
-	const settings = JSON.parse(new TextDecoder().decode(buffer)) as Record<
-		string,
-		unknown
-	>;
+	const settings: GeminiSettings = JSON.parse(new TextDecoder().decode(buffer));
 
-	const mcpServers = settings.mcpServers as
-		| Record<string, Record<string, unknown>>
-		| undefined;
-	if (!mcpServers?.rpa_bridge) {
-		throw new Error(
-			"Gemini settings.json does not contain mcpServers.rpa_bridge. Ensure the snapshot includes the MCP server configuration.",
+	if (settings.mcpServers) {
+		settings.mcpServers = Object.fromEntries(
+			Object.entries(settings.mcpServers).map(([key, server]) => [
+				key,
+				{ ...server, env: { ...server.env, ...mcpEnv } },
+			]),
 		);
 	}
-
-	mcpServers.rpa_bridge.env = {
-		...(mcpServers.rpa_bridge.env as Record<string, string> | undefined),
-		...mcpEnv,
-	};
 
 	await sandbox.writeFiles([
 		{
