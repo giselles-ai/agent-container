@@ -30,7 +30,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsup --config tsup.ts",
+		"build": "pnpm clean && tsup --config tsup.ts",
+		"clean": "rm -rf dist *.tsbuildinfo",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"format": "pnpm exec biome check --write ."
 	},
