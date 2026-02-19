@@ -1,9 +1,9 @@
-同じディレクトリに`[slug]/`がありますがこれは過去の実装なので、参考にしないでください。
+There is a `[slug]/` directory in the same location, but it is a legacy implementation — do not use it as a reference.
 
-### 要件
-Vercel Sandboxを作成し、アップロードされたtarファイルを展開し、各情報をSandboxに反映した上でSnapshotを作成し、Snapshot IdをResponseしてください。
+### Requirements
+Create a Vercel Sandbox, extract the uploaded tar file, apply each piece of information to the Sandbox, create a Snapshot, and return the Snapshot ID in the response.
 
-穴埋め式のコードを[./route.ts](./route.ts)に配置しています。
+A fill-in-the-blank code template is placed in [./route.ts](./route.ts).
 
-tarファイルの中身は[~/cli-design/to-be.md](../../../../../../cli-design/to-be.md)に書いてあります。
-config.tomlが重要で、あとはそこから参照できるはずです。
+The contents of the tar file are described in [~/cli-design/to-be.md](../../../../../../cli-design/to-be.md).
+config.toml is the key file, and the rest should be referenceable from there.

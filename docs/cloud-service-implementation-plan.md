@@ -1,51 +1,51 @@
-# Cloud Service 化 実装プラン
+# Cloud Service Implementation Plan
 
-## 概要
+## Overview
 
-agent-container の API を Giselles Cloud Service として提供し、ユーザーが `GISELLE_SANDBOX_AGENT_API_KEY` のみで利用可能にする。
+Provide the agent-container API as a Giselles Cloud Service, enabling users to get started with only `GISELLE_SANDBOX_AGENT_API_KEY`.
 
 ### Before / After
 
-| 項目 | Before (現状) | After (Cloud Service) |
+| Item | Before (Current) | After (Cloud Service) |
 |---|---|---|
-| ユーザーが設定する環境変数 | `GEMINI_API_KEY`, `SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_SANDBOX_AGENT_API_KEY` |
-| 必要な外部アカウント | Google AI Studio, Vercel, Redis Cloud | なし (Giselles のみ) |
-| API handler のインポート | `@giselles-ai/agent` | `@giselles-ai/agent` (同名だがcloud版) |
-| route.ts に export する HTTP method | `GET`, `POST` | `POST` のみ |
+| Env vars set by user | `GEMINI_API_KEY`, `SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_SANDBOX_AGENT_API_KEY` |
+| Required external accounts | Google AI Studio, Vercel, Redis Cloud | None (Giselles only) |
+| API handler import | `@giselles-ai/agent` | `@giselles-ai/agent` (same name but cloud version) |
+| HTTP methods exported in route.ts | `GET`, `POST` | `POST` only |
 
 ---
 
-## 意思決定サマリー (5つの検討ポイント)
+## Decision Summary (5 discussion points)
 
-### 1. SSE bridge handling × API分離レベル → **Hybrid方式 (Option B)**
+### 1. SSE bridge handling × API separation level → **Hybrid approach (Option B)**
 
-`agent.run` POST のみユーザーの Next.js を経由（proxy）。SSE (`bridge.events`) と `bridge.respond` はブラウザから Cloud API へ直接接続する。
+Only `agent.run` POST goes through the user's Next.js (proxy). SSE (`bridge.events`) and `bridge.respond` connect directly from the browser to the Cloud API.
 
-**理由:**
-- Vercel Functions の実行時間制限 (Hobby: 10秒, Pro: 60秒) で SSE の長時間接続をプロキシ不可
-- 20秒タイムアウト内での DOM 操作完了に 2 ホップ増は致命的
-- ユーザー側実装は `agent.run` の fetch forward + stream pipe のみで済む
-- CORS は `Access-Control-Allow-Origin: *` で解決 (bridge session token が認証)
+**Rationale:**
+- Vercel Functions execution time limits (Hobby: 10s, Pro: 60s) make it impossible to proxy long-lived SSE connections
+- Adding 2 extra hops to DOM operations that must complete within a 20-second timeout is critical
+- User-side implementation only requires fetch forwarding + stream piping for `agent.run`
+- CORS is resolved with `Access-Control-Allow-Origin: *` (bridge session token serves as authentication)
 
-### 2. パッケージ構成 → **別パッケージに分離**
+### 2. Package structure → **Separate into a different package**
 
-npm 公開時に cloud 版ユーザーの `package.json` に `ioredis`, `@vercel/sandbox` が含まれるのは不自然なため、subpath export ではなく別パッケージにする。
+It would be unnatural for cloud-mode users to have `ioredis` and `@vercel/sandbox` in their `package.json` when published to npm, so a separate package is preferred over subpath exports.
 
-### 3. API shape → **Cloud版は `{ POST }` のみ、Self-hosted版は `{ GET, POST }`**
+### 3. API shape → **Cloud version exports `{ POST }` only, Self-hosted exports `{ GET, POST }`**
 
-Cloud版は SSE が `bridgeUrl` 経由で直接 Cloud API に行くため GET handler 不要。
+The cloud version doesn't need a GET handler since SSE goes directly to the Cloud API via `bridgeUrl`.
 
-### 4. API Key → **Giselle Cloud (studio.giselles.ai) の既存 API KEY 機能を再利用**
+### 4. API Key → **Reuse existing API KEY functionality from Giselle Cloud (studio.giselles.ai)**
 
-新規の API Key 管理基盤は作らない。
+No new API Key management infrastructure is needed.
 
-### 5. Self-hosted → **`@giselles-ai/agent-self` として維持、専用サポート窓口は用意しない**
+### 5. Self-hosted → **Maintained as `@giselles-ai/agent-self`, no dedicated support channel**
 
 ---
 
-## アーキテクチャ
+## Architecture
 
-### 現状
+### Current
 
 ```
 Browser (use-agent.ts)
@@ -55,40 +55,40 @@ Browser (use-agent.ts)
        └─ Redis (REDIS_URL)
 ```
 
-### Cloud Service 化後
+### After Cloud Service
 
 ```
 Browser (use-agent.ts)
   ├─ POST agent.run → /api/agent (User's Next.js) → Cloud API
-  ├─ GET bridge.events → Cloud API (直接)     ← bridgeUrl から取得
-  └─ POST bridge.respond → Cloud API (直接)   ← bridgeUrl から取得
+  ├─ GET bridge.events → Cloud API (direct)     ← obtained from bridgeUrl
+  └─ POST bridge.respond → Cloud API (direct)   ← obtained from bridgeUrl
 ```
 
-### シーケンス図
+### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
     participant B as Browser (use-agent.ts)
     participant U as User's Next.js (/api/agent)
     participant C as Cloud API (cloud.giselles.ai)
-    participant R as Redis (Cloud内部)
-    participant S as Sandbox (Cloud内部)
+    participant R as Redis (Cloud internal)
+    participant S as Sandbox (Cloud internal)
 
     B->>U: POST agent.run {message}
     U->>C: POST agent.run + API_KEY (proxy)
     C->>R: createBridgeSession()
     C->>S: Create Sandbox + gemini CLI
-    C-->>U: ndjson stream (bridge.session含む)
-    Note over C: bridge.session に bridgeUrl を含める
-    U-->>B: ndjson stream を pipe
+    C-->>U: ndjson stream (includes bridge.session)
+    Note over C: bridge.session includes bridgeUrl
+    U-->>B: pipe ndjson stream
 
-    Note over B: bridge.session受信 → bridgeUrl抽出 → SSE直接接続
+    Note over B: Receives bridge.session → extracts bridgeUrl → connects SSE directly
 
     B->>C: GET bridgeUrl?type=bridge.events&sessionId&token
     C->>R: subscribe(bridge:sessionId:request)
     C-->>B: SSE stream
 
-    Note over S: Gemini が DOM snapshot を要求
+    Note over S: Gemini requests DOM snapshot
 
     S->>C: bridge.dispatch {snapshot_request}
     C->>R: publish → SSE push
@@ -104,9 +104,9 @@ sequenceDiagram
 
 ---
 
-## パッケージ構成
+## Package Structure
 
-### Before (現状)
+### Before (Current)
 
 ```
 packages/
@@ -128,41 +128,41 @@ packages/
   web/              → demo app (Next.js)
 ```
 
-### After (Cloud Service 化後)
+### After (Cloud Service)
 
 ```
 packages/
-  agent-core/           ← NEW: 内部パッケージ (npm非公開, private: true)
+  agent-core/           ← NEW: Internal package (not published to npm, private: true)
   │ src/
   │   index.ts              re-export bridge-broker, chat-handler
-  │   bridge-broker.ts      現 packages/agent/src/internal/bridge-broker.ts を移動
-  │   chat-handler.ts       現 packages/agent/src/internal/chat-handler.ts を移動
+  │   bridge-broker.ts      Moved from packages/agent/src/internal/bridge-broker.ts
+  │   chat-handler.ts       Moved from packages/agent/src/internal/chat-handler.ts
   │ package.json            deps: ioredis, @vercel/sandbox, zod, @giselles-ai/browser-tool
   │
-  agent/                ← MODIFY: @giselles-ai/agent (npm公開, cloud版)
+  agent/                ← MODIFY: @giselles-ai/agent (published to npm, cloud version)
   │ src/
   │   index.ts              handleAgentRunner({ apiKey }) → { POST }
   │   react/
-  │     index.ts            既存 exports (変更なし)
-  │     use-agent.ts        bridgeUrl 対応を追加
-  │     provider.tsx        変更なし
-  │     prompt-panel.tsx    変更なし
-  │     use-browser-tool.ts 変更なし
-  │ package.json            deps: zod のみ (ioredis, @vercel/sandbox 削除)
+  │     index.ts            Existing exports (unchanged)
+  │     use-agent.ts        Add bridgeUrl support
+  │     provider.tsx        Unchanged
+  │     prompt-panel.tsx    Unchanged
+  │     use-browser-tool.ts Unchanged
+  │ package.json            deps: zod only (ioredis, @vercel/sandbox removed)
   │
-  agent-self/           ← NEW: @giselles-ai/agent-self (npm公開, self-hosted版)
+  agent-self/           ← NEW: @giselles-ai/agent-self (published to npm, self-hosted version)
   │ src/
   │   index.ts              handleAgentRunner({ tools }) → { GET, POST }
   │   react/
   │     index.ts            → re-export from @giselles-ai/agent/react
   │ package.json            deps: @giselles-ai/agent-core
   │
-  browser-tool/         → @giselles-ai/browser-tool (変更なし)
+  browser-tool/         → @giselles-ai/browser-tool (unchanged)
   │
-  web/                  → demo app (cloud版を使うように変更)
+  web/                  → demo app (changed to use cloud version)
 
 apps/
-  cloud-api/            ← NEW: Cloud API サービス本体
+  cloud-api/            ← NEW: Cloud API service
   │ src/
   │   index.ts              HTTP server (Hono or Next.js)
   │   routes/
@@ -170,22 +170,22 @@ apps/
   │ package.json            deps: @giselles-ai/agent-core
 ```
 
-### パッケージ依存関係
+### Package Dependency Graph
 
 ```mermaid
 graph TD
-    BT["@giselles-ai/browser-tool<br/>(npm公開)"]
+    BT["@giselles-ai/browser-tool<br/>(published to npm)"]
 
-    AC["agent-core<br/>(private, npm非公開)"]
+    AC["agent-core<br/>(private, not published to npm)"]
     AC --> BT
 
-    AS["@giselles-ai/agent-self<br/>(npm公開, self-hosted)"]
+    AS["@giselles-ai/agent-self<br/>(published to npm, self-hosted)"]
     AS --> AC
 
-    CA["apps/cloud-api<br/>(Gisellesが運用)"]
+    CA["apps/cloud-api<br/>(operated by Giselles)"]
     CA --> AC
 
-    AG["@giselles-ai/agent<br/>(npm公開, cloud版)"]
+    AG["@giselles-ai/agent<br/>(published to npm, cloud version)"]
     AG -.->|"HTTP proxy"| CA
 
     WEB["packages/web (demo)"]
@@ -202,11 +202,11 @@ graph TD
 
 ---
 
-## 各パッケージの詳細仕様
+## Detailed Specifications per Package
 
 ### 1. `packages/agent-core` (NEW)
 
-内部パッケージ。`agent-self` と `apps/cloud-api` が使う。npm 非公開。
+Internal package. Used by `agent-self` and `apps/cloud-api`. Not published to npm.
 
 #### package.json
 
@@ -235,7 +235,7 @@ graph TD
 
 #### exports
 
-現在の `packages/agent/src/internal/` のファイルをそのまま移動して re-export:
+Move and re-export the files from `packages/agent/src/internal/` as-is:
 
 ```ts
 // src/index.ts
@@ -255,7 +255,7 @@ export {
 export { createGeminiChatHandler } from "./chat-handler";
 ```
 
-#### ファイル移動
+#### File moves
 
 | From | To |
 |---|---|
@@ -264,21 +264,21 @@ export { createGeminiChatHandler } from "./chat-handler";
 
 ---
 
-### 2. `packages/agent` (MODIFY — Cloud版)
+### 2. `packages/agent` (MODIFY — Cloud version)
 
-npm 公開パッケージ。ユーザーが cloud mode で使う薄い proxy。
+Published npm package. A thin proxy for users in cloud mode.
 
-#### package.json 変更点
+#### package.json changes
 
 ```jsonc
 {
   "name": "@giselles-ai/agent",
-  "version": "0.2.0",   // ← バージョンアップ
+  "version": "0.2.0",   // ← version bump
   "dependencies": {
     "@giselles-ai/browser-tool": "workspace:*",
     "zod": "4.3.6"
-    // ioredis 削除
-    // @vercel/sandbox 削除
+    // ioredis removed
+    // @vercel/sandbox removed
   },
   "peerDependencies": {
     "react": ">=19.0.0",
@@ -287,9 +287,9 @@ npm 公開パッケージ。ユーザーが cloud mode で使う薄い proxy。
 }
 ```
 
-#### `src/index.ts` — Cloud版 `handleAgentRunner`
+#### `src/index.ts` — Cloud version `handleAgentRunner`
 
-**入力型:**
+**Input type:**
 
 ```ts
 type AgentRunnerOptions = {
@@ -298,24 +298,24 @@ type AgentRunnerOptions = {
 };
 ```
 
-**出力型:**
+**Output type:**
 
 ```ts
 type AgentRunnerHandler = {
   POST: (request: Request) => Promise<Response>;
-  // GET は不要 (SSE は bridgeUrl 経由で Cloud API に直接行く)
+  // GET is not needed (SSE goes directly to Cloud API via bridgeUrl)
 };
 ```
 
-**実装の要点:**
+**Implementation key points:**
 
-1. `agent.run` POST のみを受け付ける
-2. リクエストボディをパースし、Cloud API に forward
-3. Cloud API からの ndjson レスポンスをそのまま pipe して返す
-4. `Authorization: Bearer ${apiKey}` ヘッダーを付与
+1. Accepts only `agent.run` POST
+2. Parses the request body and forwards it to the Cloud API
+3. Pipes the ndjson response from the Cloud API as-is
+4. Adds `Authorization: Bearer ${apiKey}` header
 
 ```ts
-// 疑似コード
+// Pseudo-code
 export function handleAgentRunner(options: AgentRunnerOptions): AgentRunnerHandler {
   const cloudApiUrl = options.cloudApiUrl ?? "https://cloud.giselles.ai";
 
@@ -336,7 +336,7 @@ export function handleAgentRunner(options: AgentRunnerOptions): AgentRunnerHandl
         body: JSON.stringify(parsed.data),
       });
 
-      // ndjson stream をそのまま pipe
+      // Pipe ndjson stream as-is
       return new Response(cloudResponse.body, {
         status: cloudResponse.status,
         headers: {
@@ -349,10 +349,10 @@ export function handleAgentRunner(options: AgentRunnerOptions): AgentRunnerHandl
 }
 ```
 
-#### route.ts (ユーザー側の使い方)
+#### route.ts (user-side usage)
 
 ```ts
-// Cloud版 route.ts
+// Cloud version route.ts
 import { handleAgentRunner } from "@giselles-ai/agent";
 
 const handler = handleAgentRunner({
@@ -360,14 +360,14 @@ const handler = handleAgentRunner({
 });
 
 export const POST = handler.POST;
-// GET は不要
+// GET is not needed
 ```
 
-#### `src/react/use-agent.ts` — `bridgeUrl` 対応
+#### `src/react/use-agent.ts` — `bridgeUrl` support
 
-**変更箇所1: `handleStreamEvent` 内の `bridge.session` イベント処理**
+**Change 1: `bridge.session` event handling in `handleStreamEvent`**
 
-現状:
+Before:
 ```ts
 if (event.type === "bridge.session") {
   const sessionId = asString(event.sessionId);
@@ -378,19 +378,19 @@ if (event.type === "bridge.session") {
 }
 ```
 
-変更後:
+After:
 ```ts
 if (event.type === "bridge.session") {
   const sessionId = asString(event.sessionId);
   const token = asString(event.token);
   const bridgeUrl = asString(event.bridgeUrl); // ← NEW
   // ...
-  sessionRef.current = { sessionId, token, expiresAt, bridgeUrl }; // ← bridgeUrl追加
+  sessionRef.current = { sessionId, token, expiresAt, bridgeUrl }; // ← added bridgeUrl
   connect();
 }
 ```
 
-**変更箇所2: `BridgeSession` 型**
+**Change 2: `BridgeSession` type**
 
 ```ts
 type BridgeSession = {
@@ -401,16 +401,16 @@ type BridgeSession = {
 };
 ```
 
-**変更箇所3: `connect` 関数の EventSource URL**
+**Change 3: EventSource URL in `connect` function**
 
-現状:
+Before:
 ```ts
 const source = new EventSource(
   `${normalizedEndpoint}?type=bridge.events&sessionId=...&token=...`
 );
 ```
 
-変更後:
+After:
 ```ts
 const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
 const source = new EventSource(
@@ -418,9 +418,9 @@ const source = new EventSource(
 );
 ```
 
-**変更箇所4: `handleBridgeResponse` の fetch URL**
+**Change 4: fetch URL in `handleBridgeResponse`**
 
-現状:
+Before:
 ```ts
 const response = await fetch(normalizedEndpoint, {
   method: "POST",
@@ -431,7 +431,7 @@ const response = await fetch(normalizedEndpoint, {
 });
 ```
 
-変更後:
+After:
 ```ts
 const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
 const response = await fetch(bridgeBase, {
@@ -443,20 +443,20 @@ const response = await fetch(bridgeBase, {
 });
 ```
 
-**判定ロジック:**
+**Decision logic:**
 
-| `bridgeUrl` の値 | 動作 |
+| `bridgeUrl` value | Behavior |
 |---|---|
-| `"https://cloud.giselles.ai/api/agent"` (文字列) | Cloud mode — SSE/respond は bridgeUrl へ直接 |
-| `null` / `undefined` | Self-hosted mode — SSE/respond は normalizedEndpoint へ (従来通り) |
+| `"https://cloud.giselles.ai/api/agent"` (string) | Cloud mode — SSE/respond goes directly to bridgeUrl |
+| `null` / `undefined` | Self-hosted mode — SSE/respond goes to normalizedEndpoint (as before) |
 
-この変更により、**同じ `useAgent` hook が Cloud版・Self-hosted版 両方で動作する。**
+With this change, **the same `useAgent` hook works for both Cloud and Self-hosted versions.**
 
 ---
 
 ### 3. `packages/agent-self` (NEW)
 
-npm 公開パッケージ。self-hosted mode 用。現在の `packages/agent` の server-side ロジックをそのまま引き継ぐ。
+Published npm package. For self-hosted mode. Inherits the server-side logic from the current `packages/agent` as-is.
 
 #### package.json
 
@@ -490,7 +490,7 @@ npm 公開パッケージ。self-hosted mode 用。現在の `packages/agent` �
 
 #### `src/index.ts`
 
-現在の `packages/agent/src/index.ts` をほぼそのまま移動。`@giselles-ai/agent-core` から import するように変更。
+Move the current `packages/agent/src/index.ts` mostly as-is. Change imports to use `@giselles-ai/agent-core`.
 
 ```ts
 import { createGeminiChatHandler } from "@giselles-ai/agent-core";
@@ -507,13 +507,13 @@ import {
   touchBridgeBrowserConnected,
 } from "@giselles-ai/agent-core";
 
-// ... 現状の handleAgentRunner() をそのまま配置
-// 戻り値は { GET, POST }
+// ... place the current handleAgentRunner() as-is
+// Return type is { GET, POST }
 ```
 
 #### `src/react/index.ts`
 
-`@giselles-ai/agent/react` から re-export するだけ:
+Simply re-export from `@giselles-ai/agent/react`:
 
 ```ts
 export {
@@ -529,10 +529,10 @@ export {
 } from "@giselles-ai/agent/react";
 ```
 
-#### route.ts (self-hosted ユーザーの使い方)
+#### route.ts (self-hosted user usage)
 
 ```ts
-// Self-hosted版 route.ts
+// Self-hosted version route.ts
 import { handleAgentRunner } from "@giselles-ai/agent-self";
 
 const handler = handleAgentRunner({ tools: { browser: true } });
@@ -545,15 +545,15 @@ export const POST = handler.POST;
 
 ### 4. `apps/cloud-api` (NEW)
 
-Giselles が運用する Cloud API サービス本体。
+The Cloud API service operated by Giselles.
 
-#### 責務
+#### Responsibilities
 
-1. `agent.run` POST を受け、`agent-core` の `createGeminiChatHandler` で Sandbox + Gemini CLI を実行
-2. SSE (`bridge.events` GET) を提供
-3. `bridge.dispatch` / `bridge.respond` POST を処理
-4. `Authorization: Bearer <API_KEY>` の検証 (Giselle Cloud の API Key)
-5. CORS ヘッダー設定 (`Access-Control-Allow-Origin: *`)
+1. Receive `agent.run` POST and execute Sandbox + Gemini CLI via `agent-core`'s `createGeminiChatHandler`
+2. Provide SSE (`bridge.events` GET)
+3. Handle `bridge.dispatch` / `bridge.respond` POST
+4. Validate `Authorization: Bearer <API_KEY>` (Giselle Cloud API Key)
+5. Set CORS headers (`Access-Control-Allow-Origin: *`)
 
 #### package.json
 
@@ -566,26 +566,26 @@ Giselles が運用する Cloud API サービス本体。
     "@giselles-ai/agent-core": "workspace:*",
     "@giselles-ai/browser-tool": "workspace:*",
     "zod": "4.3.6"
-    // + HTTP framework (Hono, Next.js, etc. — 要決定)
+    // + HTTP framework (Hono, Next.js, etc. — TBD)
   }
 }
 ```
 
-#### ルーティング
+#### Routing
 
-| Method | Path | 処理 | 認証 |
+| Method | Path | Handler | Auth |
 |---|---|---|---|
-| `POST` | `/api/agent` | `agent.run` — bridge session 作成 + Sandbox起動 + ndjson stream | API Key |
-| `GET` | `/api/agent` | `bridge.events` — SSE ストリーム | bridge session token |
-| `POST` | `/api/agent` | `bridge.dispatch` — MCP server からの要求 | bridge session token |
-| `POST` | `/api/agent` | `bridge.respond` — ブラウザからの応答 | bridge session token |
-| `OPTIONS` | `/api/agent` | CORS preflight | なし |
+| `POST` | `/api/agent` | `agent.run` — create bridge session + start Sandbox + ndjson stream | API Key |
+| `GET` | `/api/agent` | `bridge.events` — SSE stream | bridge session token |
+| `POST` | `/api/agent` | `bridge.dispatch` — request from MCP server | bridge session token |
+| `POST` | `/api/agent` | `bridge.respond` — response from browser | bridge session token |
+| `OPTIONS` | `/api/agent` | CORS preflight | None |
 
-#### `bridge.session` イベントに `bridgeUrl` を追加
+#### Add `bridgeUrl` to `bridge.session` event
 
-`agent.run` の ndjson ストリームの先頭に含まれる `bridge.session` イベントに `bridgeUrl` フィールドを追加:
+Add a `bridgeUrl` field to the `bridge.session` event included at the head of the `agent.run` ndjson stream:
 
-**現状の bridge.session イベント:**
+**Current bridge.session event:**
 ```json
 {
   "type": "bridge.session",
@@ -595,7 +595,7 @@ Giselles が運用する Cloud API サービス本体。
 }
 ```
 
-**変更後:**
+**After change:**
 ```json
 {
   "type": "bridge.session",
@@ -606,12 +606,12 @@ Giselles が運用する Cloud API サービス本体。
 }
 ```
 
-`bridgeUrl` は Cloud API のオリジン + パスで、ブラウザが SSE 接続と `bridge.respond` POST に使う URL。
+`bridgeUrl` is the Cloud API origin + path, the URL that the browser uses for SSE connections and `bridge.respond` POST.
 
-#### CORS 設定
+#### CORS configuration
 
 ```ts
-// すべてのレスポンスに付与
+// Applied to all responses
 {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -619,18 +619,18 @@ Giselles が運用する Cloud API サービス本体。
 }
 ```
 
-CORS を `*` にしても安全な理由:
-- bridge session の `token` 自体が認証として機能
-- Cookie ベースの認証は不使用
-- `agent.run` のみ API Key が必要だが、これはユーザーの Next.js server-side から呼ばれるためブラウザに露出しない
+Why `*` is safe for CORS:
+- The bridge session `token` itself serves as authentication
+- Cookie-based authentication is not used
+- Only `agent.run` requires an API Key, and it is called from the user's Next.js server-side so it is never exposed to the browser
 
 ---
 
-## `mergeBridgeSessionStream` の変更 (Cloud API 側)
+## `mergeBridgeSessionStream` Changes (Cloud API side)
 
-Cloud API の `agent.run` ハンドラーで、`bridge.session` イベントに `bridgeUrl` を注入する:
+In the Cloud API's `agent.run` handler, inject `bridgeUrl` into the `bridge.session` event:
 
-**現状 (packages/agent/src/index.ts L258-263):**
+**Current (packages/agent/src/index.ts L258-263):**
 ```ts
 const bridgeSessionEvent = `${JSON.stringify({
   type: "bridge.session",
@@ -640,7 +640,7 @@ const bridgeSessionEvent = `${JSON.stringify({
 })}\n`;
 ```
 
-**Cloud API 版:**
+**Cloud API version:**
 ```ts
 const bridgeSessionEvent = `${JSON.stringify({
   type: "bridge.session",
@@ -651,19 +651,19 @@ const bridgeSessionEvent = `${JSON.stringify({
 })}\n`;
 ```
 
-Self-hosted 版 (`@giselles-ai/agent-self`) では `bridgeUrl` を含めない (= `undefined`)。これにより `use-agent.ts` は `normalizedEndpoint` にフォールバックする。
+The self-hosted version (`@giselles-ai/agent-self`) does not include `bridgeUrl` (= `undefined`). This causes `use-agent.ts` to fall back to `normalizedEndpoint`.
 
 ---
 
-## 環境変数の整理
+## Environment Variable Summary
 
-### Cloud版ユーザー (packages/web/.env)
+### Cloud version user (packages/web/.env)
 
 ```env
-GISELLE_SANDBOX_AGENT_API_KEY=gsl_xxxxxxxxxxxxx
+GISELLE_SANDBOX_AGENT_API_KEY=[REDACTED:api-key]
 ```
 
-### Self-hosted版ユーザー
+### Self-hosted version user
 
 ```env
 GEMINI_API_KEY=
@@ -675,125 +675,125 @@ REDIS_URL=
 # VERCEL_PROTECTION_BYPASS=
 ```
 
-### Cloud API サービス (apps/cloud-api/.env)
+### Cloud API service (apps/cloud-api/.env)
 
 ```env
 GEMINI_API_KEY=
 SANDBOX_SNAPSHOT_ID=
 REDIS_URL=
 CLOUD_API_ORIGIN=https://cloud.giselles.ai
-# API Key 検証用 (Giselle Cloud の既存機能を利用)
+# For API Key verification (uses existing Giselle Cloud functionality)
 GISELLE_CLOUD_API_ENDPOINT=https://studio.giselles.ai/api/...
 ```
 
 ---
 
-## 実装ステップ (順序付き)
+## Implementation Steps (Ordered)
 
-### Phase 1: パッケージ分離 (Breaking Change なし)
+### Phase 1: Package separation (No Breaking Changes)
 
-| Step | 作業 | 影響範囲 |
+| Step | Task | Scope |
 |---|---|---|
-| 1-1 | `packages/agent-core/` を作成 | 新規パッケージ |
-| 1-2 | `packages/agent/src/internal/bridge-broker.ts` → `packages/agent-core/src/bridge-broker.ts` にコピー | 新規ファイル |
-| 1-3 | `packages/agent/src/internal/chat-handler.ts` → `packages/agent-core/src/chat-handler.ts` にコピー | 新規ファイル |
-| 1-4 | `packages/agent-core/src/index.ts` で re-export | 新規ファイル |
-| 1-5 | `packages/agent-core/package.json`, `tsconfig.json`, `tsup.ts` を作成 | 新規ファイル |
-| 1-6 | `pnpm-workspace.yaml` に `packages/agent-core` が含まれることを確認 (既に `packages/*` で含まれる) | 確認のみ |
-| 1-7 | ビルド確認 (`pnpm build` が通ること) | — |
+| 1-1 | Create `packages/agent-core/` | New package |
+| 1-2 | Copy `packages/agent/src/internal/bridge-broker.ts` → `packages/agent-core/src/bridge-broker.ts` | New file |
+| 1-3 | Copy `packages/agent/src/internal/chat-handler.ts` → `packages/agent-core/src/chat-handler.ts` | New file |
+| 1-4 | Re-export in `packages/agent-core/src/index.ts` | New file |
+| 1-5 | Create `packages/agent-core/package.json`, `tsconfig.json`, `tsup.ts` | New files |
+| 1-6 | Confirm `pnpm-workspace.yaml` includes `packages/agent-core` (already covered by `packages/*`) | Verification only |
+| 1-7 | Build verification (`pnpm build` passes) | — |
 
-### Phase 2: `agent-self` パッケージ作成
+### Phase 2: Create `agent-self` package
 
-| Step | 作業 | 影響範囲 |
+| Step | Task | Scope |
 |---|---|---|
-| 2-1 | `packages/agent-self/` を作成 | 新規パッケージ |
-| 2-2 | `packages/agent/src/index.ts` の `handleAgentRunner` + 関連コードを `packages/agent-self/src/index.ts` にコピー | 新規ファイル |
-| 2-3 | import 元を `./internal/bridge-broker` → `@giselles-ai/agent-core` に変更 | agent-self のみ |
-| 2-4 | `packages/agent-self/src/react/index.ts` で `@giselles-ai/agent/react` を re-export | 新規ファイル |
-| 2-5 | `packages/agent-self/package.json`, `tsconfig.json`, `tsup.ts` を作成 | 新規ファイル |
-| 2-6 | ビルド確認 | — |
+| 2-1 | Create `packages/agent-self/` | New package |
+| 2-2 | Copy `handleAgentRunner` + related code from `packages/agent/src/index.ts` to `packages/agent-self/src/index.ts` | New file |
+| 2-3 | Change import source from `./internal/bridge-broker` → `@giselles-ai/agent-core` | agent-self only |
+| 2-4 | Re-export `@giselles-ai/agent/react` in `packages/agent-self/src/react/index.ts` | New file |
+| 2-5 | Create `packages/agent-self/package.json`, `tsconfig.json`, `tsup.ts` | New files |
+| 2-6 | Build verification | — |
 
-### Phase 3: `packages/agent` を Cloud版に変換
+### Phase 3: Convert `packages/agent` to Cloud version
 
-| Step | 作業 | 影響範囲 |
+| Step | Task | Scope |
 |---|---|---|
-| 3-1 | `packages/agent/src/internal/` を削除 | agent パッケージ |
-| 3-2 | `packages/agent/src/index.ts` を Cloud 版 proxy に書き換え | agent パッケージ |
-| 3-3 | `packages/agent/package.json` から `ioredis`, `@vercel/sandbox` を削除 | agent パッケージ |
-| 3-4 | `packages/agent/src/react/use-agent.ts` に `bridgeUrl` 対応を追加 | agent パッケージ |
-| 3-5 | ビルド確認 | — |
+| 3-1 | Delete `packages/agent/src/internal/` | agent package |
+| 3-2 | Rewrite `packages/agent/src/index.ts` to Cloud version proxy | agent package |
+| 3-3 | Remove `ioredis`, `@vercel/sandbox` from `packages/agent/package.json` | agent package |
+| 3-4 | Add `bridgeUrl` support to `packages/agent/src/react/use-agent.ts` | agent package |
+| 3-5 | Build verification | — |
 
-### Phase 4: `apps/cloud-api` 作成
+### Phase 4: Create `apps/cloud-api`
 
-| Step | 作業 | 影響範囲 |
+| Step | Task | Scope |
 |---|---|---|
-| 4-1 | `apps/cloud-api/` を作成 | 新規アプリ |
-| 4-2 | HTTP server + ルーティング実装 | 新規ファイル |
-| 4-3 | `agent.run` ハンドラー: API Key 検証 + `agent-core` の `createGeminiChatHandler` 呼び出し + `bridgeUrl` 注入 | 新規ファイル |
-| 4-4 | SSE (`bridge.events`) ハンドラー: 現 `createBridgeEventsRoute` を移植 | 新規ファイル |
-| 4-5 | `bridge.dispatch` / `bridge.respond` ハンドラー: 現行ロジックを移植 | 新規ファイル |
-| 4-6 | CORS middleware 追加 | 新規ファイル |
-| 4-7 | API Key 検証ミドルウェア (Giselle Cloud 既存 API を呼ぶ) | 新規ファイル |
+| 4-1 | Create `apps/cloud-api/` | New app |
+| 4-2 | Implement HTTP server + routing | New files |
+| 4-3 | `agent.run` handler: API Key validation + call `agent-core`'s `createGeminiChatHandler` + inject `bridgeUrl` | New files |
+| 4-4 | SSE (`bridge.events`) handler: port existing `createBridgeEventsRoute` | New files |
+| 4-5 | `bridge.dispatch` / `bridge.respond` handler: port existing logic | New files |
+| 4-6 | Add CORS middleware | New files |
+| 4-7 | API Key validation middleware (calls existing Giselle Cloud API) | New files |
 
-### Phase 5: Demo app (packages/web) を Cloud版に移行
+### Phase 5: Migrate demo app (packages/web) to Cloud version
 
-| Step | 作業 | 影響範囲 |
+| Step | Task | Scope |
 |---|---|---|
-| 5-1 | `packages/web/app/api/agent/route.ts` を Cloud版に書き換え | 1ファイル |
-| 5-2 | `packages/web/.env.example` を更新 | 1ファイル |
-| 5-3 | `packages/web/package.json` から不要な deps を整理 | 1ファイル |
-| 5-4 | 動作確認 | — |
+| 5-1 | Rewrite `packages/web/app/api/agent/route.ts` to Cloud version | 1 file |
+| 5-2 | Update `packages/web/.env.example` | 1 file |
+| 5-3 | Clean up unnecessary deps from `packages/web/package.json` | 1 file |
+| 5-4 | Verification | — |
 
 ---
 
-## ファイル変更の全量サマリー
+## Complete File Change Summary
 
-### 新規作成
+### New files
 
-| ファイル | 概要 |
+| File | Description |
 |---|---|
-| `packages/agent-core/package.json` | 内部パッケージ設定 |
-| `packages/agent-core/tsconfig.json` | TypeScript 設定 |
-| `packages/agent-core/tsup.ts` | ビルド設定 |
+| `packages/agent-core/package.json` | Internal package config |
+| `packages/agent-core/tsconfig.json` | TypeScript config |
+| `packages/agent-core/tsup.ts` | Build config |
 | `packages/agent-core/src/index.ts` | re-export |
-| `packages/agent-core/src/bridge-broker.ts` | Redis bridge (移動元のコピー) |
-| `packages/agent-core/src/chat-handler.ts` | Sandbox + Gemini CLI (移動元のコピー) |
-| `packages/agent-self/package.json` | self-hosted パッケージ設定 |
-| `packages/agent-self/tsconfig.json` | TypeScript 設定 |
-| `packages/agent-self/tsup.ts` | ビルド設定 |
+| `packages/agent-core/src/bridge-broker.ts` | Redis bridge (copy from original) |
+| `packages/agent-core/src/chat-handler.ts` | Sandbox + Gemini CLI (copy from original) |
+| `packages/agent-self/package.json` | Self-hosted package config |
+| `packages/agent-self/tsconfig.json` | TypeScript config |
+| `packages/agent-self/tsup.ts` | Build config |
 | `packages/agent-self/src/index.ts` | handleAgentRunner → { GET, POST } |
 | `packages/agent-self/src/react/index.ts` | re-export from @giselles-ai/agent/react |
-| `apps/cloud-api/package.json` | Cloud API サービス設定 |
-| `apps/cloud-api/src/index.ts` | HTTP server エントリポイント |
-| `apps/cloud-api/src/routes/agent.ts` | agent ルートハンドラー |
+| `apps/cloud-api/package.json` | Cloud API service config |
+| `apps/cloud-api/src/index.ts` | HTTP server entry point |
+| `apps/cloud-api/src/routes/agent.ts` | agent route handler |
 
-### 変更
+### Modified files
 
-| ファイル | 変更内容 |
+| File | Change |
 |---|---|
-| `packages/agent/src/index.ts` | 全面書き換え: Cloud proxy 版に |
-| `packages/agent/src/react/use-agent.ts` | `bridgeUrl` 対応 (BridgeSession型 + connect + handleBridgeResponse) |
-| `packages/agent/package.json` | `ioredis`, `@vercel/sandbox` 削除 |
-| `packages/web/app/api/agent/route.ts` | Cloud版 handler に変更、GET export 削除 |
-| `packages/web/.env.example` | `GISELLE_SANDBOX_AGENT_API_KEY` のみに |
-| `packages/web/package.json` | 不要な deps 削除 |
+| `packages/agent/src/index.ts` | Full rewrite: Cloud proxy version |
+| `packages/agent/src/react/use-agent.ts` | `bridgeUrl` support (BridgeSession type + connect + handleBridgeResponse) |
+| `packages/agent/package.json` | Remove `ioredis`, `@vercel/sandbox` |
+| `packages/web/app/api/agent/route.ts` | Change to Cloud version handler, remove GET export |
+| `packages/web/.env.example` | Only `GISELLE_SANDBOX_AGENT_API_KEY` |
+| `packages/web/package.json` | Remove unnecessary deps |
 
-### 削除
+### Deleted files
 
-| ファイル | 理由 |
+| File | Reason |
 |---|---|
-| `packages/agent/src/internal/bridge-broker.ts` | `agent-core` に移動済み |
-| `packages/agent/src/internal/chat-handler.ts` | `agent-core` に移動済み |
+| `packages/agent/src/internal/bridge-broker.ts` | Moved to `agent-core` |
+| `packages/agent/src/internal/chat-handler.ts` | Moved to `agent-core` |
 
 ---
 
-## 検証チェックリスト
+## Verification Checklist
 
-- [ ] `pnpm build` が全パッケージで通ること
-- [ ] `pnpm typecheck` が全パッケージで通ること
-- [ ] Cloud版: `packages/web` が `GISELLE_SANDBOX_AGENT_API_KEY` のみで動作すること
-- [ ] Cloud版: ブラウザから Cloud API への SSE 直接接続が CORS エラーなく動作すること
-- [ ] Cloud版: `bridge.respond` POST が Cloud API に直接届くこと
-- [ ] Cloud版: DOM snapshot → execute のフル往復が 20 秒以内に完了すること
-- [ ] Self-hosted版: `@giselles-ai/agent-self` で従来通り `{ GET, POST }` が動作すること
-- [ ] React hook: `bridgeUrl` あり(Cloud) / なし(Self-hosted) の両方で正しく動作すること
+- [ ] `pnpm build` passes for all packages
+- [ ] `pnpm typecheck` passes for all packages
+- [ ] Cloud version: `packages/web` works with only `GISELLE_SANDBOX_AGENT_API_KEY`
+- [ ] Cloud version: Direct SSE connection from browser to Cloud API works without CORS errors
+- [ ] Cloud version: `bridge.respond` POST reaches Cloud API directly
+- [ ] Cloud version: Full round trip of DOM snapshot → execute completes within 20 seconds
+- [ ] Self-hosted version: `@giselles-ai/agent-self` works with `{ GET, POST }` as before
+- [ ] React hook: Works correctly with both `bridgeUrl` present (Cloud) and absent (Self-hosted)

@@ -1,24 +1,24 @@
 # Giselles Agent Container (Monorepo)
 
-Next.js 上で Gemini CLI + MCP + Browser Bridge を使ったフォーム自動入力を検証するモノレポです。
-Cloud モードと Self-hosted モードの両方を扱います。
+A monorepo for verifying automated form filling using Gemini CLI + MCP + Browser Bridge on Next.js.
+Supports both Cloud mode and Self-hosted mode.
 
 ## Packages / Apps
 
 - `packages/agent` — `@giselles-ai/agent` (Cloud mode client/proxy package)
-  - サーバー: `handleAgentRunner({ apiKey?, baseUrl? }) -> { POST }`
-  - クライアント: `useAgent()` (`bridgeUrl` 対応)
+  - Server: `handleAgentRunner({ apiKey?, baseUrl? }) -> { POST }`
+  - Client: `useAgent()` (supports `bridgeUrl`)
 - `packages/agent-self` — `@giselles-ai/agent-self` (Self-hosted package)
-  - サーバー: `createAgentApiHandler() -> { GET, POST }`
-  - React: `@giselles-ai/agent/react` を再エクスポート
-- `packages/agent-core` — 内部パッケージ (private)
+  - Server: `createAgentApiHandler() -> { GET, POST }`
+  - React: Re-exports `@giselles-ai/agent/react`
+- `packages/agent-core` — Internal package (private)
   - Redis bridge broker + Gemini chat handler
 - `packages/browser-tool` — `@giselles-ai/browser-tool`
-  - 型 + Zod スキーマ
-  - DOM 操作 (`snapshot` / `execute`)
+  - Types + Zod schemas
+  - DOM operations (`snapshot` / `execute`)
   - MCP server (`./mcp-server` subpath export)
-- `packages/web` — Cloud mode デモアプリ
-- `apps/cloud-api` — Cloud API サービス本体
+- `packages/web` — Cloud mode demo app
+- `apps/cloud-api` — Cloud API service
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Cloud Mode (推奨)
+## Cloud Mode (Recommended)
 
 ### Required env (demo app)
 
@@ -59,12 +59,12 @@ const handler = handleAgentRunner({
 export const POST = handler.POST;
 ```
 
-`baseUrl` 未指定の場合、`https://studio.giselles.ai/agent-api` が既定接続先になります。
+If `baseUrl` is not specified, `https://studio.giselles.ai/agent-api` is used as the default endpoint.
 
 ### Bridge behavior
 
-- `POST /api/agent` (`agent.run`) はユーザーの Next.js を経由して Cloud API へ proxy
-- `bridge.events` (SSE) と `bridge.respond` は `bridge.session.bridgeUrl` に直接接続
+- `POST /api/agent` (`agent.run`) is proxied through the user's Next.js to the Cloud API
+- `bridge.events` (SSE) and `bridge.respond` connect directly to `bridge.session.bridgeUrl`
 
 ## Self-hosted Mode
 
@@ -98,8 +98,8 @@ export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-`baseUrl` は任意で、指定しない場合は `self-hosted` route の
-`request.url.origin + request.url.pathname`（例: `https://localhost:3000/agent-api`）を既定で使います。
+`baseUrl` is optional. If not specified, the self-hosted route uses
+`request.url.origin + request.url.pathname` (e.g., `https://localhost:3000/agent-api`) as the default.
 
 ### Self proxy routing (`@giselles-ai/agent`)
 
@@ -127,12 +127,12 @@ const { status, messages, tools, error, sendMessage } = useAgent({
 
 ## Create Sandbox Snapshot
 
-`pnpm snapshot:browser-tool` で以下を含む snapshot を作成します。
+`pnpm snapshot:browser-tool` creates a snapshot containing:
 
 - `gemini` CLI
 - built `packages/browser-tool/dist/mcp-server/index.js`
 
-Script output で以下の推奨値が表示されます。
+The script output displays recommended values for:
 
 - `SANDBOX_SNAPSHOT_ID`
 - `BROWSER_TOOL_SANDBOX_REPO_ROOT`

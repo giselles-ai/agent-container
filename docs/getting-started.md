@@ -1,13 +1,13 @@
 # Getting Started — Agent Packages
 
-このリポジトリでは、以下 2 つの導入モードを提供します。
+This repository provides two deployment modes:
 
-- Cloud mode: `@giselles-ai/agent` (推奨)
+- Cloud mode: `@giselles-ai/agent` (recommended)
 - Self-hosted mode: `@giselles-ai/agent-self`
 
 ## Cloud mode (`@giselles-ai/agent`)
 
-Cloud mode では、ユーザー側で必要なのは API key のみです。
+In Cloud mode, users only need an API key.
 
 ### 1. Install
 
@@ -42,8 +42,8 @@ const handler = handleAgentRunner({
 export const POST = handler.POST;
 ```
 
-`baseUrl` は最終 endpoint URL として扱われます（`/api/agent` などの suffix は自動付与されません）。
-`baseUrl` 未指定の場合は `https://studio.giselles.ai/agent-api` が既定値として使われます。
+`baseUrl` is treated as the final endpoint URL (no suffix like `/api/agent` is appended automatically).
+If `baseUrl` is not specified, `https://studio.giselles.ai/agent-api` is used as the default.
 
 ### 4. Hook
 
@@ -72,12 +72,12 @@ export default function Page() {
 }
 ```
 
-`bridge.session` に `bridgeUrl` が含まれる場合、`useAgent()` は SSE と `bridge.respond` をその URL に直接送信します。
-`bridgeUrl` がない場合は従来どおり `endpoint` にフォールバックします。
+When `bridge.session` contains a `bridgeUrl`, `useAgent()` sends SSE and `bridge.respond` directly to that URL.
+If `bridgeUrl` is not present, it falls back to `endpoint` as before.
 
 ## Self-hosted mode (`@giselles-ai/agent-self`)
 
-既存の self-hosted 構成を維持したい場合はこちらを使います。
+Use this if you want to maintain an existing self-hosted setup.
 
 ### Required env
 
@@ -102,10 +102,10 @@ export const GET = handler.GET;
 export const POST = handler.POST;
 ```
 
-`baseUrl` は任意で、指定しない場合は `self-hosted` route の
-`request.url.origin + request.url.pathname`（例: `https://localhost:3000/agent-api`）を既定で使います。
+`baseUrl` is optional. If not specified, the self-hosted route uses
+`request.url.origin + request.url.pathname` (e.g., `https://localhost:3000/agent-api`) as the default.
 
-`/api/agent` を self-hosted route へ proxy する場合:
+To proxy `/api/agent` to the self-hosted route:
 
 ```ts
 import { handleAgentRunner } from "@giselles-ai/agent";
@@ -121,6 +121,6 @@ export const POST = handler.POST;
 
 ## Migration note
 
-- 旧 `@giselles-ai/agent` の self-hosted サーバー実装は `@giselles-ai/agent-self` に移動しました。
-- Cloud 利用時は `@giselles-ai/agent` を使い、route は `POST` のみ export してください。
-- `@giselles-ai/agent-self` では `createAgentApiHandler` が推奨です（`handleAgentRunner` も互換 alias として利用可能）。
+- The former `@giselles-ai/agent` self-hosted server implementation has been moved to `@giselles-ai/agent-self`.
+- For Cloud usage, use `@giselles-ai/agent` and export only `POST` from the route.
+- For `@giselles-ai/agent-self`, `createAgentApiHandler` is recommended (`handleAgentRunner` is also available as a compatibility alias).

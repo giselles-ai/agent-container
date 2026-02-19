@@ -1,13 +1,13 @@
-# RFC: Planner(gpt-4o-mini) を廃止し fillForm を getFormSnapshot + executeFormActions に分割する
+# RFC: Remove Planner (gpt-4o-mini) and Split fillForm into getFormSnapshot + executeFormActions
 
 > Discussion: https://github.com/route06/giselle-division/discussions/5313
 
-## 1. 背景
+## 1. Background
 
-### 現在のアーキテクチャ
+### Current Architecture
 
-`packages/browser-tool` の MCP サーバーは `fillForm` という単一のツールを GeminiCLI に提供している。
-`fillForm` は内部で 3 ステップを実行する:
+The MCP server in `packages/browser-tool` provides a single tool called `fillForm` to GeminiCLI.
+`fillForm` internally executes 3 steps:
 
 ```
 GeminiCLI
@@ -17,26 +17,26 @@ GeminiCLI
 MCP Server (giselles-browser-tool-mcp-server)
   │
   ├─ Step 1: BridgeClient.requestSnapshot()
-  │    → ブラウザからフォームフィールド一覧 (SnapshotField[]) を取得
+  │    → Retrieves form field list (SnapshotField[]) from the browser
   │
   ├─ Step 2: Planner (gpt-4o-mini)
-  │    → instruction + fields を入力に BrowserToolAction[] を生成   ← ★ LLM の二重呼び出し
+  │    → Generates BrowserToolAction[] from instruction + fields   ← ★ Double LLM invocation
   │
   └─ Step 3: BridgeClient.requestExecute()
-       → BrowserToolAction[] をブラウザ上で実行し ExecutionReport を返却
+       → Executes BrowserToolAction[] in the browser and returns ExecutionReport
 ```
 
-### 問題
+### Problems
 
-- **LLM の二重呼び出し**: GeminiCLI 自体が LLM であるにもかかわらず、内部でさらに gpt-4o-mini を呼んでいる
-- **コスト・レイテンシの増加**: 不要な LLM 呼び出し分のコストと時間が発生
-- **コンテキスト不足**: Planner は `instruction` と `fields` しか知らないが、GeminiCLI はユーザーとの会話履歴全体を持っており、より適切な判断ができる
+- **Double LLM invocation**: Despite GeminiCLI itself being an LLM, it internally calls gpt-4o-mini as well
+- **Increased cost and latency**: Unnecessary LLM calls add extra cost and time
+- **Insufficient context**: Planner only knows `instruction` and `fields`, while GeminiCLI has the full conversation history with the user and can make better decisions
 
-## 2. 提案: あるべき姿
+## 2. Proposal: Desired State
 
-### 新しいアーキテクチャ
+### New Architecture
 
-`fillForm` を廃止し、2 つの MCP ツールに分割する。プランニングは GeminiCLI 自身が行う。
+Remove `fillForm` and split it into 2 MCP tools. Planning is done by GeminiCLI itself.
 
 ```
 GeminiCLI
@@ -45,34 +45,34 @@ GeminiCLI
   ▼
 MCP Server
   │  BridgeClient.requestSnapshot()
-  │  → SnapshotField[] を返却
+  │  → Returns SnapshotField[]
   ▼
 GeminiCLI
-  │  ★ GeminiCLI 自身がフィールド情報を見てアクションを計画
+  │  ★ GeminiCLI itself plans actions based on field information
   │
   │  MCP tool_call: executeFormActions({ actions, fields })
   ▼
 MCP Server
   │  BridgeClient.requestExecute()
-  │  → ExecutionReport を返却
+  │  → Returns ExecutionReport
   ▼
 GeminiCLI
-  │  結果をユーザーに報告
+  │  Reports results to the user
 ```
 
-### シーケンス図
+### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    participant User as ユーザー
+    participant User as User
     participant Gemini as GeminiCLI
     participant MCP as MCP Server
     participant Bridge as BridgeClient
-    participant Browser as Browser (フロント)
+    participant Browser as Browser (Frontend)
 
-    User->>Gemini: 「このフォームに○○を入力して」
+    User->>Gemini: "Fill in this form with ○○"
 
-    Note over Gemini: Step 1: フォーム構造の取得
+    Note over Gemini: Step 1: Retrieve form structure
     Gemini->>MCP: tool_call: getFormSnapshot()
     MCP->>Bridge: requestSnapshot()
     Bridge->>Browser: POST /api/agent {type: "snapshot_request"}
@@ -80,10 +80,10 @@ sequenceDiagram
     Bridge-->>MCP: SnapshotField[]
     MCP-->>Gemini: tool_result: {fields: SnapshotField[]}
 
-    Note over Gemini: Step 2: GeminiCLI 自身がプランニング
-    Note over Gemini: フィールド情報 + 会話コンテキストから<br/>fill/click/select アクションを決定
+    Note over Gemini: Step 2: GeminiCLI plans actions itself
+    Note over Gemini: Determines fill/click/select actions from<br/>field information + conversation context
 
-    Note over Gemini: Step 3: アクション実行
+    Note over Gemini: Step 3: Execute actions
     Gemini->>MCP: tool_call: executeFormActions({actions, fields})
     MCP->>Bridge: requestExecute({actions, fields})
     Bridge->>Browser: POST /api/agent {type: "execute_request"}
@@ -91,28 +91,28 @@ sequenceDiagram
     Bridge-->>MCP: ExecutionReport
     MCP-->>Gemini: tool_result: {applied, skipped, warnings}
 
-    Gemini-->>User: 「フォームに入力しました (applied: N)」
+    Gemini-->>User: "Form filled (applied: N)"
 ```
 
-## 3. 具体的な実装計画
+## 3. Detailed Implementation Plan
 
-### 3.1 変更対象ファイル一覧
+### 3.1 Files to Change
 
-| ファイル | 変更内容 |
+| File | Change |
 |---|---|
-| `packages/browser-tool/src/mcp-server/tools/fill-form.ts` | **削除** |
-| `packages/browser-tool/src/mcp-server/tools/get-form-snapshot.ts` | **新規作成** |
-| `packages/browser-tool/src/mcp-server/tools/execute-form-actions.ts` | **新規作成** |
-| `packages/browser-tool/src/mcp-server/index.ts` | ツール登録を変更 |
-| `packages/browser-tool/src/planner/index.ts` | **削除** |
-| `packages/browser-tool/tsup.ts` | planner エントリ削除 |
-| `packages/browser-tool/package.json` | planner export 削除、`ai` 依存削除 |
-| `packages/browser-tool/src/index.ts` | planner 関連の export 整理 |
-| `packages/browser-tool/src/types.ts` | `PlanResult`, `PlanActionsInput`, `planActionsInputSchema` 等の削除 |
-| `packages/agent/src/internal/chat-handler.ts` | planner dist パスのチェック削除 |
-| `packages/agent/src/react/provider.tsx` | `PlanResult` 型の参照を更新 |
+| `packages/browser-tool/src/mcp-server/tools/fill-form.ts` | **Delete** |
+| `packages/browser-tool/src/mcp-server/tools/get-form-snapshot.ts` | **Create** |
+| `packages/browser-tool/src/mcp-server/tools/execute-form-actions.ts` | **Create** |
+| `packages/browser-tool/src/mcp-server/index.ts` | Change tool registration |
+| `packages/browser-tool/src/planner/index.ts` | **Delete** |
+| `packages/browser-tool/tsup.ts` | Remove planner entry |
+| `packages/browser-tool/package.json` | Remove planner export, remove `ai` dependency |
+| `packages/browser-tool/src/index.ts` | Clean up planner-related exports |
+| `packages/browser-tool/src/types.ts` | Remove `PlanResult`, `PlanActionsInput`, `planActionsInputSchema`, etc. |
+| `packages/agent/src/internal/chat-handler.ts` | Remove planner dist path check |
+| `packages/agent/src/react/provider.tsx` | Update `PlanResult` type reference |
 
-### 3.2 新規ファイルの実装イメージ
+### 3.2 Implementation of New Files
 
 #### `packages/browser-tool/src/mcp-server/tools/get-form-snapshot.ts`
 
@@ -166,7 +166,7 @@ export async function runExecuteFormActions(
 }
 ```
 
-#### `packages/browser-tool/src/mcp-server/index.ts` (変更後)
+#### `packages/browser-tool/src/mcp-server/index.ts` (after change)
 
 ```typescript
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -231,9 +231,9 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-### 3.3 `tsup.ts` (変更後)
+### 3.3 `tsup.ts` (after change)
 
-planner エントリポイントを削除:
+Remove the planner entry point:
 
 ```typescript
 import { defineConfig } from "tsup";
@@ -263,54 +263,54 @@ export default defineConfig([
 ]);
 ```
 
-### 3.4 `package.json` の変更ポイント
+### 3.4 package.json Changes
 
-- `exports` から `./planner` と `./planner/runtime` を削除
-- `dependencies` から `"ai"` パッケージを削除（planner でのみ使用されていた）
+- Remove `./planner` and `./planner/runtime` from `exports`
+- Remove `"ai"` package from `dependencies` (only used by planner)
 
-### 3.5 `packages/agent/src/internal/chat-handler.ts` の変更ポイント
+### 3.5 `packages/agent/src/internal/chat-handler.ts` Changes
 
-- `plannerDistPath` 変数を削除 (L140)
-- `checkDistReady` 関数内の `PLANNER_DIST_PATH` チェックを削除 (L148, L155)
-- ビルド確認のエラーメッセージから planner への言及を削除 (L203)
-- L173 のログメッセージを `"Building browser-tool (mcp-server) in sandbox"` に変更
+- Remove `plannerDistPath` variable (L140)
+- Remove `PLANNER_DIST_PATH` check in `checkDistReady` function (L148, L155)
+- Remove planner references from build verification error messages (L203)
+- Change log message at L173 to `"Building browser-tool (mcp-server) in sandbox"`
 
-### 3.6 `packages/browser-tool/src/types.ts` の削除対象
+### 3.6 Deletions from `packages/browser-tool/src/types.ts`
 
-以下の型・スキーマは planner 専用なので削除:
+The following types/schemas are planner-only and should be removed:
 
-- `PlanResult` 型 (L42-46)
+- `PlanResult` type (L42-46)
 - `planActionsInputSchema` (L113-117)
-- `PlanActionsInput` 型 (L118)
+- `PlanActionsInput` type (L118)
 
-### 3.7 `packages/browser-tool/src/index.ts` の削除対象
+### 3.7 Deletions from `packages/browser-tool/src/index.ts`
 
-`PlanActionsInput`, `PlanResult`, `planActionsInputSchema` の export を削除。
+Remove exports for `PlanActionsInput`, `PlanResult`, and `planActionsInputSchema`.
 
-### 3.8 `packages/agent/src/react/provider.tsx` の変更ポイント
+### 3.8 `packages/agent/src/react/provider.tsx` Changes
 
-`PlanResult` の import を削除し、同等の型をローカルに定義するか、`SnapshotField[]` + `BrowserToolAction[]` + `string[]` に展開する。
+Remove the `PlanResult` import and either define an equivalent type locally or expand it to `SnapshotField[]` + `BrowserToolAction[]` + `string[]`.
 
-## 4. 変更しないもの
+## 4. Unchanged Files
 
-| ファイル | 理由 |
+| File | Reason |
 |---|---|
-| `packages/browser-tool/src/mcp-server/bridge-client.ts` | `requestSnapshot`, `requestExecute` はそのまま活用 |
-| `packages/browser-tool/src/types.ts` (大部分) | `SnapshotField`, `BrowserToolAction`, `ExecutionReport` 等の型はそのまま |
-| `packages/browser-tool/src/dom/` | ブラウザ側の snapshot/execute ロジックは変更不要 |
+| `packages/browser-tool/src/mcp-server/bridge-client.ts` | `requestSnapshot` and `requestExecute` are reused as-is |
+| `packages/browser-tool/src/types.ts` (most of it) | Types like `SnapshotField`, `BrowserToolAction`, `ExecutionReport` remain |
+| `packages/browser-tool/src/dom/` | Browser-side snapshot/execute logic needs no changes |
 
-## 5. 検証方法
+## 5. Verification
 
 ```bash
-# ビルド確認
+# Build check
 pnpm --filter @giselles-ai/browser-tool run build
 
-# 型チェック
+# Type check
 pnpm --filter @giselles-ai/browser-tool run typecheck
 
-# planner の残存参照がないことを確認
+# Verify no remaining planner references
 grep -r "planner\|planActions\|PlanResult\|PlanActionsInput" packages/browser-tool/src/ --include="*.ts"
 
-# agent パッケージの型チェック
+# Agent package type check
 pnpm --filter @giselles-ai/agent run typecheck
 ```

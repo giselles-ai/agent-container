@@ -1,97 +1,97 @@
-# mcp-server を browser-tool に統合する
+# Merging mcp-server into browser-tool
 
-## 背景と経緯
+## Background
 
-### discussion #5310 での検討
+### Discussion in discussion #5310
 
-[route06/giselle-division#5310](https://github.com/route06/giselle-division/discussions/5310) で browser-tool 系パッケージの再構成を検討した。旧 3 パッケージ（`browser-tool-sdk`, `browser-tool-bridge`, `browser-tool-planner`）を解体し、以下の構成に整理する方針が決まった。
+In [route06/giselle-division#5310](https://github.com/route06/giselle-division/discussions/5310), we discussed restructuring the browser-tool packages. The decision was to dismantle the three legacy packages (`browser-tool-sdk`, `browser-tool-bridge`, `browser-tool-planner`) and reorganize into the following structure.
 
-| パッケージ | 役割 |
+| Package | Role |
 |---|---|
-| `@giselles-ai/agent` | `handleAgentRunner()` + BridgeBroker + Sandbox 管理 (サーバー)、`useAgent()` hook (React) |
-| `@giselles-ai/browser-tool` | 型定義・Zod スキーマ、`/dom` で snapshot/execute、`/planner` で planActions |
-| `@giselles/mcp-server` (内部) | Sandbox 内で動く MCP プロセス |
+| `@giselles-ai/agent` | `handleAgentRunner()` + BridgeBroker + Sandbox management (server), `useAgent()` hook (React) |
+| `@giselles-ai/browser-tool` | Type definitions / Zod schemas, snapshot/execute via `/dom`, planActions via `/planner` |
+| `@giselles/mcp-server` (internal) | MCP process running inside the Sandbox |
 
-この再構成は [PR #3](https://github.com/giselles-ai/agent-container/pull/3) で実装済み。
+This restructuring was implemented in [PR #3](https://github.com/giselles-ai/agent-container/pull/3).
 
-### 現在の mcp-server の位置づけ
+### Current position of mcp-server
 
-discussion では `mcp-server` を「内部パッケージ」として独立させる結論になった。しかし実装してみると、このパッケージの独立性に違和感がある。
+The discussion concluded with keeping `mcp-server` as an independent "internal package." However, after implementation, the independence of this package feels questionable.
 
-**現状の `packages/mcp-server` の中身:**
+**Current contents of `packages/mcp-server`:**
 
-- `src/index.ts` — MCP サーバーの起動（`fillForm` ツール1つを登録するだけ）
-- `src/bridge-client.ts` — Bridge への HTTP リクエストを送る BridgeClient クラス
-- `src/tools/fill-form.ts` — snapshot → plan → execute のオーケストレーション
+- `src/index.ts` — MCP server startup (registers only one `fillForm` tool)
+- `src/bridge-client.ts` — BridgeClient class that sends HTTP requests to the Bridge
+- `src/tools/fill-form.ts` — Orchestration of snapshot → plan → execute
 
-**依存関係:**
+**Dependencies:**
 
-- `@giselles-ai/browser-tool` の型と Zod スキーマを import している
-- `@giselles-ai/browser-tool/planner/runtime` を Sandbox 内で dynamic import している
-- `@modelcontextprotocol/sdk` で MCP プロトコルを実装している
+- Imports types and Zod schemas from `@giselles-ai/browser-tool`
+- Dynamically imports `@giselles-ai/browser-tool/planner/runtime` inside the Sandbox
+- Implements the MCP protocol using `@modelcontextprotocol/sdk`
 
-つまり mcp-server は browser-tool の「ブラウザ操作」機能を MCP プロトコルで公開するアダプタであり、browser-tool と密結合している。
+In other words, mcp-server is an adapter that exposes browser-tool's "browser operations" via the MCP protocol, and is tightly coupled with browser-tool.
 
-## なぜ統合するか
+## Why merge
 
-1. **責務の一貫性** — mcp-server が提供する `fillForm` ツールは、browser-tool の snapshot/execute/planner をオーケストレーションするもの。ブラウザ操作の一部として browser-tool に含まれるのが自然。
+1. **Consistency of responsibility** — The `fillForm` tool provided by mcp-server orchestrates browser-tool's snapshot/execute/planner. It naturally belongs as part of browser operations within browser-tool.
 
-2. **パッケージ数の削減** — private な内部パッケージが独立していると、ビルド順序の管理、snapshot スクリプトでのパス指定、chat-handler でのディレクトリ探索など、周辺コードの複雑さが増す。
+2. **Fewer packages** — Having a private internal package as a separate entity increases complexity in surrounding code: build order management, path specification in snapshot scripts, directory discovery in chat-handler, etc.
 
-3. **既存パターンとの整合** — browser-tool は既に `/dom` と `/planner` を subpath export で提供している。`/mcp-server` を追加するのは既存パターンの自然な拡張。
+3. **Alignment with existing patterns** — browser-tool already provides `/dom` and `/planner` via subpath exports. Adding `/mcp-server` is a natural extension of the existing pattern.
 
-4. **planner との構造的類似性** — planner も Sandbox 内で dynamic import される server-side のみのコードだが、browser-tool の subpath として問題なく動いている。mcp-server も同様に扱える。
+4. **Structural similarity to planner** — planner is also server-side-only code that is dynamically imported inside the Sandbox, yet it works fine as a subpath of browser-tool. mcp-server can be handled the same way.
 
-## 統合後の構成
+## Structure after merging
 
 ```text
 packages/
 ├── agent/         @giselles-ai/agent
-├── browser-tool/  @giselles-ai/browser-tool   ← mcp-server を吸収
+├── browser-tool/  @giselles-ai/browser-tool   ← absorbs mcp-server
 └── web/           demo app
 ```
 
-### browser-tool の subpath exports
+### browser-tool subpath exports
 
 ```text
-@giselles-ai/browser-tool           → 型定義、Zod スキーマ（環境非依存）
-@giselles-ai/browser-tool/dom       → snapshot(), execute()（ブラウザ内）
-@giselles-ai/browser-tool/planner   → planActions()（サーバー / Sandbox）
-@giselles-ai/browser-tool/mcp-server → MCP サーバーエントリポイント（Sandbox 内）
+@giselles-ai/browser-tool           → Type definitions, Zod schemas (environment-agnostic)
+@giselles-ai/browser-tool/dom       → snapshot(), execute() (in-browser)
+@giselles-ai/browser-tool/planner   → planActions() (server / Sandbox)
+@giselles-ai/browser-tool/mcp-server → MCP server entry point (inside Sandbox)
 ```
 
-### ファイル配置
+### File layout
 
 ```text
 packages/browser-tool/src/
-├── index.ts              (型 + スキーマ)
+├── index.ts              (types + schemas)
 ├── types.ts
 ├── dom/
 │   └── index.ts          (snapshot, execute)
 ├── planner/
 │   └── index.ts          (planActions)
 └── mcp-server/
-    ├── index.ts           ← 旧 mcp-server/src/index.ts
-    ├── bridge-client.ts   ← 旧 mcp-server/src/bridge-client.ts
+    ├── index.ts           ← former mcp-server/src/index.ts
+    ├── bridge-client.ts   ← former mcp-server/src/bridge-client.ts
     └── tools/
-        └── fill-form.ts   ← 旧 mcp-server/src/tools/fill-form.ts
+        └── fill-form.ts   ← former mcp-server/src/tools/fill-form.ts
 ```
 
-## 実装手順
+## Implementation steps
 
-### 1. ソースの移動
+### 1. Move source files
 
-`packages/mcp-server/src/` 配下のファイルを `packages/browser-tool/src/mcp-server/` に移動する。
+Move the files under `packages/mcp-server/src/` to `packages/browser-tool/src/mcp-server/`.
 
 - `src/index.ts` → `src/mcp-server/index.ts`
 - `src/bridge-client.ts` → `src/mcp-server/bridge-client.ts`
 - `src/tools/fill-form.ts` → `src/mcp-server/tools/fill-form.ts`
 
-import パスの `@giselles-ai/browser-tool` は相対パスに変更する（同一パッケージ内になるため）。
+Change `@giselles-ai/browser-tool` import paths to relative paths (since they are now within the same package).
 
-### 2. browser-tool の package.json 更新
+### 2. Update browser-tool package.json
 
-`exports` に `./mcp-server` を追加し、`bin` と依存を追加する。
+Add `./mcp-server` to `exports`, and add `bin` and dependencies.
 
 ```jsonc
 {
@@ -99,7 +99,7 @@ import パスの `@giselles-ai/browser-tool` は相対パスに変更する（�
     "giselles-mcp-server": "./dist/mcp-server/index.js"
   },
   "exports": {
-    // 既存エントリは変更なし
+    // Existing entries unchanged
     "./mcp-server": {
       "types": "./dist/mcp-server/index.d.ts",
       "import": "./dist/mcp-server/index.js",
@@ -107,13 +107,13 @@ import パスの `@giselles-ai/browser-tool` は相対パスに変更する（�
     }
   },
   "dependencies": {
-    // 既存に追加
+    // Add to existing
     "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }
 ```
 
-### 3. tsup.ts にビルドエントリ追加
+### 3. Add build entry to tsup.ts
 
 ```ts
 {
@@ -125,49 +125,49 @@ import パスの `@giselles-ai/browser-tool` は相対パスに変更する（�
 },
 ```
 
-### 4. パス参照の更新
+### 4. Update path references
 
-以下のファイルで `packages/mcp-server` へのパス参照を `packages/browser-tool` ベースに変更する。
+Update path references to `packages/mcp-server` in the following files to use the `packages/browser-tool` base.
 
 #### `packages/agent/src/internal/chat-handler.ts`
 
-- `packages/mcp-server` ディレクトリの探索 → `packages/browser-tool` に変更
+- Change `packages/mcp-server` directory lookup → `packages/browser-tool`
 - `mcpServerDistPath` → `${repoRoot}/packages/browser-tool/dist/mcp-server/index.js`
-- `@giselles/mcp-server` のビルドコマンド → 削除（browser-tool のビルドに含まれる）
+- Remove `@giselles/mcp-server` build command (now included in browser-tool build)
 
 #### `scripts/prepare-local-browser-tool-sandbox.mjs`
 
-- `--filter @giselles/mcp-server` → 削除（browser-tool ビルドでカバー）
+- Remove `--filter @giselles/mcp-server` (covered by browser-tool build)
 - `packages/mcp-server/dist/index.js` → `packages/browser-tool/dist/mcp-server/index.js`
 
 #### `packages/web/scripts/create-browser-tool-snapshot.mjs`
 
-- `INCLUDE_PATHS` から `"packages/mcp-server"` を削除
-- `--filter @giselles/mcp-server` → 削除
-- dist パスの参照を更新
+- Remove `"packages/mcp-server"` from `INCLUDE_PATHS`
+- Remove `--filter @giselles/mcp-server`
+- Update dist path references
 
-### 5. fill-form.ts 内の planner import パス更新
+### 5. Update planner import path in fill-form.ts
 
-現在の `fill-form.ts` は planner を絶対パスで dynamic import している：
+The current `fill-form.ts` dynamically imports the planner using an absolute path:
 
 ```ts
 const PLANNER_RUNTIME_DIST_PATH =
   "/vercel/sandbox/packages/browser-tool/dist/planner/index.js";
 ```
 
-これは変更不要（planner の dist パスは変わらない）。
+No change needed (the planner dist path remains the same).
 
-### 6. packages/mcp-server ディレクトリの削除
+### 6. Delete the packages/mcp-server directory
 
-すべての参照を更新した後、`packages/mcp-server/` を削除する。
+After all references are updated, delete `packages/mcp-server/`.
 
-### 7. docs/restructure-plan.md の更新
+### 7. Update docs/restructure-plan.md
 
-パッケージ構成の記述から `mcp-server` 行を削除し、browser-tool の subpath 一覧に `./mcp-server` を追加する。
+Remove the `mcp-server` line from the package structure description and add `./mcp-server` to the browser-tool subpath list.
 
-## 確認事項
+## Verification
 
-以下がすべて通ること：
+All of the following must pass:
 
 ```bash
 pnpm --filter @giselles-ai/browser-tool build
@@ -175,20 +175,20 @@ pnpm --filter @giselles-ai/agent build
 pnpm typecheck
 ```
 
-- `dist/mcp-server/index.js` が生成され、`node dist/mcp-server/index.js` で MCP サーバーが起動すること
-- chat-handler から Sandbox 内の MCP サーバーが正しく参照されること
-- snapshot → plan → execute の E2E フローが動作すること
+- `dist/mcp-server/index.js` is generated and `node dist/mcp-server/index.js` starts the MCP server
+- The MCP server inside the Sandbox is correctly referenced from chat-handler
+- The snapshot → plan → execute E2E flow works
 
-## 影響範囲のまとめ
+## Summary of impact
 
-| 変更対象 | 変更内容 |
+| Target | Change |
 |---|---|
-| `packages/browser-tool/src/mcp-server/` | 新規追加（mcp-server から移動） |
-| `packages/browser-tool/package.json` | exports, bin, dependencies 追加 |
-| `packages/browser-tool/tsup.ts` | ビルドエントリ追加 |
-| `packages/agent/src/internal/chat-handler.ts` | パス参照更新、ビルドコマンド簡素化 |
-| `scripts/prepare-local-browser-tool-sandbox.mjs` | パス参照更新、filter 簡素化 |
-| `packages/web/scripts/create-browser-tool-snapshot.mjs` | パス参照更新、filter 簡素化 |
-| `docs/restructure-plan.md` | パッケージ構成の記述更新 |
-| `README.md` | パッケージ一覧の記述更新 |
-| `packages/mcp-server/` | 削除 |
+| `packages/browser-tool/src/mcp-server/` | Newly added (moved from mcp-server) |
+| `packages/browser-tool/package.json` | Added exports, bin, dependencies |
+| `packages/browser-tool/tsup.ts` | Added build entry |
+| `packages/agent/src/internal/chat-handler.ts` | Updated path references, simplified build commands |
+| `scripts/prepare-local-browser-tool-sandbox.mjs` | Updated path references, simplified filter |
+| `packages/web/scripts/create-browser-tool-snapshot.mjs` | Updated path references, simplified filter |
+| `docs/restructure-plan.md` | Updated package structure description |
+| `README.md` | Updated package list description |
+| `packages/mcp-server/` | Deleted |
