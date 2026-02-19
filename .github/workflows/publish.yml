@@ -58,6 +58,20 @@ jobs:
               newVersion = pkg.version;
               fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
             }
+            // Replace workspace:* references with the resolved version
+            for (const p of paths) {
+              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+              for (const depField of ['dependencies', 'devDependencies', 'peerDependencies']) {
+                if (!pkg[depField]) continue;
+                for (const [name, ver] of Object.entries(pkg[depField])) {
+                  if (typeof ver === 'string' && ver.startsWith('workspace:')) {
+                    const target = paths.map(tp => JSON.parse(fs.readFileSync(tp, 'utf8'))).find(tp => tp.name === name);
+                    if (target) pkg[depField][name] = target.version;
+                  }
+                }
+              }
+              fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
+            }
             console.log('v' + newVersion);
           "
 
