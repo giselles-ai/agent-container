@@ -67,20 +67,14 @@ jobs:
       - name: Publish @giselles-ai/browser-tool
         working-directory: packages/browser-tool
         run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @giselles-ai/sandbox-agent-core
         working-directory: packages/agent-core
         run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @giselles-ai/sandbox-agent
         working-directory: packages/sandbox-agent
         run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
 
       - name: Capture version
