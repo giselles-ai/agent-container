@@ -26,6 +26,7 @@ export async function proxy(request: NextRequest) {
 		return NextResponse.next();
 	}
 
+	console.log(pathname);
 	const isAgentApiRequest = pathname.startsWith("/agent-api");
 	if (isAgentApiRequest) {
 		return NextResponse.next();
