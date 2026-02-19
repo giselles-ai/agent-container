@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/sandbox-agent",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
@@ -31,7 +31,7 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles-ai/browser-tool": "workspace:*",
+		"@giselles-ai/browser-tool": "0.1.2",
 		"zod": "4.3.6"
 	},
 	"peerDependencies": {
