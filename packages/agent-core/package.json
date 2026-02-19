@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/sandbox-agent-core",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
