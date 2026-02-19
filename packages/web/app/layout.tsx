@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "AI RPA SDK Demo",
+	title: "AI Browser Tool SDK Demo",
 	description: "Prototype for AI-driven form automation in a Next.js app",
 };
 

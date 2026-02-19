@@ -8,7 +8,7 @@
 				"TURSO_*",
 				"GEMINI_API_KEY",
 				"REDIS_URL",
-				"RPA_*",
+				"BROWSER_TOOL_*",
 				"VERCEL_*",
 				"GISELLE_*"
 			]

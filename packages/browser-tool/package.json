@@ -1,0 +1,41 @@
+{
+	"name": "@giselles-ai/browser-tool",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"giselles-mcp-server": "./dist/mcp-server/index.js"
+	},
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./dom": {
+			"types": "./dist/dom/index.d.ts",
+			"import": "./dist/dom/index.js",
+			"default": "./dist/dom/index.js"
+		},
+		"./mcp-server": {
+			"types": "./dist/mcp-server/index.d.ts",
+			"import": "./dist/mcp-server/index.js",
+			"default": "./dist/mcp-server/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsup --config tsup.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"format": "pnpm exec biome check --write ."
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.0.0",
+		"zod": "4.3.6"
+	},
+	"devDependencies": {
+		"@types/node": "25.0.10",
+		"tsup": "8.5.1",
+		"typescript": "5.9.3"
+	}
+}

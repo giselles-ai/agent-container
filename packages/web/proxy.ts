@@ -11,6 +11,11 @@ const LOGIN_PATH = "/giselle-protection";
 const LOGIN_API_PATH = "/api/giselle-protection/login";
 
 export async function proxy(request: NextRequest) {
+	// Bypass protection in local dev where VERCEL_ENV is not defined.
+	if (!process.env.VERCEL_ENV) {
+		return NextResponse.next();
+	}
+
 	const protectionPassword = getProtectionPassword();
 	if (!protectionPassword) {
 		return NextResponse.next();
@@ -18,6 +23,12 @@ export async function proxy(request: NextRequest) {
 
 	const { pathname, search } = request.nextUrl;
 	if (pathname === LOGIN_PATH || pathname === LOGIN_API_PATH) {
+		return NextResponse.next();
+	}
+
+	console.log(pathname);
+	const isAgentApiRequest = pathname.startsWith("/agent-api");
+	if (isAgentApiRequest) {
 		return NextResponse.next();
 	}
 

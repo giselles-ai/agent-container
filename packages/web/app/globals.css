@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@source "../../../packages/rpa-sdk/src/**/*.{ts,tsx}";
+@source "../../../packages/browser-tool/src/**/*.{ts,tsx}";
+@source "../../../packages/agent/src/**/*.{ts,tsx}";
 
 :root {
 	color-scheme: dark;
