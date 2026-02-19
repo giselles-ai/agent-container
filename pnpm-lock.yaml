@@ -139,7 +139,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/sandbox-agent-self:
+  packages/web:
     dependencies:
       '@giselles-ai/browser-tool':
         specifier: workspace:*
@@ -150,43 +150,6 @@ importers:
       '@giselles-ai/sandbox-agent-core':
         specifier: workspace:*
         version: link:../agent-core
-      react:
-        specifier: '>=19.0.0'
-        version: 19.2.4
-      react-dom:
-        specifier: '>=19.0.0'
-        version: 19.2.4(react@19.2.4)
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: 25.0.10
-        version: 25.0.10
-      '@types/react':
-        specifier: 19.2.10
-        version: 19.2.10
-      '@types/react-dom':
-        specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.10)
-      tsup:
-        specifier: 8.5.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/web:
-    dependencies:
-      '@giselles-ai/browser-tool':
-        specifier: workspace:*
-        version: link:../browser-tool
-      '@giselles-ai/sandbox-agent':
-        specifier: workspace:*
-        version: link:../sandbox-agent
-      '@giselles-ai/sandbox-agent-self':
-        specifier: workspace:*
-        version: link:../sandbox-agent-self
       '@vercel/sandbox':
         specifier: 1.5.0
         version: 1.5.0
@@ -218,6 +181,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
 
   sandbox-agent/cli:
     dependencies:
@@ -4157,7 +4123,7 @@ snapshots:
       '@google-cloud/logging': 11.2.1
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.0.1(@opentelemetry/api@1.9.0))
       '@google-cloud/opentelemetry-cloud-trace-exporter': 3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.0.1(@opentelemetry/api@1.9.0))
-      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
+      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))
       '@iarna/toml': 2.2.5
       '@joshua.litt/get-ripgrep': 0.0.3
       '@modelcontextprotocol/sdk': 1.26.0(zod@3.25.76)
@@ -4228,7 +4194,7 @@ snapshots:
       - tree-sitter
       - utf-8-validate
 
-  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))':
+  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))':
     dependencies:
       google-auth-library: 10.5.0
       ws: 8.19.0
@@ -4495,7 +4461,7 @@ snapshots:
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
       zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@3.25.76)
+      zod-to-json-schema: 3.25.1(zod@4.3.6)
     transitivePeerDependencies:
       - supports-color
 
@@ -7493,6 +7459,10 @@ snapshots:
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod-to-json-schema@3.25.1(zod@4.3.6):
+    dependencies:
+      zod: 4.3.6
 
   zod@3.24.4: {}
 

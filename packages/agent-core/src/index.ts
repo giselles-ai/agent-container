@@ -10,5 +10,5 @@ export {
 	toBridgeError,
 	touchBridgeBrowserConnected,
 } from "./bridge-broker";
-
+export { createBridgeHandler } from "./bridge-handler";
 export { createGeminiChatHandler } from "./chat-handler";

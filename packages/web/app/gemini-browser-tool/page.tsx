@@ -122,7 +122,7 @@ export default function GeminiBrowserToolPage() {
 		geminiSessionId,
 		error,
 		sendMessage,
-	} = useAgent({ endpoint: "/api/agent" });
+	} = useAgent({ endpoint: "/agent-api/run" });
 
 	const renderedMessages = useMemo(
 		() =>
