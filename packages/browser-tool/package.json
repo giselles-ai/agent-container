@@ -3,9 +3,6 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
-	"bin": {
-		"giselles-mcp-server": "./dist/mcp-server/index.js"
-	},
 	"sideEffects": false,
 	"exports": {
 		".": {
