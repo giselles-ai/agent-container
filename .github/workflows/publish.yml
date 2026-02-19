@@ -66,15 +66,15 @@ jobs:
 
       - name: Publish @giselles-ai/browser-tool
         working-directory: packages/browser-tool
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: npm publish --provenance --access public
 
       - name: Publish @giselles-ai/sandbox-agent-core
         working-directory: packages/agent-core
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: npm publish --provenance --access public
 
       - name: Publish @giselles-ai/sandbox-agent
         working-directory: packages/sandbox-agent
-        run: pnpm publish --provenance --access public --no-git-checks
+        run: npm publish --provenance --access public
 
 
       - name: Capture version
