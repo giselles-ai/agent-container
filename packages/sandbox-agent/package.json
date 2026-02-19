@@ -1,9 +1,17 @@
 {
 	"name": "@giselles-ai/sandbox-agent",
 	"version": "0.1.0",
-	"private": true,
 	"type": "module",
 	"sideEffects": false,
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/giselles-ai/agent-container.git",
+		"directory": "packages/sandbox-agent"
+	},
+	"files": [
+		"dist"
+	],
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
