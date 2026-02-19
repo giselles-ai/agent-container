@@ -1,5 +1,5 @@
 import { createBridgeHandler } from "@giselles-ai/sandbox-agent-core";
-import { preflightResponse, withCors } from "../../../lib/cors";
+import { preflightResponse, withCors } from "@/lib/cors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
