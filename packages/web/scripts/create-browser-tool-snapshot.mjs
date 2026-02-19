@@ -257,7 +257,7 @@ async function main() {
 				},
 			},
 			mcpServers: {
-				browser_tool_bridge: {
+				browser_tool_relay: {
 					command: "node",
 					args: [mcpServerDistPath],
 					cwd: SANDBOX_ROOT,

@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
-	type BridgeRequest,
-	type BridgeResponse,
 	type BrowserToolAction,
-	bridgeRequestSchema,
-	bridgeResponseSchema,
 	dispatchErrorSchema,
 	dispatchSuccessSchema,
 	type ExecutionReport,
+	type RelayRequest,
+	type RelayResponse,
+	relayRequestSchema,
+	relayResponseSchema,
 	type SnapshotField,
 } from "../types";
 
@@ -25,8 +25,8 @@ function trimTrailingSlash(input: string): string {
 	return input.replace(/\/+$/, "");
 }
 
-export class BridgeClient {
-	private readonly baseUrl: string;
+export class RelayClient {
+	private readonly url: string;
 	private readonly sessionId: string;
 	private readonly token: string;
 	private readonly timeoutMs: number;
@@ -34,14 +34,14 @@ export class BridgeClient {
 	private readonly giselleProtectionBypass: string | null;
 
 	constructor(input: {
-		baseUrl: string;
+		url: string;
 		sessionId: string;
 		token: string;
 		timeoutMs?: number;
 		vercelProtectionBypass?: string;
 		giselleProtectionBypass?: string;
 	}) {
-		this.baseUrl = trimTrailingSlash(input.baseUrl);
+		this.url = trimTrailingSlash(input.url);
 		this.sessionId = input.sessionId;
 		this.token = input.token;
 		this.timeoutMs = input.timeoutMs ?? 20_000;
@@ -62,7 +62,7 @@ export class BridgeClient {
 		});
 
 		if (response.type !== "snapshot_response") {
-			throw new Error(`Unexpected bridge response type: ${response.type}`);
+			throw new Error(`Unexpected relay response type: ${response.type}`);
 		}
 
 		return response.fields;
@@ -80,14 +80,14 @@ export class BridgeClient {
 		});
 
 		if (response.type !== "execute_response") {
-			throw new Error(`Unexpected bridge response type: ${response.type}`);
+			throw new Error(`Unexpected relay response type: ${response.type}`);
 		}
 
 		return response.report;
 	}
 
-	private async dispatch(request: BridgeRequest): Promise<BridgeResponse> {
-		const payload = bridgeRequestSchema.parse(request);
+	private async dispatch(request: RelayRequest): Promise<RelayResponse> {
+		const payload = relayRequestSchema.parse(request);
 		let response: Response;
 
 		try {
@@ -101,11 +101,11 @@ export class BridgeClient {
 				headers["x-giselle-protection-bypass"] = this.giselleProtectionBypass;
 			}
 
-			response = await fetch(`${this.baseUrl}`, {
+			response = await fetch(`${this.url}`, {
 				method: "POST",
 				headers,
 				body: JSON.stringify({
-					type: "bridge.dispatch",
+					type: "relay.dispatch",
 					sessionId: this.sessionId,
 					token: this.token,
 					timeoutMs: this.timeoutMs,
@@ -116,9 +116,9 @@ export class BridgeClient {
 			const message = error instanceof Error ? error.message : String(error);
 			throw new Error(
 				[
-					"Bridge dispatch network request failed.",
-					`baseUrl=${this.baseUrl}`,
-					"Ensure BROWSER_TOOL_BRIDGE_BASE_URL is reachable from the sandbox runtime.",
+					"Relay dispatch network request failed.",
+					`url=${this.url}`,
+					"Ensure BROWSER_TOOL_RELAY_URL is reachable from the sandbox runtime.",
 					`cause=${message}`,
 				].join(" "),
 			);
@@ -133,32 +133,32 @@ export class BridgeClient {
 
 		const success = dispatchSuccessSchema.safeParse(body);
 		if (!success.success) {
-			throw new Error("Bridge dispatch returned an unexpected payload.");
+			throw new Error("Relay dispatch returned an unexpected payload.");
 		}
 
 		if (!response.ok) {
-			throw new Error(`Bridge dispatch failed with HTTP ${response.status}.`);
+			throw new Error(`Relay dispatch failed with HTTP ${response.status}.`);
 		}
 
-		const parsedResponse = bridgeResponseSchema.parse(success.data.response);
+		const parsedResponse = relayResponseSchema.parse(success.data.response);
 		return parsedResponse;
 	}
 }
 
-export function createBridgeClientFromEnv(): BridgeClient {
+export function createRelayClientFromEnv(): RelayClient {
 	const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS;
 	const giselleProtectionBypass = process.env.GISELLE_PROTECTION_BYPASS;
 	console.error(
-		`[bridge-client] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
+		`[relay-client] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
 	);
 	console.error(
-		`[bridge-client] GISELLE_PROTECTION_BYPASS=${giselleProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
+		`[relay-client] GISELLE_PROTECTION_BYPASS=${giselleProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
 	);
 
-	return new BridgeClient({
-		baseUrl: requiredEnv("BROWSER_TOOL_BRIDGE_BASE_URL"),
-		sessionId: requiredEnv("BROWSER_TOOL_BRIDGE_SESSION_ID"),
-		token: requiredEnv("BROWSER_TOOL_BRIDGE_TOKEN"),
+	return new RelayClient({
+		url: requiredEnv("BROWSER_TOOL_RELAY_URL"),
+		sessionId: requiredEnv("BROWSER_TOOL_RELAY_SESSION_ID"),
+		token: requiredEnv("BROWSER_TOOL_RELAY_TOKEN"),
 		vercelProtectionBypass,
 		giselleProtectionBypass,
 	});

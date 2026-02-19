@@ -10,9 +10,9 @@ function firstValue(value: SearchParamValue): string | undefined {
 export default async function GiselleProtectionPage({
 	searchParams,
 }: {
-	searchParams: SearchParamsShape | Promise<SearchParamsShape>;
+	searchParams?: Promise<SearchParamsShape>;
 }) {
-	const resolvedParams = await searchParams;
+	const resolvedParams = (await searchParams) ?? {};
 	const hasError = firstValue(resolvedParams.error) === "1";
 	const nextPath = sanitizeNextPath(firstValue(resolvedParams.next));
 

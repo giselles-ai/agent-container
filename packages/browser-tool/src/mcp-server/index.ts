@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createBridgeClientFromEnv } from "./bridge-client";
+import { createRelayClientFromEnv } from "./relay-client";
 import {
 	executeFormActionsInputShape,
 	runExecuteFormActions,
@@ -37,8 +37,8 @@ const server = new McpServer(
 
 server.registerTool("getFormSnapshot", {}, async () => {
 	try {
-		const bridgeClient = createBridgeClientFromEnv();
-		const output = await runGetFormSnapshot(bridgeClient);
+		const relayClient = createRelayClientFromEnv();
+		const output = await runGetFormSnapshot(relayClient);
 
 		return {
 			content: [
@@ -75,8 +75,8 @@ server.registerTool(
 	{ inputSchema: executeFormActionsInputShape },
 	async (input) => {
 		try {
-			const bridgeClient = createBridgeClientFromEnv();
-			const output = await runExecuteFormActions(input, bridgeClient);
+			const relayClient = createRelayClientFromEnv();
+			const output = await runExecuteFormActions(input, relayClient);
 
 			return {
 				content: [

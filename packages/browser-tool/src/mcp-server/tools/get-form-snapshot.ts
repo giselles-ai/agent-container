@@ -1,14 +1,14 @@
 import type { SnapshotField } from "../../types";
-import type { BridgeClient } from "../bridge-client";
+import type { RelayClient } from "../relay-client";
 
 export type GetFormSnapshotOutput = {
 	fields: SnapshotField[];
 };
 
 export async function runGetFormSnapshot(
-	bridgeClient: BridgeClient,
+	relayClient: RelayClient,
 ): Promise<GetFormSnapshotOutput> {
-	const fields = await bridgeClient.requestSnapshot({
+	const fields = await relayClient.requestSnapshot({
 		instruction: "snapshot",
 	});
 

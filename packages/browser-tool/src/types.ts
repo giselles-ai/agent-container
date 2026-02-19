@@ -47,7 +47,7 @@ export type BrowserToolStatus =
 	| "applying"
 	| "error";
 
-export type BridgeErrorCode =
+export type RelayErrorCode =
 	| "UNAUTHORIZED"
 	| "NO_BROWSER"
 	| "TIMEOUT"
@@ -118,7 +118,7 @@ export const executeRequestSchema = z.object({
 	fields: z.array(snapshotFieldSchema),
 });
 
-export const bridgeRequestSchema = z.discriminatedUnion("type", [
+export const relayRequestSchema = z.discriminatedUnion("type", [
 	snapshotRequestSchema,
 	executeRequestSchema,
 ]);
@@ -141,7 +141,7 @@ export const errorResponseSchema = z.object({
 	message: z.string().min(1),
 });
 
-export const bridgeResponseSchema = z.discriminatedUnion("type", [
+export const relayResponseSchema = z.discriminatedUnion("type", [
 	snapshotResponseSchema,
 	executeResponseSchema,
 	errorResponseSchema,
@@ -149,7 +149,7 @@ export const bridgeResponseSchema = z.discriminatedUnion("type", [
 
 export const dispatchSuccessSchema = z.object({
 	ok: z.literal(true),
-	response: bridgeResponseSchema,
+	response: relayResponseSchema,
 });
 
 export const dispatchErrorSchema = z.object({
@@ -165,5 +165,5 @@ export const dispatchErrorSchema = z.object({
 	message: z.string(),
 });
 
-export type BridgeRequest = z.infer<typeof bridgeRequestSchema>;
-export type BridgeResponse = z.infer<typeof bridgeResponseSchema>;
+export type RelayRequest = z.infer<typeof relayRequestSchema>;
+export type RelayResponse = z.infer<typeof relayResponseSchema>;

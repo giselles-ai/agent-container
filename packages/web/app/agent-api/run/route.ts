@@ -1,7 +1,7 @@
 import {
-	createBridgeSession,
 	createGeminiChatHandler,
-	toBridgeError,
+	createRelaySession,
+	toRelayError,
 } from "@giselles-ai/sandbox-agent-core";
 import { z } from "zod";
 
@@ -38,34 +38,34 @@ function createGeminiRequest(input: {
 			message,
 			session_id: input.payload.session_id,
 			sandbox_id: input.payload.sandbox_id,
-			bridge_session_id: input.session.sessionId,
-			bridge_token: input.session.token,
+			relay_session_id: input.session.sessionId,
+			relay_token: input.session.token,
 		}),
 		signal: input.request.signal,
 	});
 }
 
-function mergeBridgeSessionStream(input: {
+function mergeRelaySessionStream(input: {
 	chatResponse: Response;
 	session: { sessionId: string; token: string; expiresAt: number };
-	bridgeUrl: string;
+	relayUrl: string;
 }): Response {
 	if (!input.chatResponse.body) {
 		return input.chatResponse;
 	}
 
 	const encoder = new TextEncoder();
-	const bridgeSessionEvent = `${JSON.stringify({
-		type: "bridge.session",
+	const relaySessionEvent = `${JSON.stringify({
+		type: "relay.session",
 		sessionId: input.session.sessionId,
 		token: input.session.token,
 		expiresAt: input.session.expiresAt,
-		bridgeUrl: input.bridgeUrl,
+		relayUrl: input.relayUrl,
 	})}\n`;
 
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
-			controller.enqueue(encoder.encode(bridgeSessionEvent));
+			controller.enqueue(encoder.encode(relaySessionEvent));
 			const reader = input.chatResponse.body?.getReader();
 			if (!reader) {
 				controller.close();
@@ -120,7 +120,7 @@ export async function POST(request: Request): Promise<Response> {
 
 	try {
 		const chatHandler = createGeminiChatHandler();
-		const session = await createBridgeSession();
+		const session = await createRelaySession();
 		console.info(`${LOG_PREFIX} run.session.created`, {
 			sessionId: session.sessionId,
 		});
@@ -130,21 +130,21 @@ export async function POST(request: Request): Promise<Response> {
 			session,
 		});
 		const chatResponse = await chatHandler(chatRequest);
-		if (process.env.BROWSER_TOOL_BRIDGE_BASE_URL === undefined) {
-			throw new Error("BROWSER_TOOL_BRIDGE_BASE_URL is not defined");
+		if (process.env.BROWSER_TOOL_RELAY_URL === undefined) {
+			throw new Error("BROWSER_TOOL_RELAY_URL is not defined");
 		}
-		const bridgeUrl = process.env.BROWSER_TOOL_BRIDGE_BASE_URL.trim();
+		const relayUrl = process.env.BROWSER_TOOL_RELAY_URL.trim();
 
-		return mergeBridgeSessionStream({
+		return mergeRelaySessionStream({
 			chatResponse,
 			session,
-			bridgeUrl,
+			relayUrl,
 		});
 	} catch (error) {
-		const bridgeError = toBridgeError(error);
+		const relayError = toRelayError(error);
 		return Response.json(
-			{ ok: false, errorCode: bridgeError.code, message: bridgeError.message },
-			{ status: bridgeError.status },
+			{ ok: false, errorCode: relayError.code, message: relayError.message },
+			{ status: relayError.status },
 		);
 	}
 }

@@ -4,7 +4,7 @@ import {
 	type ExecutionReport,
 	snapshotFieldSchema,
 } from "../../types";
-import type { BridgeClient } from "../bridge-client";
+import type { RelayClient } from "../relay-client";
 
 export const executeFormActionsInputShape = {
 	actions: z.array(browserToolActionSchema),
@@ -19,11 +19,11 @@ export type ExecuteFormActionsInput = z.infer<
 
 export async function runExecuteFormActions(
 	input: ExecuteFormActionsInput,
-	bridgeClient: BridgeClient,
+	relayClient: RelayClient,
 ): Promise<ExecutionReport> {
 	const parsed = executeFormActionsInputSchema.parse(input);
 
-	return await bridgeClient.requestExecute({
+	return await relayClient.requestExecute({
 		actions: parsed.actions,
 		fields: parsed.fields,
 	});

@@ -1,35 +1,35 @@
 import {
-	bridgeRequestSchema,
-	bridgeResponseSchema,
+	relayRequestSchema,
+	relayResponseSchema,
 } from "@giselles-ai/browser-tool";
 import { z } from "zod";
 import {
-	assertBridgeSession,
-	BRIDGE_SSE_KEEPALIVE_INTERVAL_MS,
-	bridgeRequestChannel,
-	createBridgeSubscriber,
-	dispatchBridgeRequest,
-	markBridgeBrowserConnected,
-	resolveBridgeResponse,
-	toBridgeError,
-	touchBridgeBrowserConnected,
-} from "./bridge-broker";
+	assertRelaySession,
+	createRelaySubscriber,
+	dispatchRelayRequest,
+	markBrowserConnected,
+	RELAY_SSE_KEEPALIVE_INTERVAL_MS,
+	relayRequestChannel,
+	resolveRelayResponse,
+	toRelayError,
+	touchBrowserConnected,
+} from "./relay-store";
 
-const LOG_PREFIX = "[bridge-handler]";
+const LOG_PREFIX = "[relay-handler]";
 
 const dispatchSchema = z.object({
-	type: z.literal("bridge.dispatch"),
+	type: z.literal("relay.dispatch"),
 	sessionId: z.string().min(1),
 	token: z.string().min(1),
-	request: bridgeRequestSchema,
+	request: relayRequestSchema,
 	timeoutMs: z.number().int().positive().max(55_000).optional(),
 });
 
 const respondSchema = z.object({
-	type: z.literal("bridge.respond"),
+	type: z.literal("relay.respond"),
 	sessionId: z.string().min(1),
 	token: z.string().min(1),
-	response: bridgeResponseSchema,
+	response: relayResponseSchema,
 });
 
 const postBodySchema = z.discriminatedUnion("type", [
@@ -45,7 +45,7 @@ function createSafeError(
 	return Response.json({ ok: false, errorCode: code, message }, { status });
 }
 
-function createBridgeEventsRoute(request: Request): Promise<Response> {
+function createRelayEventsRoute(request: Request): Promise<Response> {
 	const url = new URL(request.url);
 	const sessionId = url.searchParams.get("sessionId") ?? "";
 	const token = url.searchParams.get("token") ?? "";
@@ -65,13 +65,13 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 	let cleanup: (() => Promise<void>) | null = null;
 	const encoder = new TextEncoder();
 
-	return assertBridgeSession(sessionId, token)
+	return assertRelaySession(sessionId, token)
 		.then(() => {
 			console.info(`${LOG_PREFIX} sse.connect`, { sessionId });
-			const requestChannel = bridgeRequestChannel(sessionId);
+			const requestChannel = relayRequestChannel(sessionId);
 			const stream = new ReadableStream<Uint8Array>({
 				start(controller) {
-					const subscriber = createBridgeSubscriber();
+					const subscriber = createRelaySubscriber();
 					let keepaliveId: ReturnType<typeof setInterval> | null = null;
 					let closed = false;
 					let nextEventId = 0;
@@ -162,15 +162,13 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 					void (async () => {
 						try {
 							await subscriber.subscribe(requestChannel);
-							await markBridgeBrowserConnected(sessionId, token);
+							await markBrowserConnected(sessionId, token);
 							console.info(`${LOG_PREFIX} sse.ready`, { sessionId });
 
 							sendSseData({ type: "ready", sessionId });
 
 							keepaliveId = setInterval(() => {
-								void touchBridgeBrowserConnected(sessionId).catch(
-									() => undefined,
-								);
+								void touchBrowserConnected(sessionId).catch(() => undefined);
 
 								try {
 									sendSseComment("keepalive");
@@ -178,7 +176,7 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 									void cleanup?.();
 									closeController();
 								}
-							}, BRIDGE_SSE_KEEPALIVE_INTERVAL_MS);
+							}, RELAY_SSE_KEEPALIVE_INTERVAL_MS);
 						} catch (error) {
 							if (closed) {
 								return;
@@ -209,18 +207,18 @@ function createBridgeEventsRoute(request: Request): Promise<Response> {
 				sessionId,
 				error: error instanceof Error ? error.message : String(error),
 			});
-			const bridgeError = toBridgeError(error);
+			const relayError = toRelayError(error);
 			return Response.json(
 				{
-					errorCode: bridgeError.code,
-					message: bridgeError.message,
+					errorCode: relayError.code,
+					message: relayError.message,
 				},
-				{ status: bridgeError.status },
+				{ status: relayError.status },
 			);
 		});
 }
 
-async function createBridgePostRoute(request: Request): Promise<Response> {
+async function createRelayPostRoute(request: Request): Promise<Response> {
 	const payload = await request.json().catch(() => null);
 	const parsed = postBodySchema.safeParse(payload);
 
@@ -228,9 +226,9 @@ async function createBridgePostRoute(request: Request): Promise<Response> {
 		return createSafeError("INVALID_RESPONSE", "Invalid request payload.", 400);
 	}
 
-	if (parsed.data.type === "bridge.dispatch") {
+	if (parsed.data.type === "relay.dispatch") {
 		try {
-			const response = await dispatchBridgeRequest({
+			const response = await dispatchRelayRequest({
 				sessionId: parsed.data.sessionId,
 				token: parsed.data.token,
 				request: parsed.data.request,
@@ -238,39 +236,39 @@ async function createBridgePostRoute(request: Request): Promise<Response> {
 			});
 			return Response.json({ ok: true, response });
 		} catch (error) {
-			const bridgeError = toBridgeError(error);
+			const relayError = toRelayError(error);
 			return createSafeError(
-				bridgeError.code,
-				bridgeError.message,
-				bridgeError.status,
+				relayError.code,
+				relayError.message,
+				relayError.status,
 			);
 		}
 	}
 
 	try {
-		await resolveBridgeResponse({
+		await resolveRelayResponse({
 			sessionId: parsed.data.sessionId,
 			token: parsed.data.token,
 			response: parsed.data.response,
 		});
 		return Response.json({ ok: true });
 	} catch (error) {
-		const bridgeError = toBridgeError(error);
+		const relayError = toRelayError(error);
 		return createSafeError(
-			bridgeError.code,
-			bridgeError.message,
-			bridgeError.status,
+			relayError.code,
+			relayError.message,
+			relayError.status,
 		);
 	}
 }
 
-export function createBridgeHandler(): {
+export function createRelayHandler(): {
 	GET: (request: Request) => Promise<Response>;
 	POST: (request: Request) => Promise<Response>;
 } {
 	return {
 		GET: async (request: Request): Promise<Response> =>
-			createBridgeEventsRoute(request),
-		POST: createBridgePostRoute,
+			createRelayEventsRoute(request),
+		POST: createRelayPostRoute,
 	};
 }

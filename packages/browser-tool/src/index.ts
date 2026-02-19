@@ -1,20 +1,16 @@
 export type {
-	BridgeErrorCode,
 	BrowserToolAction,
 	BrowserToolStatus,
 	ClickAction,
 	ExecutionReport,
 	FieldKind,
 	FillAction,
+	RelayErrorCode,
 	SelectAction,
 	SnapshotField,
 } from "./types";
 
 export {
-	type BridgeRequest,
-	type BridgeResponse,
-	bridgeRequestSchema,
-	bridgeResponseSchema,
 	browserToolActionSchema,
 	clickActionSchema,
 	dispatchErrorSchema,
@@ -25,6 +21,10 @@ export {
 	executionReportSchema,
 	fieldKindSchema,
 	fillActionSchema,
+	type RelayRequest,
+	type RelayResponse,
+	relayRequestSchema,
+	relayResponseSchema,
 	selectActionSchema,
 	snapshotFieldSchema,
 	snapshotRequestSchema,

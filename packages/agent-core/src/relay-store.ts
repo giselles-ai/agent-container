@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
-	type BridgeErrorCode,
-	type BridgeRequest,
-	type BridgeResponse,
-	bridgeResponseSchema,
+	type RelayErrorCode,
+	type RelayRequest,
+	type RelayResponse,
+	relayResponseSchema,
 } from "@giselles-ai/browser-tool";
 import Redis from "ioredis";
 
@@ -11,7 +11,7 @@ const DEFAULT_SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_REQUEST_TTL_SEC = 60;
 const DEFAULT_DISPATCH_TIMEOUT_MS = 20 * 1000;
 const BROWSER_PRESENCE_TTL_SEC = 90;
-export const BRIDGE_SSE_KEEPALIVE_INTERVAL_MS = 20 * 1000;
+export const RELAY_SSE_KEEPALIVE_INTERVAL_MS = 20 * 1000;
 
 const REDIS_URL_ENV_CANDIDATES = [
 	"REDIS_URL",
@@ -20,52 +20,52 @@ const REDIS_URL_ENV_CANDIDATES = [
 	"UPSTASH_REDIS_TLS_URL",
 	"UPSTASH_REDIS_URL",
 ] as const;
-const BRIDGE_SUBSCRIBER_REDIS_OPTIONS = {
+const RELAY_SUBSCRIBER_REDIS_OPTIONS = {
 	enableReadyCheck: false,
 	autoResubscribe: false,
 	autoResendUnfulfilledCommands: false,
 	maxRetriesPerRequest: 2,
 } as const;
 
-type BridgeSessionRecord = {
+type RelaySessionRecord = {
 	token: string;
 	expiresAt: number;
 };
 
 declare global {
-	var __geminiBrowserToolBridgeRedis: Redis | undefined;
+	var __browserToolRelayRedis: Redis | undefined;
 }
 
-export class BridgeBrokerError extends Error {
-	readonly code: BridgeErrorCode;
+export class RelayStoreError extends Error {
+	readonly code: RelayErrorCode;
 	readonly status: number;
 
-	constructor(code: BridgeErrorCode, message: string, status: number) {
+	constructor(code: RelayErrorCode, message: string, status: number) {
 		super(message);
 		this.code = code;
 		this.status = status;
 	}
 }
 
-function createBridgeError(
-	code: BridgeErrorCode,
+function createRelayError(
+	code: RelayErrorCode,
 	message: string,
-): BridgeBrokerError {
+): RelayStoreError {
 	switch (code) {
 		case "UNAUTHORIZED":
-			return new BridgeBrokerError(code, message, 401);
+			return new RelayStoreError(code, message, 401);
 		case "NO_BROWSER":
-			return new BridgeBrokerError(code, message, 409);
+			return new RelayStoreError(code, message, 409);
 		case "TIMEOUT":
-			return new BridgeBrokerError(code, message, 408);
+			return new RelayStoreError(code, message, 408);
 		case "INVALID_RESPONSE":
-			return new BridgeBrokerError(code, message, 422);
+			return new RelayStoreError(code, message, 422);
 		case "NOT_FOUND":
-			return new BridgeBrokerError(code, message, 404);
+			return new RelayStoreError(code, message, 404);
 		case "INTERNAL":
-			return new BridgeBrokerError(code, message, 500);
+			return new RelayStoreError(code, message, 500);
 		default:
-			return new BridgeBrokerError("INTERNAL", message, 500);
+			return new RelayStoreError("INTERNAL", message, 500);
 	}
 }
 
@@ -77,63 +77,63 @@ function resolveRedisUrl(): string {
 		}
 	}
 
-	throw createBridgeError(
+	throw createRelayError(
 		"INTERNAL",
 		`Missing Redis URL. Set one of: ${REDIS_URL_ENV_CANDIDATES.join(", ")}`,
 	);
 }
 
 function getRedisClient(): Redis {
-	if (!globalThis.__geminiBrowserToolBridgeRedis) {
-		globalThis.__geminiBrowserToolBridgeRedis = new Redis(resolveRedisUrl(), {
+	if (!globalThis.__browserToolRelayRedis) {
+		globalThis.__browserToolRelayRedis = new Redis(resolveRedisUrl(), {
 			maxRetriesPerRequest: 2,
 		});
 	}
 
-	return globalThis.__geminiBrowserToolBridgeRedis;
+	return globalThis.__browserToolRelayRedis;
 }
 
-export function createBridgeSubscriber(): Redis {
-	return getRedisClient().duplicate(BRIDGE_SUBSCRIBER_REDIS_OPTIONS);
+export function createRelaySubscriber(): Redis {
+	return getRedisClient().duplicate(RELAY_SUBSCRIBER_REDIS_OPTIONS);
 }
 
 function sessionKey(sessionId: string): string {
-	return `bridge:session:${sessionId}`;
+	return `relay:session:${sessionId}`;
 }
 
 function browserPresenceKey(sessionId: string): string {
-	return `bridge:browser:${sessionId}`;
+	return `relay:browser:${sessionId}`;
 }
 
 function requestTypeKey(sessionId: string, requestId: string): string {
-	return `bridge:req:${sessionId}:${requestId}:type`;
+	return `relay:req:${sessionId}:${requestId}:type`;
 }
 
 function responseKey(sessionId: string, requestId: string): string {
-	return `bridge:resp:${sessionId}:${requestId}`;
+	return `relay:resp:${sessionId}:${requestId}`;
 }
 
-export function bridgeRequestChannel(sessionId: string): string {
-	return `bridge:${sessionId}:request`;
+export function relayRequestChannel(sessionId: string): string {
+	return `relay:${sessionId}:request`;
 }
 
-function bridgeResponseChannel(sessionId: string, requestId: string): string {
-	return `bridge:${sessionId}:response:${requestId}`;
+function relayResponseChannel(sessionId: string, requestId: string): string {
+	return `relay:${sessionId}:response:${requestId}`;
 }
 
 function sessionExpiryTimestamp(): number {
 	return Date.now() + DEFAULT_SESSION_TTL_MS;
 }
 
-function parseSessionRecord(raw: string): BridgeSessionRecord {
+function parseSessionRecord(raw: string): RelaySessionRecord {
 	let parsed: unknown = null;
 
 	try {
 		parsed = JSON.parse(raw);
 	} catch {
-		throw createBridgeError(
+		throw createRelayError(
 			"INTERNAL",
-			"Bridge session payload in Redis is malformed.",
+			"Relay session payload in Redis is malformed.",
 		);
 	}
 
@@ -145,9 +145,9 @@ function parseSessionRecord(raw: string): BridgeSessionRecord {
 		typeof parsed.token !== "string" ||
 		typeof parsed.expiresAt !== "number"
 	) {
-		throw createBridgeError(
+		throw createRelayError(
 			"INTERNAL",
-			"Bridge session payload in Redis is invalid.",
+			"Relay session payload in Redis is invalid.",
 		);
 	}
 
@@ -157,34 +157,34 @@ function parseSessionRecord(raw: string): BridgeSessionRecord {
 	};
 }
 
-function toRequestType(value: string): BridgeRequest["type"] {
+function toRequestType(value: string): RelayRequest["type"] {
 	if (value === "snapshot_request" || value === "execute_request") {
 		return value;
 	}
 
-	throw createBridgeError(
+	throw createRelayError(
 		"INTERNAL",
 		`Stored request type is invalid: ${value}`,
 	);
 }
 
-function parseStoredBridgeResponse(raw: string): BridgeResponse {
+function parseStoredRelayResponse(raw: string): RelayResponse {
 	let decoded: unknown = null;
 
 	try {
 		decoded = JSON.parse(raw);
 	} catch {
-		throw createBridgeError(
+		throw createRelayError(
 			"INVALID_RESPONSE",
-			"Bridge response payload in Redis is malformed.",
+			"Relay response payload in Redis is malformed.",
 		);
 	}
 
-	const parsed = bridgeResponseSchema.safeParse(decoded);
+	const parsed = relayResponseSchema.safeParse(decoded);
 	if (!parsed.success) {
-		throw createBridgeError(
+		throw createRelayError(
 			"INVALID_RESPONSE",
-			"Bridge response payload in Redis is invalid.",
+			"Relay response payload in Redis is invalid.",
 		);
 	}
 
@@ -207,22 +207,22 @@ async function touchSession(sessionId: string, token: string): Promise<number> {
 async function getAuthorizedSession(
 	sessionId: string,
 	token: string,
-): Promise<BridgeSessionRecord> {
+): Promise<RelaySessionRecord> {
 	const redis = getRedisClient();
 	const raw = await redis.get(sessionKey(sessionId));
 
 	if (!raw) {
-		throw createBridgeError(
+		throw createRelayError(
 			"UNAUTHORIZED",
-			"Invalid bridge session credentials.",
+			"Invalid relay session credentials.",
 		);
 	}
 
 	const session = parseSessionRecord(raw);
 	if (session.token !== token) {
-		throw createBridgeError(
+		throw createRelayError(
 			"UNAUTHORIZED",
-			"Invalid bridge session credentials.",
+			"Invalid relay session credentials.",
 		);
 	}
 
@@ -234,14 +234,14 @@ async function getAuthorizedSession(
 }
 
 function validateResponseType(
-	requestType: BridgeRequest["type"],
-	responseType: BridgeResponse["type"],
+	requestType: RelayRequest["type"],
+	responseType: RelayResponse["type"],
 ): void {
 	if (
 		requestType === "snapshot_request" &&
 		responseType !== "snapshot_response"
 	) {
-		throw createBridgeError(
+		throw createRelayError(
 			"INVALID_RESPONSE",
 			`Expected snapshot_response, but received ${responseType}.`,
 		);
@@ -251,7 +251,7 @@ function validateResponseType(
 		requestType === "execute_request" &&
 		responseType !== "execute_response"
 	) {
-		throw createBridgeError(
+		throw createRelayError(
 			"INVALID_RESPONSE",
 			`Expected execute_response, but received ${responseType}.`,
 		);
@@ -263,14 +263,14 @@ async function ensureBrowserConnected(sessionId: string): Promise<void> {
 	const isConnected = await redis.exists(browserPresenceKey(sessionId));
 
 	if (isConnected === 0) {
-		throw createBridgeError(
+		throw createRelayError(
 			"NO_BROWSER",
-			"No browser client is connected to this bridge session.",
+			"No browser client is connected to this relay session.",
 		);
 	}
 }
 
-async function waitForBridgeResponseSignal(input: {
+async function waitForRelayResponseSignal(input: {
 	subscriber: Redis;
 	channel: string;
 	timeoutMs: number;
@@ -301,7 +301,7 @@ async function waitForBridgeResponseSignal(input: {
 					? error.message
 					: "Unknown Redis subscriber error.";
 			reject(
-				createBridgeError(
+				createRelayError(
 					"INTERNAL",
 					`Redis subscriber failed while waiting for response. ${message}`,
 				),
@@ -316,9 +316,9 @@ async function waitForBridgeResponseSignal(input: {
 			settled = true;
 			cleanup();
 			reject(
-				createBridgeError(
+				createRelayError(
 					"TIMEOUT",
-					"Timed out waiting for browser bridge response.",
+					"Timed out waiting for browser relay response.",
 				),
 			);
 		};
@@ -342,7 +342,7 @@ async function waitForBridgeResponseSignal(input: {
 			settled = true;
 			cleanup();
 
-			if (error instanceof BridgeBrokerError) {
+			if (error instanceof RelayStoreError) {
 				reject(error);
 				return;
 			}
@@ -350,19 +350,19 @@ async function waitForBridgeResponseSignal(input: {
 			const message =
 				error instanceof Error ? error.message : "Unknown Redis publish error.";
 			reject(
-				createBridgeError(
+				createRelayError(
 					"INTERNAL",
-					`Failed to publish bridge request. ${message}`,
+					`Failed to publish relay request. ${message}`,
 				),
 			);
 		});
 	});
 }
 
-async function storeBridgeResponse(input: {
+async function storeRelayResponse(input: {
 	sessionId: string;
 	requestId: string;
-	response: BridgeResponse;
+	response: RelayResponse;
 }): Promise<void> {
 	const redis = getRedisClient();
 
@@ -376,13 +376,13 @@ async function storeBridgeResponse(input: {
 		)
 		.del(requestTypeKey(input.sessionId, input.requestId))
 		.publish(
-			bridgeResponseChannel(input.sessionId, input.requestId),
+			relayResponseChannel(input.sessionId, input.requestId),
 			input.requestId,
 		)
 		.exec();
 }
 
-export async function createBridgeSession(): Promise<{
+export async function createRelaySession(): Promise<{
 	sessionId: string;
 	token: string;
 	expiresAt: number;
@@ -409,14 +409,14 @@ export async function createBridgeSession(): Promise<{
 	};
 }
 
-export async function assertBridgeSession(
+export async function assertRelaySession(
 	sessionId: string,
 	token: string,
 ): Promise<void> {
 	await getAuthorizedSession(sessionId, token);
 }
 
-export async function markBridgeBrowserConnected(
+export async function markBrowserConnected(
 	sessionId: string,
 	token: string,
 ): Promise<void> {
@@ -431,9 +431,7 @@ export async function markBridgeBrowserConnected(
 	);
 }
 
-export async function touchBridgeBrowserConnected(
-	sessionId: string,
-): Promise<void> {
+export async function touchBrowserConnected(sessionId: string): Promise<void> {
 	const redis = getRedisClient();
 	await redis.set(
 		browserPresenceKey(sessionId),
@@ -443,12 +441,12 @@ export async function touchBridgeBrowserConnected(
 	);
 }
 
-export async function dispatchBridgeRequest(input: {
+export async function dispatchRelayRequest(input: {
 	sessionId: string;
 	token: string;
-	request: BridgeRequest;
+	request: RelayRequest;
 	timeoutMs?: number;
-}): Promise<BridgeResponse> {
+}): Promise<RelayResponse> {
 	await getAuthorizedSession(input.sessionId, input.token);
 	await ensureBrowserConnected(input.sessionId);
 
@@ -457,11 +455,8 @@ export async function dispatchBridgeRequest(input: {
 	const requestId = input.request.requestId;
 	const requestTypeStateKey = requestTypeKey(input.sessionId, requestId);
 	const storedResponseKey = responseKey(input.sessionId, requestId);
-	const responseEventChannel = bridgeResponseChannel(
-		input.sessionId,
-		requestId,
-	);
-	const subscriber = createBridgeSubscriber();
+	const responseEventChannel = relayResponseChannel(input.sessionId, requestId);
+	const subscriber = createRelaySubscriber();
 
 	const setPending = await redis.set(
 		requestTypeStateKey,
@@ -472,7 +467,7 @@ export async function dispatchBridgeRequest(input: {
 	);
 
 	if (setPending !== "OK") {
-		throw createBridgeError(
+		throw createRelayError(
 			"INVALID_RESPONSE",
 			`Request id is already pending: ${requestId}`,
 		);
@@ -482,13 +477,13 @@ export async function dispatchBridgeRequest(input: {
 		await redis.del(storedResponseKey);
 		await subscriber.subscribe(responseEventChannel);
 
-		await waitForBridgeResponseSignal({
+		await waitForRelayResponseSignal({
 			subscriber,
 			channel: responseEventChannel,
 			timeoutMs,
 			trigger: async () => {
 				await redis.publish(
-					bridgeRequestChannel(input.sessionId),
+					relayRequestChannel(input.sessionId),
 					JSON.stringify(input.request),
 				);
 			},
@@ -496,16 +491,16 @@ export async function dispatchBridgeRequest(input: {
 
 		const storedResponse = await redis.get(storedResponseKey);
 		if (!storedResponse) {
-			throw createBridgeError(
+			throw createRelayError(
 				"TIMEOUT",
-				"Bridge response notification was received without payload.",
+				"Relay response notification was received without payload.",
 			);
 		}
 
-		const parsedResponse = parseStoredBridgeResponse(storedResponse);
+		const parsedResponse = parseStoredRelayResponse(storedResponse);
 
 		if (parsedResponse.type === "error_response") {
-			throw createBridgeError("INVALID_RESPONSE", parsedResponse.message);
+			throw createRelayError("INVALID_RESPONSE", parsedResponse.message);
 		}
 
 		validateResponseType(input.request.type, parsedResponse.type);
@@ -522,10 +517,10 @@ export async function dispatchBridgeRequest(input: {
 	}
 }
 
-export async function resolveBridgeResponse(input: {
+export async function resolveRelayResponse(input: {
 	sessionId: string;
 	token: string;
-	response: BridgeResponse;
+	response: RelayResponse;
 }): Promise<void> {
 	await getAuthorizedSession(input.sessionId, input.token);
 
@@ -535,7 +530,7 @@ export async function resolveBridgeResponse(input: {
 	const expectedRequestTypeRaw = await redis.get(requestTypeStateKey);
 
 	if (!expectedRequestTypeRaw) {
-		throw createBridgeError(
+		throw createRelayError(
 			"NOT_FOUND",
 			`Pending request was not found: ${requestId}`,
 		);
@@ -544,7 +539,7 @@ export async function resolveBridgeResponse(input: {
 	const expectedRequestType = toRequestType(expectedRequestTypeRaw);
 
 	if (input.response.type === "error_response") {
-		await storeBridgeResponse({
+		await storeRelayResponse({
 			sessionId: input.sessionId,
 			requestId,
 			response: input.response,
@@ -555,39 +550,39 @@ export async function resolveBridgeResponse(input: {
 	try {
 		validateResponseType(expectedRequestType, input.response.type);
 	} catch (error) {
-		const bridgeError =
-			error instanceof BridgeBrokerError
+		const relayError =
+			error instanceof RelayStoreError
 				? error
-				: createBridgeError(
+				: createRelayError(
 						"INVALID_RESPONSE",
-						"Unexpected bridge response type.",
+						"Unexpected relay response type.",
 					);
 
-		await storeBridgeResponse({
+		await storeRelayResponse({
 			sessionId: input.sessionId,
 			requestId,
 			response: {
 				type: "error_response",
 				requestId,
-				message: bridgeError.message,
+				message: relayError.message,
 			},
 		});
-		throw bridgeError;
+		throw relayError;
 	}
 
-	await storeBridgeResponse({
+	await storeRelayResponse({
 		sessionId: input.sessionId,
 		requestId,
 		response: input.response,
 	});
 }
 
-export function toBridgeError(error: unknown): BridgeBrokerError {
-	if (error instanceof BridgeBrokerError) {
+export function toRelayError(error: unknown): RelayStoreError {
+	if (error instanceof RelayStoreError) {
 		return error;
 	}
 
 	const message =
-		error instanceof Error ? error.message : "Unexpected bridge failure.";
-	return createBridgeError("INTERNAL", message);
+		error instanceof Error ? error.message : "Unexpected relay failure.";
+	return createRelayError("INTERNAL", message);
 }

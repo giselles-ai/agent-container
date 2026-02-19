@@ -14,8 +14,8 @@ const requestSchema = z.object({
 	message: z.string().min(1),
 	session_id: z.string().min(1).optional(),
 	sandbox_id: z.string().min(1).optional(),
-	bridge_session_id: z.string().min(1),
-	bridge_token: z.string().min(1),
+	relay_session_id: z.string().min(1),
+	relay_token: z.string().min(1),
 });
 
 function requiredEnv(name: string): string {
@@ -45,17 +45,17 @@ function extractTokenFromRequest(request: Request): string | undefined {
 }
 
 function buildMcpEnv(input: {
-	bridgeBaseUrl: string;
-	bridgeSessionId: string;
-	bridgeToken: string;
+	relayUrl: string;
+	relaySessionId: string;
+	relayToken: string;
 	oidcToken?: string;
 	vercelProtectionBypass?: string;
 	giselleProtectionBypass?: string;
 }): Record<string, string> {
 	const env: Record<string, string> = {
-		BROWSER_TOOL_BRIDGE_BASE_URL: input.bridgeBaseUrl,
-		BROWSER_TOOL_BRIDGE_SESSION_ID: input.bridgeSessionId,
-		BROWSER_TOOL_BRIDGE_TOKEN: input.bridgeToken,
+		BROWSER_TOOL_RELAY_URL: input.relayUrl,
+		BROWSER_TOOL_RELAY_SESSION_ID: input.relaySessionId,
+		BROWSER_TOOL_RELAY_TOKEN: input.relayToken,
 	};
 
 	if (input.oidcToken) {
@@ -212,16 +212,16 @@ export function createGeminiChatHandler(
 					const giselleProtectionBypass =
 						process.env.GISELLE_PROTECTION_PASSWORD?.trim() || undefined;
 
-					const bridgeBaseUrl =
-						process.env.BROWSER_TOOL_BRIDGE_BASE_URL?.trim() ||
+					const relayUrl =
+						process.env.BROWSER_TOOL_RELAY_URL?.trim() ||
 						new URL(request.url).origin;
 
 					const {
 						message,
 						session_id: sessionId,
 						sandbox_id: sandboxId,
-						bridge_session_id: bridgeSessionId,
-						bridge_token: bridgeToken,
+						relay_session_id: relaySessionId,
+						relay_token: relayToken,
 					} = parsed.data;
 
 					const sandbox = sandboxId
@@ -236,9 +236,9 @@ export function createGeminiChatHandler(
 					enqueueEvent({ type: "sandbox", sandbox_id: sandbox.sandboxId });
 
 					const mcpEnv = buildMcpEnv({
-						bridgeBaseUrl,
-						bridgeSessionId,
-						bridgeToken,
+						relayUrl,
+						relaySessionId,
+						relayToken,
 						oidcToken,
 						vercelProtectionBypass,
 						giselleProtectionBypass,

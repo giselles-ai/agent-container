@@ -7,11 +7,11 @@ import type {
 import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type BridgeSession = {
+type RelaySession = {
 	sessionId: string;
 	token: string;
 	expiresAt: number;
-	bridgeUrl: string | null;
+	relayUrl: string | null;
 };
 
 export type AgentMessage = {
@@ -34,8 +34,8 @@ export type ToolEvent = {
 	output?: unknown;
 };
 
-type BridgeStatus = "idle" | "connecting" | "connected" | "error";
-export type AgentStatus = BridgeStatus | "running";
+type RelayStatus = "idle" | "connecting" | "connected" | "error";
+export type AgentStatus = RelayStatus | "running";
 
 export type UseAgentOptions = {
 	endpoint: string;
@@ -53,7 +53,7 @@ export type AgentHookState = {
 	sendMessage: (input: { message: string; document?: string }) => Promise<void>;
 };
 
-const LOG_PREFIX = "[agent-bridge-client]";
+const LOG_PREFIX = "[agent-relay-client]";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
@@ -145,7 +145,7 @@ function dedupeStringArray(next: string[]): string[] {
 }
 
 export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
-	const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>("idle");
+	const [relayStatus, setRelayStatus] = useState<RelayStatus>("idle");
 	const [running, setRunning] = useState(false);
 	const [messages, setMessages] = useState<AgentMessage[]>([]);
 	const [tools, setTools] = useState<ToolEvent[]>([]);
@@ -162,11 +162,11 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 	const eventSourceRef = useRef<EventSource | null>(null);
 	const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const mountedRef = useRef(true);
-	const sessionRef = useRef<BridgeSession | null>(null);
+	const sessionRef = useRef<RelaySession | null>(null);
 	const messagesAssistantId = useRef<string | null>(null);
 	const assistantBufferRef = useRef("");
 
-	const cleanupBridge = useCallback(() => {
+	const cleanupRelay = useCallback(() => {
 		if (eventSourceRef.current) {
 			eventSourceRef.current.close();
 			eventSourceRef.current = null;
@@ -178,7 +178,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		}
 	}, []);
 
-	const handleBridgeResponse = useCallback(
+	const handleRelayResponse = useCallback(
 		async (payload: Record<string, unknown>) => {
 			const currentSession = sessionRef.current;
 			if (!currentSession) {
@@ -198,14 +198,14 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				responseType,
 			});
 
-			const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
-			const response = await fetch(bridgeBase, {
+			const relayBase = currentSession.relayUrl ?? normalizedEndpoint;
+			const response = await fetch(relayBase, {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
 				},
 				body: JSON.stringify({
-					type: "bridge.respond",
+					type: "relay.respond",
 					sessionId: currentSession.sessionId,
 					token: currentSession.token,
 					response: payload,
@@ -221,7 +221,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		[normalizedEndpoint],
 	);
 
-	const handleBridgeEvent = useCallback(
+	const handleRelayEvent = useCallback(
 		async (event: unknown) => {
 			if (!isRecord(event) || typeof event.type !== "string") {
 				return;
@@ -254,7 +254,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 						requestId,
 						fieldCount: fields.length,
 					});
-					await handleBridgeResponse({
+					await handleRelayResponse({
 						type: "snapshot_response",
 						requestId,
 						fields,
@@ -286,7 +286,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 						dedupeStringArray([...current, ...report.warnings]),
 					);
 
-					await handleBridgeResponse({
+					await handleRelayResponse({
 						type: "execute_response",
 						requestId,
 						report,
@@ -294,26 +294,26 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 					return;
 				}
 
-				await handleBridgeResponse({
+				await handleRelayResponse({
 					type: "error_response",
 					requestId,
-					message: `Unsupported bridge request type: ${event.type}`,
+					message: `Unsupported relay request type: ${event.type}`,
 				});
-			} catch (bridgeError) {
+			} catch (relayError) {
 				const message =
-					bridgeError instanceof Error
-						? bridgeError.message
-						: "Bridge execution failed.";
+					relayError instanceof Error
+						? relayError.message
+						: "Relay execution failed.";
 				setError(message);
-				setBridgeStatus("error");
-				await handleBridgeResponse({
+				setRelayStatus("error");
+				await handleRelayResponse({
 					type: "error_response",
 					requestId,
 					message,
 				});
 			}
 		},
-		[handleBridgeResponse],
+		[handleRelayResponse],
 	);
 
 	const connect = useCallback(() => {
@@ -322,12 +322,12 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 			return;
 		}
 
-		cleanupBridge();
-		setBridgeStatus("connecting");
+		cleanupRelay();
+		setRelayStatus("connecting");
 
-		const bridgeBase = currentSession.bridgeUrl ?? normalizedEndpoint;
+		const relayBase = currentSession.relayUrl ?? normalizedEndpoint;
 		const source = new EventSource(
-			`${bridgeBase}?type=bridge.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
+			`${relayBase}?type=relay.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
 		);
 		console.info(`${LOG_PREFIX} sse.connect`, {
 			sessionId: currentSession.sessionId,
@@ -338,7 +338,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 			if (!mountedRef.current) {
 				return;
 			}
-			setBridgeStatus("connected");
+			setRelayStatus("connected");
 			console.info(`${LOG_PREFIX} sse.open`, {
 				sessionId: currentSession.sessionId,
 			});
@@ -361,7 +361,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 							? (payload as { type: string }).type
 							: "unknown",
 				});
-				void handleBridgeEvent(payload);
+				void handleRelayEvent(payload);
 			} catch (error) {
 				console.error(`${LOG_PREFIX} sse.message.parse_error`, {
 					sessionId: currentSession.sessionId,
@@ -376,7 +376,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				return;
 			}
 
-			setBridgeStatus("connecting");
+			setRelayStatus("connecting");
 			console.warn(`${LOG_PREFIX} sse.error`, {
 				sessionId: currentSession.sessionId,
 			});
@@ -387,16 +387,16 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				}, 1500);
 			}
 		};
-	}, [cleanupBridge, handleBridgeEvent, normalizedEndpoint]);
+	}, [cleanupRelay, handleRelayEvent, normalizedEndpoint]);
 
 	useEffect(() => {
 		mountedRef.current = true;
 
 		return () => {
 			mountedRef.current = false;
-			cleanupBridge();
+			cleanupRelay();
 		};
-	}, [cleanupBridge]);
+	}, [cleanupRelay]);
 
 	const handleStreamEvent = useCallback(
 		(event: StreamEvent) => {
@@ -404,10 +404,10 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				return;
 			}
 
-			if (event.type === "bridge.session") {
+			if (event.type === "relay.session") {
 				const sessionId = asString(event.sessionId);
 				const token = asString(event.token);
-				const bridgeUrl = asString(event.bridgeUrl);
+				const relayUrl = asString(event.relayUrl);
 				const expiresAt =
 					asNumber(event.expiresAt) ?? Date.now() + 10 * 60 * 1000;
 				if (!sessionId || !token) {
@@ -418,9 +418,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 					sessionId,
 					token,
 					expiresAt,
-					bridgeUrl,
+					relayUrl,
 				};
-				console.info(`${LOG_PREFIX} stream.bridge_session`, {
+				console.info(`${LOG_PREFIX} stream.relay_session`, {
 					sessionId,
 				});
 				connect();
@@ -565,9 +565,9 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 				return;
 			}
 
-			cleanupBridge();
+			cleanupRelay();
 			sessionRef.current = null;
-			setBridgeStatus("idle");
+			setRelayStatus("idle");
 			setError(null);
 			setRunning(true);
 			assistantBufferRef.current = "";
@@ -641,14 +641,14 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 						? sendError.message
 						: "Failed to send message.";
 				setError(messageText);
-				setBridgeStatus("error");
+				setRelayStatus("error");
 				throw sendError;
 			} finally {
 				setRunning(false);
 			}
 		},
 		[
-			cleanupBridge,
+			cleanupRelay,
 			geminiSessionId,
 			handleStreamEvent,
 			normalizedEndpoint,
@@ -657,7 +657,7 @@ export function useAgent({ endpoint }: UseAgentOptions): AgentHookState {
 		],
 	);
 
-	const status: AgentStatus = running ? "running" : bridgeStatus;
+	const status: AgentStatus = running ? "running" : relayStatus;
 
 	return {
 		status,
