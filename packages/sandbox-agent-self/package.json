@@ -24,7 +24,7 @@
 	},
 	"dependencies": {
 		"@giselles-ai/sandbox-agent": "workspace:*",
-		"@giselles-ai/agent-core": "workspace:*",
+		"@giselles-ai/sandbox-agent-core": "workspace:*",
 		"@giselles-ai/browser-tool": "workspace:*",
 		"zod": "4.3.6"
 	},

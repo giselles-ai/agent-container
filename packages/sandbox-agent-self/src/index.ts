@@ -10,7 +10,7 @@ import {
 	resolveBridgeResponse,
 	toBridgeError,
 	touchBridgeBrowserConnected,
-} from "@giselles-ai/agent-core";
+} from "@giselles-ai/sandbox-agent-core";
 import {
 	bridgeRequestSchema,
 	bridgeResponseSchema,
