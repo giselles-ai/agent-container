@@ -58,25 +58,36 @@ jobs:
               newVersion = pkg.version;
               fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
             }
-            // Replace workspace:* references with the resolved version
-            for (const p of paths) {
-              const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-              for (const depField of ['dependencies', 'devDependencies', 'peerDependencies']) {
-                if (!pkg[depField]) continue;
-                for (const [name, ver] of Object.entries(pkg[depField])) {
-                  if (typeof ver === 'string' && ver.startsWith('workspace:')) {
-                    const target = paths.map(tp => JSON.parse(fs.readFileSync(tp, 'utf8'))).find(tp => tp.name === name);
-                    if (target) pkg[depField][name] = target.version;
-                  }
-                }
-              }
-              fs.writeFileSync(p, JSON.stringify(pkg, null, '\t') + '\n');
-            }
             console.log('v' + newVersion);
           "
 
       - name: Build
         run: pnpm run build
+
+      - name: Replace workspace:* with resolved versions
+        run: |
+          node -e "
+            const fs = require('fs');
+            const paths = [
+              'packages/browser-tool/package.json',
+              'packages/agent-core/package.json',
+              'packages/sandbox-agent/package.json',
+            ];
+            const pkgs = paths.map(p => JSON.parse(fs.readFileSync(p, 'utf8')));
+            for (let i = 0; i < paths.length; i++) {
+              const pkg = pkgs[i];
+              for (const depField of ['dependencies', 'devDependencies', 'peerDependencies']) {
+                if (!pkg[depField]) continue;
+                for (const [name, ver] of Object.entries(pkg[depField])) {
+                  if (typeof ver === 'string' && ver.startsWith('workspace:')) {
+                    const target = pkgs.find(tp => tp.name === name);
+                    if (target) pkg[depField][name] = target.version;
+                  }
+                }
+              }
+              fs.writeFileSync(paths[i], JSON.stringify(pkg, null, '\t') + '\n');
+            }
+          "
 
       - name: Publish @giselles-ai/browser-tool
         working-directory: packages/browser-tool
