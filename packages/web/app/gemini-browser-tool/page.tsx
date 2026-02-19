@@ -1,6 +1,6 @@
 "use client";
 
-import { useAgent } from "@giselles-ai/agent/react";
+import { useAgent } from "@giselles-ai/sandbox-agent/react";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 function DemoForm() {

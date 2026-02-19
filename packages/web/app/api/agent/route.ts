@@ -1,4 +1,4 @@
-import { handleAgentRunner } from "@giselles-ai/agent";
+import { handleAgentRunner } from "@giselles-ai/sandbox-agent";
 
 export const { POST } = handleAgentRunner({
 	// apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY,

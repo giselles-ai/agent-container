@@ -10,8 +10,8 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles-ai/agent": "workspace:*",
-		"@giselles-ai/agent-self": "workspace:*",
+		"@giselles-ai/sandbox-agent": "workspace:*",
+		"@giselles-ai/sandbox-agent-self": "workspace:*",
 		"@giselles-ai/browser-tool": "workspace:*",
 		"@vercel/sandbox": "1.5.0",
 		"next": "16.1.6",

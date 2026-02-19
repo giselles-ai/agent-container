@@ -8,4 +8,4 @@ export {
 	type UseAgentOptions,
 	useAgent,
 	useBrowserTool,
-} from "@giselles-ai/agent/react";
+} from "@giselles-ai/sandbox-agent/react";

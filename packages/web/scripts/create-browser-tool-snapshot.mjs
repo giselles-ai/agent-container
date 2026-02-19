@@ -22,7 +22,7 @@ const INCLUDE_PATHS = [
 	"pnpm-workspace.yaml",
 	"tsconfig.base.json",
 	"packages/browser-tool",
-	"packages/agent",
+	"packages/sandbox-agent",
 ];
 
 const SKIP_DIR_NAMES = new Set([
@@ -217,7 +217,7 @@ async function main() {
 					[
 						"corepack pnpm install --no-frozen-lockfile",
 						"--filter @giselles-ai/browser-tool...",
-						"--filter @giselles-ai/agent...",
+						"--filter @giselles-ai/sandbox-agent...",
 					].join(" "),
 				].join("\n"),
 			],

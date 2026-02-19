@@ -1,5 +1,5 @@
 {
-	"name": "@giselles-ai/agent",
+	"name": "@giselles-ai/sandbox-agent-self",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -23,6 +23,8 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
+		"@giselles-ai/sandbox-agent": "workspace:*",
+		"@giselles-ai/agent-core": "workspace:*",
 		"@giselles-ai/browser-tool": "workspace:*",
 		"zod": "4.3.6"
 	},
