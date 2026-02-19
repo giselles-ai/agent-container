@@ -1,4 +1,8 @@
 import {
+	bridgeRequestSchema,
+	bridgeResponseSchema,
+} from "@giselles-ai/browser-tool";
+import {
 	assertBridgeSession,
 	BRIDGE_SSE_KEEPALIVE_INTERVAL_MS,
 	bridgeRequestChannel,
@@ -11,10 +15,6 @@ import {
 	toBridgeError,
 	touchBridgeBrowserConnected,
 } from "@giselles-ai/sandbox-agent-core";
-import {
-	bridgeRequestSchema,
-	bridgeResponseSchema,
-} from "@giselles-ai/browser-tool";
 import { z } from "zod";
 import { jsonWithCors, preflightResponse, withCors } from "../../../lib/cors";
 
