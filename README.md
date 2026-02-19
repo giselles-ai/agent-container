@@ -1,152 +1,150 @@
-# Giselles Agent Container (Monorepo)
+# Giselle Agent Container
 
-A monorepo for verifying automated form filling using Gemini CLI + MCP + Browser Bridge on Next.js.
-Supports both Cloud mode and Self-hosted mode.
+A monorepo for running AI agents inside sandboxed containers with browser automation capabilities. Agents run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in a [Vercel Sandbox](https://vercel.com/docs/sandbox), communicate via a Redis-backed bridge, and can interact with the user's browser through an MCP server.
 
-## Packages / Apps
+## Architecture
 
-- `packages/agent` — `@giselles-ai/agent` (Cloud mode client/proxy package)
-  - Server: `handleAgentRunner({ apiKey?, baseUrl? }) -> { POST }`
-  - Client: `useAgent()` (supports `bridgeUrl`)
-- `packages/agent-self` — `@giselles-ai/agent-self` (Self-hosted package)
-  - Server: `createAgentApiHandler() -> { GET, POST }`
-  - React: Re-exports `@giselles-ai/agent/react`
-- `packages/agent-core` — Internal package (private)
-  - Redis bridge broker + Gemini chat handler
-- `packages/browser-tool` — `@giselles-ai/browser-tool`
-  - Types + Zod schemas
-  - DOM operations (`snapshot` / `execute`)
-  - MCP server (`./mcp-server` subpath export)
-- `packages/web` — Cloud mode demo app
-- `apps/cloud-api` — Cloud API service
+```
+┌─────────────┐       ┌──────────────────┐       ┌──────────────────────┐
+│  React App  │──────▶│  Cloud API /     │──────▶│  Vercel Sandbox      │
+│  (useAgent) │  POST │  Route Handler   │       │  ┌────────────────┐  │
+│             │◀─SSE──│  (bridge-broker) │◀─────▶│  │  Gemini CLI    │  │
+│             │       └──────────────────┘ Redis  │  │  + MCP Server  │  │
+│  ┌────────┐ │              ▲                    │  └────────────────┘  │
+│  │Browser │ │              │ bridge              └──────────────────────┘
+│  │  Tool  │─┼──────────────┘
+│  │  DOM   │ │  snapshot / execute
+│  └────────┘ │
+└─────────────┘
+```
+
+## Packages
+
+| Package | Path | Description |
+|---------|------|-------------|
+| `@giselles-ai/sandbox-agent` | `packages/sandbox-agent` | Client SDK — `handleAgentRunner()` route handler + `useAgent()` React hook |
+| `@giselles-ai/sandbox-agent-core` | `packages/agent-core` | Server internals — Redis bridge broker, bridge handler, Gemini chat handler |
+| `@giselles-ai/browser-tool` | `packages/browser-tool` | Browser tool types/schemas, DOM operations (`snapshot`/`execute`), MCP server |
+
+## Apps
+
+| App | Path | Description |
+|-----|------|-------------|
+| Demo (self-hosted) | `packages/web` | Next.js demo app with full self-hosted agent + browser tool |
+| Cloud API Demo | `demo/cloud-api` | Next.js demo using the cloud API service |
+| Agent Platform | `sandbox-agent/web` | Agent management platform — create, configure, and run agents |
+| `@giselles-ai/agent-cli` | `sandbox-agent/cli` | CLI tool (`giselle`) for creating and managing agents |
 
 ## Prerequisites
 
 - Node.js 20+
 - pnpm 10+
 
-## Setup
+## Getting Started
 
 ```bash
 pnpm install
+```
+
+### Run the demo app
+
+```bash
 cp packages/web/.env.example packages/web/.env.local
-# edit packages/web/.env.local
+# Fill in the required environment variables (see below)
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Cloud Mode (Recommended)
+### Environment Variables
 
-### Required env (demo app)
+#### Required
 
-```bash
-GISELLE_SANDBOX_AGENT_API_KEY=...
-```
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `SANDBOX_SNAPSHOT_ID` | Sandbox snapshot ID (see [Creating a Snapshot](#creating-a-snapshot)) |
+| `REDIS_URL` | Redis connection URL for bridge sessions |
 
-### Route handler (`@giselles-ai/agent`)
+#### Optional
+
+| Variable | Description |
+|----------|-------------|
+| `GISELLE_SANDBOX_AGENT_API_KEY` | API key for cloud mode authentication |
+| `GISELLE_SANDBOX_AGENT_BASE_URL` | Override the default cloud API endpoint |
+| `GISELLE_PROTECTION_PASSWORD` | App-level password protection |
+| `VERCEL_PROTECTION_BYPASS` | Bypass Vercel preview deployment protection |
+
+Redis URL is also read from these fallback env names: `REDIS_TLS_URL`, `KV_URL`, `UPSTASH_REDIS_TLS_URL`, `UPSTASH_REDIS_URL`.
+
+## Usage
+
+### Route Handler
 
 ```ts
-import { handleAgentRunner } from "@giselles-ai/agent";
+import { handleAgentRunner } from "@giselles-ai/sandbox-agent";
 
 export const runtime = "nodejs";
 
 const handler = handleAgentRunner({
   apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
-  baseUrl: "https://studio.giselles.ai/agent-api",
+  baseUrl: "https://studio.giselles.ai/agent-api", // default
 });
 
 export const POST = handler.POST;
 ```
 
-If `baseUrl` is not specified, `https://studio.giselles.ai/agent-api` is used as the default endpoint.
+### React Hook
 
-### Bridge behavior
+```tsx
+import { useAgent } from "@giselles-ai/sandbox-agent/react";
 
-- `POST /api/agent` (`agent.run`) is proxied through the user's Next.js to the Cloud API
-- `bridge.events` (SSE) and `bridge.respond` connect directly to `bridge.session.bridgeUrl`
+function Chat() {
+  const { status, messages, tools, error, sendMessage } = useAgent({
+    endpoint: "/api/agent",
+  });
 
-## Self-hosted Mode
+  return (
+    <button onClick={() => sendMessage({ message: "Fill out the form" })}>
+      Send
+    </button>
+  );
+}
+```
 
-### Required env
+### CLI
 
 ```bash
-GEMINI_API_KEY=...
-SANDBOX_SNAPSHOT_ID=...
-REDIS_URL=...
+npx @giselles-ai/agent-cli create
+npx @giselles-ai/agent-cli add-skill <path>
+npx @giselles-ai/agent-cli add-hosted-skill <slug>
+npx @giselles-ai/agent-cli edit-setup-script
+npx @giselles-ai/agent-cli build
+npx @giselles-ai/agent-cli delete [slug] [--force]
 ```
 
-Redis fallback env names:
+## Creating a Snapshot
 
-- `REDIS_TLS_URL`
-- `KV_URL`
-- `UPSTASH_REDIS_TLS_URL`
-- `UPSTASH_REDIS_URL`
-
-### Route handler (`@giselles-ai/agent-self`)
-
-```ts
-import { createAgentApiHandler } from "@giselles-ai/agent-self";
-
-export const runtime = "nodejs";
-
-const handler = createAgentApiHandler({
-  baseUrl: process.env.GISELLE_SANDBOX_AGENT_BASE_URL!,
-});
-
-export const GET = handler.GET;
-export const POST = handler.POST;
+```bash
+pnpm snapshot:browser-tool
 ```
 
-`baseUrl` is optional. If not specified, the self-hosted route uses
-`request.url.origin + request.url.pathname` (e.g., `https://localhost:3000/agent-api`) as the default.
-
-### Self proxy routing (`@giselles-ai/agent`)
-
-```ts
-import { handleAgentRunner } from "@giselles-ai/agent";
-
-export const runtime = "nodejs";
-
-const handler = handleAgentRunner({
-  baseUrl: "http://localhost:3000/agent-api",
-});
-
-export const POST = handler.POST;
-```
-
-## Client Hook
-
-```ts
-import { useAgent } from "@giselles-ai/agent/react";
-
-const { status, messages, tools, error, sendMessage } = useAgent({
-  endpoint: "/api/agent",
-});
-```
-
-## Create Sandbox Snapshot
-
-`pnpm snapshot:browser-tool` creates a snapshot containing:
-
-- `gemini` CLI
-- built `packages/browser-tool/dist/mcp-server/index.js`
-
-The script output displays recommended values for:
-
-- `SANDBOX_SNAPSHOT_ID`
-- `BROWSER_TOOL_SANDBOX_REPO_ROOT`
-- `BROWSER_TOOL_MCP_SERVER_DIST_PATH`
-- `BROWSER_TOOL_MCP_SERVER_CWD`
-- `BROWSER_TOOL_SKIP_SANDBOX_BUILD=1`
+Creates a Vercel Sandbox snapshot containing Gemini CLI and the built browser-tool MCP server. The script outputs the recommended values for `SANDBOX_SNAPSHOT_ID` and related env vars.
 
 ## Commands
 
-```bash
-pnpm dev
-pnpm build
-pnpm typecheck
-pnpm format
-pnpm snapshot:browser-tool
-pnpm sandbox:local:browser-tool
-```
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start the demo app |
+| `pnpm build` | Build all packages |
+| `pnpm typecheck` | Type-check all packages |
+| `pnpm format` | Format with Biome |
+| `pnpm snapshot:browser-tool` | Create a sandbox snapshot |
+| `pnpm sandbox:local:browser-tool` | Prepare local sandbox environment |
+| `pnpm mcp:check` | Run MCP smoke tests |
+| `pnpm knip` | Check for unused exports/dependencies |
+| `pnpm cli:release` | Release the CLI package |
+
+## License
+
+[Apache-2.0](LICENSE)
