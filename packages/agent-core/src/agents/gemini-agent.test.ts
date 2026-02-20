@@ -1,6 +1,5 @@
 import type { Sandbox } from "@vercel/sandbox";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createBrowserToolGeminiBridgeAgent } from "./browser-tool-gemini-bridge-agent";
 import { createGeminiAgent } from "./gemini-agent";
 
 const originalEnv = { ...process.env };
@@ -142,21 +141,5 @@ describe("createGeminiAgent", () => {
 			"--resume",
 			"gemini-session",
 		]);
-	});
-});
-
-describe("createBrowserToolGeminiBridgeAgent", () => {
-	it("is a compatibility wrapper over createGeminiAgent", () => {
-		const agent = createBrowserToolGeminiBridgeAgent({
-			snapshotId: "snapshot-fixed",
-			browserToolRelayUrl: "https://relay.example.com/agent-api/relay/",
-		});
-
-		const parsed = agent.requestSchema.safeParse({
-			message: "hello",
-			relay_session_id: "session",
-			relay_token: "token",
-		});
-		expect(parsed.success).toBe(true);
 	});
 });

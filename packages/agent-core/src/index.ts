@@ -1,8 +1,4 @@
 export {
-	type BrowserToolGeminiBridgeAgentOptions,
-	createBrowserToolGeminiBridgeAgent,
-} from "./agents/browser-tool-gemini-bridge-agent";
-export {
 	createGeminiAgent,
 	type GeminiAgentOptions,
 	type GeminiAgentRequest,
