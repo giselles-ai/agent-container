@@ -29,12 +29,15 @@ importers:
 
   packages/agent-core:
     dependencies:
-      '@giselles-ai/browser-tool':
-        specifier: workspace:*
-        version: link:../browser-tool
       '@vercel/sandbox':
         specifier: ^1.0.0
         version: 1.5.0
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -45,6 +48,12 @@ importers:
       '@types/node':
         specifier: 25.0.10
         version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
       tsup:
         specifier: 8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -60,6 +69,12 @@ importers:
       ioredis:
         specifier: ^5.9.2
         version: 5.9.2
+      react:
+        specifier: '>=19.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19.0.0'
+        version: 19.2.4(react@19.2.4)
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -67,6 +82,12 @@ importers:
       '@types/node':
         specifier: 25.0.10
         version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
       tsup:
         specifier: 8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -110,9 +131,6 @@ importers:
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool
-      '@giselles-ai/sandbox-agent':
-        specifier: workspace:*
-        version: link:../sandbox-agent
       '@giselles-ai/sandbox-agent-core':
         specifier: workspace:*
         version: link:../agent-core

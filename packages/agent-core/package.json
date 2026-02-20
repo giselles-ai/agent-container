@@ -17,6 +17,11 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
+		},
+		"./react": {
+			"types": "./dist/react/index.d.ts",
+			"import": "./dist/react/index.js",
+			"default": "./dist/react/index.js"
 		}
 	},
 	"scripts": {
@@ -27,13 +32,18 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@giselles-ai/browser-tool": "workspace:*",
 		"@vercel/sandbox": "^1.0.0",
 		"zod": "4.3.6"
+	},
+	"peerDependencies": {
+		"react": ">=19.0.0",
+		"react-dom": ">=19.0.0"
 	},
 	"devDependencies": {
 		"@google/gemini-cli-core": "^0.28.2",
 		"@types/node": "25.0.10",
+		"@types/react": "19.2.10",
+		"@types/react-dom": "19.2.3",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3"
 	}

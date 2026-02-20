@@ -1,6 +1,7 @@
 "use client";
 
-import { useAgent } from "@giselles-ai/sandbox-agent/react";
+import { browserTool } from "@giselles-ai/browser-tool/react";
+import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 function DemoForm() {
@@ -122,7 +123,12 @@ export default function GeminiBrowserToolPage() {
 		geminiSessionId,
 		error,
 		sendMessage,
-	} = useAgent({ endpoint: "/agent-api/run" });
+	} = useAgent({
+		endpoint: "/agent-api/run",
+		tools: {
+			browserTool: browserTool(),
+		},
+	});
 
 	const renderedMessages = useMemo(
 		() =>
