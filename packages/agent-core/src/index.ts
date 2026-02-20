@@ -4,6 +4,13 @@ export {
 	type GeminiAgentRequest,
 } from "./agents/gemini-agent";
 export {
+	createAgentRunHandler,
+	createGeminiRunHandler,
+	type AgentRunPayload,
+	type CreateAgentRunHandlerOptions,
+	type CreateGeminiRunHandlerOptions,
+} from "./run-handler";
+export {
 	type BaseChatRequest,
 	type ChatAgent,
 	type ChatCommand,

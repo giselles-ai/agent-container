@@ -22,8 +22,10 @@ export type GeminiAgentRequest = z.infer<typeof geminiRequestSchema>;
 
 export type GeminiAgentOptions = {
 	snapshotId?: string;
-	browserTool?: {
-		relayUrl?: string;
+	tools?: {
+		browser?: {
+			relayUrl?: string;
+		};
 	};
 };
 
@@ -130,9 +132,9 @@ async function patchGeminiSettingsTransportEnv(
 }
 
 function createGeminiRequestSchema(
-	browserToolEnabled: boolean,
+	browserEnabled: boolean,
 ): z.ZodType<GeminiAgentRequest> {
-	if (!browserToolEnabled) {
+	if (!browserEnabled) {
 		return geminiRequestSchema;
 	}
 
@@ -141,14 +143,14 @@ function createGeminiRequestSchema(
 			ctx.addIssue({
 				code: "custom",
 				path: ["relay_session_id"],
-				message: "relay_session_id is required when browserTool is enabled.",
+				message: "relay_session_id is required when tools.browser is enabled.",
 			});
 		}
 		if (!value.relay_token) {
 			ctx.addIssue({
 				code: "custom",
 				path: ["relay_token"],
-				message: "relay_token is required when browserTool is enabled.",
+				message: "relay_token is required when tools.browser is enabled.",
 			});
 		}
 	});
@@ -169,17 +171,17 @@ export function createGeminiAgent(
 	options: GeminiAgentOptions = {},
 ): ChatAgent<GeminiAgentRequest> {
 	const snapshotId = options.snapshotId?.trim() || resolveDefaultSnapshotId();
-	const browserToolEnabled = options.browserTool !== undefined;
+	const browserToolEnabled = options.tools?.browser !== undefined;
 	const browserToolRelayUrl = browserToolEnabled
 		? trimTrailingSlash(
 				(
-					options.browserTool?.relayUrl?.trim() ||
+					options.tools?.browser?.relayUrl?.trim() ||
 					resolveDefaultBrowserToolRelayUrl()
 				).trim(),
 			)
 		: undefined;
 	if (browserToolEnabled && !browserToolRelayUrl) {
-		throw new Error("browserTool.relayUrl is empty.");
+		throw new Error("tools.browser.relayUrl is empty.");
 	}
 
 	return {
@@ -190,7 +192,7 @@ export function createGeminiAgent(
 				return;
 			}
 			if (!browserToolRelayUrl) {
-				throw new Error("browserTool.relayUrl is empty.");
+				throw new Error("tools.browser.relayUrl is empty.");
 			}
 
 			const oidcToken =

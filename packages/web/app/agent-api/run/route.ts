@@ -9,8 +9,6 @@ import { z } from "zod";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const LOG_PREFIX = "[agent-run]";
-
 const agentRunSchema = z.object({
 	type: z.literal("agent.run"),
 	message: z.string().min(1),
@@ -18,6 +16,19 @@ const agentRunSchema = z.object({
 	session_id: z.string().min(1).optional(),
 	sandbox_id: z.string().min(1).optional(),
 });
+
+type AgentRunInput = z.infer<typeof agentRunSchema>;
+type RelaySession = Awaited<ReturnType<typeof createRelaySession>>;
+
+class InvalidRunInputError extends Error {
+	readonly detail: unknown;
+
+	constructor(detail: unknown) {
+		super("Invalid request payload.");
+		this.name = "InvalidRunInputError";
+		this.detail = detail;
+	}
+}
 
 function requiredEnv(name: string): string {
 	const value = process.env[name]?.trim();
@@ -31,6 +42,19 @@ function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
 }
 
+async function parseRunInput(request: Request): Promise<AgentRunInput> {
+	const payload = await request.json().catch(() => null);
+	const parsed = agentRunSchema.safeParse(payload);
+	if (!parsed.success) {
+		throw new InvalidRunInputError(parsed.error.flatten());
+	}
+	return parsed.data;
+}
+
+function resolveSnapshotId(_input: AgentRunInput, _request: Request): string {
+	return requiredEnv("SANDBOX_SNAPSHOT_ID");
+}
+
 function resolveRelayUrl(request: Request): string {
 	const configuredRelayUrl = process.env.BROWSER_TOOL_RELAY_URL?.trim();
 	if (configuredRelayUrl) {
@@ -40,26 +64,40 @@ function resolveRelayUrl(request: Request): string {
 	return `${new URL(request.url).origin}/agent-api/relay`;
 }
 
+function createGeminiSandboxAgent(input: {
+	snapshotId: string;
+	relayUrl: string;
+}) {
+	return createGeminiAgent({
+		snapshotId: input.snapshotId,
+		tools: {
+			browser: {
+				relayUrl: input.relayUrl,
+			},
+		},
+	});
+}
+
 function createGeminiRequest(input: {
 	request: Request;
-	payload: z.infer<typeof agentRunSchema>;
-	session: { sessionId: string; token: string };
+	runInput: AgentRunInput;
+	session: RelaySession;
 }): Request {
 	const headers = new Headers(input.request.headers);
 	headers.set("content-type", "application/json");
 
-	const trimmedDocument = input.payload.document?.trim();
+	const trimmedDocument = input.runInput.document?.trim();
 	const message = trimmedDocument
-		? `${input.payload.message.trim()}\n\nDocument:\n${trimmedDocument}`
-		: input.payload.message.trim();
+		? `${input.runInput.message.trim()}\n\nDocument:\n${trimmedDocument}`
+		: input.runInput.message.trim();
 
 	return new Request(input.request.url, {
 		method: "POST",
 		headers,
 		body: JSON.stringify({
 			message,
-			session_id: input.payload.session_id,
-			sandbox_id: input.payload.sandbox_id,
+			session_id: input.runInput.session_id,
+			sandbox_id: input.runInput.sandbox_id,
 			relay_session_id: input.session.sessionId,
 			relay_token: input.session.token,
 		}),
@@ -69,7 +107,7 @@ function createGeminiRequest(input: {
 
 function mergeRelaySessionStream(input: {
 	chatResponse: Response;
-	session: { sessionId: string; token: string; expiresAt: number };
+	session: RelaySession;
 	relayUrl: string;
 }): Response {
 	if (!input.chatResponse.body) {
@@ -124,49 +162,53 @@ function mergeRelaySessionStream(input: {
 	});
 }
 
+async function runAgentStreamResponse(input: {
+	request: Request;
+	agent: ReturnType<typeof createGeminiSandboxAgent>;
+	runInput: AgentRunInput;
+}): Promise<Response> {
+	const session = await createRelaySession();
+	const chatHandler = createChatHandler({ agent: input.agent });
+	const relayUrl = resolveRelayUrl(input.request);
+	const chatRequest = createGeminiRequest({
+		request: input.request,
+		runInput: input.runInput,
+		session,
+	});
+	const chatResponse = await chatHandler(chatRequest);
+	return mergeRelaySessionStream({
+		chatResponse,
+		session,
+		relayUrl,
+	});
+}
+
 export async function POST(request: Request): Promise<Response> {
-	const payload = await request.json().catch(() => null);
-	const parsed = agentRunSchema.safeParse(payload);
-
-	if (!parsed.success) {
-		return Response.json(
-			{
-				ok: false,
-				errorCode: "INVALID_RESPONSE",
-				message: "Invalid request payload.",
-				error: parsed.error.flatten(),
-			},
-			{ status: 400 },
-		);
-	}
-
 	try {
-		const relayUrl = resolveRelayUrl(request);
-		const chatHandler = createChatHandler({
-			agent: createGeminiAgent({
-				snapshotId: requiredEnv("SANDBOX_SNAPSHOT_ID"),
-				browserTool: {
-					relayUrl,
-				},
-			}),
+		const input = await parseRunInput(request);
+		const agent = createGeminiSandboxAgent({
+			snapshotId: resolveSnapshotId(input, request),
+			relayUrl: resolveRelayUrl(request),
 		});
-		const session = await createRelaySession();
-		console.info(`${LOG_PREFIX} run.session.created`, {
-			sessionId: session.sessionId,
-		});
-		const chatRequest = createGeminiRequest({
-			request,
-			payload: parsed.data,
-			session,
-		});
-		const chatResponse = await chatHandler(chatRequest);
 
-		return mergeRelaySessionStream({
-			chatResponse,
-			session,
-			relayUrl,
+		return await runAgentStreamResponse({
+			request,
+			agent,
+			runInput: input,
 		});
 	} catch (error) {
+		if (error instanceof InvalidRunInputError) {
+			return Response.json(
+				{
+					ok: false,
+					errorCode: "INVALID_RESPONSE",
+					message: error.message,
+					error: error.detail,
+				},
+				{ status: 400 },
+			);
+		}
+
 		const relayError = toRelayError(error);
 		return Response.json(
 			{ ok: false, errorCode: relayError.code, message: relayError.message },

@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 describe("createGeminiAgent", () => {
-	it("does not require relay fields when browserTool is disabled", async () => {
+	it("does not require relay fields when tools.browser is disabled", async () => {
 		process.env.GEMINI_API_KEY = "gemini-api-key";
 
 		const readFileToBuffer = vi.fn(async () => Buffer.from("{}"));
@@ -46,11 +46,13 @@ describe("createGeminiAgent", () => {
 		expect(writeFiles).not.toHaveBeenCalled();
 	});
 
-	it("requires relay fields when browserTool is configured", () => {
+	it("requires relay fields when tools.browser is configured", () => {
 		const agent = createGeminiAgent({
 			snapshotId: "snapshot-fixed",
-			browserTool: {
-				relayUrl: "https://relay.example.com/agent-api/relay/",
+			tools: {
+				browser: {
+					relayUrl: "https://relay.example.com/agent-api/relay/",
+				},
 			},
 		});
 
@@ -60,7 +62,7 @@ describe("createGeminiAgent", () => {
 		expect(parsed.success).toBe(false);
 	});
 
-	it("patches MCP env with relay credentials when browserTool is configured", async () => {
+	it("patches MCP env with relay credentials when tools.browser is configured", async () => {
 		process.env.VERCEL_OIDC_TOKEN = "oidc-token";
 		process.env.VERCEL_PROTECTION_BYPASS = "vercel-bypass";
 		process.env.GISELLE_PROTECTION_PASSWORD = "giselle-bypass";
@@ -91,8 +93,10 @@ describe("createGeminiAgent", () => {
 
 		const agent = createGeminiAgent({
 			snapshotId: "snapshot-fixed",
-			browserTool: {
-				relayUrl: "https://relay.example.com/agent-api/relay/",
+			tools: {
+				browser: {
+					relayUrl: "https://relay.example.com/agent-api/relay/",
+				},
 			},
 		});
 		expect(agent.snapshotId).toBe("snapshot-fixed");
