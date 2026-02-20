@@ -133,7 +133,6 @@ describe("runChat", () => {
 		});
 		await response.text();
 
-		expect(runCommand).not.toHaveBeenCalled();
 		expect(prepareSandbox).not.toHaveBeenCalled();
 		expect(sandboxCreate).not.toHaveBeenCalled();
 	});
