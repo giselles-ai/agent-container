@@ -14,6 +14,17 @@ import {
 
 const LOG_PREFIX = "[relay-handler]";
 
+function corsHeaders(request: Request): Record<string, string> {
+	const origin = request.headers.get("origin");
+	return {
+		"Access-Control-Allow-Origin": origin || "*",
+		"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+		"Access-Control-Allow-Headers":
+			"Content-Type, Authorization, x-vercel-protection-bypass, x-giselle-protection-bypass",
+		"Access-Control-Max-Age": "86400",
+	};
+}
+
 const dispatchSchema = z.object({
 	type: z.literal("relay.dispatch"),
 	sessionId: z.string().min(1),
@@ -34,15 +45,8 @@ const postBodySchema = z.discriminatedUnion("type", [
 	respondSchema,
 ]);
 
-function createSafeError(
-	code: string,
-	message: string,
-	status: number,
-): Response {
-	return Response.json({ ok: false, errorCode: code, message }, { status });
-}
-
 function createRelayEventsRoute(request: Request): Promise<Response> {
+	const cors = corsHeaders(request);
 	const url = new URL(request.url);
 	const sessionId = url.searchParams.get("sessionId") ?? "";
 	const token = url.searchParams.get("token") ?? "";
@@ -54,7 +58,7 @@ function createRelayEventsRoute(request: Request): Promise<Response> {
 					errorCode: "UNAUTHORIZED",
 					message: "sessionId and token are required.",
 				},
-				{ status: 401 },
+				{ status: 401, headers: cors },
 			),
 		);
 	}
@@ -196,6 +200,7 @@ function createRelayEventsRoute(request: Request): Promise<Response> {
 					Connection: "keep-alive",
 					"X-Accel-Buffering": "no",
 					"Content-Encoding": "none",
+					...cors,
 				},
 			});
 		})
@@ -210,17 +215,25 @@ function createRelayEventsRoute(request: Request): Promise<Response> {
 					errorCode: relayError.code,
 					message: relayError.message,
 				},
-				{ status: relayError.status },
+				{ status: relayError.status, headers: cors },
 			);
 		});
 }
 
 async function createRelayPostRoute(request: Request): Promise<Response> {
+	const cors = corsHeaders(request);
 	const payload = await request.json().catch(() => null);
 	const parsed = postBodySchema.safeParse(payload);
 
 	if (!parsed.success) {
-		return createSafeError("INVALID_RESPONSE", "Invalid request payload.", 400);
+		return Response.json(
+			{
+				ok: false,
+				errorCode: "INVALID_RESPONSE",
+				message: "Invalid request payload.",
+			},
+			{ status: 400, headers: cors },
+		);
 	}
 
 	if (parsed.data.type === "relay.dispatch") {
@@ -231,13 +244,12 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 				request: parsed.data.request,
 				timeoutMs: parsed.data.timeoutMs,
 			});
-			return Response.json({ ok: true, response });
+			return Response.json({ ok: true, response }, { headers: cors });
 		} catch (error) {
 			const relayError = toRelayError(error);
-			return createSafeError(
-				relayError.code,
-				relayError.message,
-				relayError.status,
+			return Response.json(
+				{ ok: false, errorCode: relayError.code, message: relayError.message },
+				{ status: relayError.status, headers: cors },
 			);
 		}
 	}
@@ -248,13 +260,12 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 			token: parsed.data.token,
 			response: parsed.data.response,
 		});
-		return Response.json({ ok: true });
+		return Response.json({ ok: true }, { headers: cors });
 	} catch (error) {
 		const relayError = toRelayError(error);
-		return createSafeError(
-			relayError.code,
-			relayError.message,
-			relayError.status,
+		return Response.json(
+			{ ok: false, errorCode: relayError.code, message: relayError.message },
+			{ status: relayError.status, headers: cors },
 		);
 	}
 }
@@ -262,10 +273,13 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 export function createRelayHandler(): {
 	GET: (request: Request) => Promise<Response>;
 	POST: (request: Request) => Promise<Response>;
+	OPTIONS: (request: Request) => Response;
 } {
 	return {
 		GET: async (request: Request): Promise<Response> =>
 			createRelayEventsRoute(request),
 		POST: createRelayPostRoute,
+		OPTIONS: (request: Request): Response =>
+			new Response(null, { status: 204, headers: corsHeaders(request) }),
 	};
 }
