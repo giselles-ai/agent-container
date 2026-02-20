@@ -1,109 +1,33 @@
 import { Writable } from "node:stream";
-import type { MCPServerConfig } from "@google/gemini-cli-core";
 import { Sandbox } from "@vercel/sandbox";
-import { z } from "zod";
+import type { z } from "zod";
 
-const GEMINI_SETTINGS_PATH = "/home/vercel-sandbox/.gemini/settings.json";
+export type BaseChatRequest = {
+	message: string;
+	session_id?: string;
+	sandbox_id?: string;
+};
 
-interface GeminiSettings {
-	mcpServers?: Record<string, MCPServerConfig>;
-	[key: string]: unknown;
-}
+export type ChatCommand = {
+	cmd: string;
+	args: string[];
+	env?: Record<string, string>;
+};
 
-const requestSchema = z.object({
-	message: z.string().min(1),
-	session_id: z.string().min(1).optional(),
-	sandbox_id: z.string().min(1).optional(),
-	relay_session_id: z.string().min(1),
-	relay_token: z.string().min(1),
-});
+export type ChatAgent<TRequest extends BaseChatRequest> = {
+	requestSchema: z.ZodType<TRequest>;
+	snapshotId?: string;
+	prepareSandbox(input: {
+		request: Request;
+		parsed: TRequest;
+		sandbox: Sandbox;
+	}): Promise<void>;
+	createCommand(input: { request: Request; parsed: TRequest }): ChatCommand;
+};
 
-function requiredEnv(name: string): string {
-	const value = process.env[name]?.trim();
-	if (!value) {
-		throw new Error(`Missing required environment variable: ${name}`);
-	}
-	return value;
-}
-
-function extractTokenFromRequest(request: Request): string | undefined {
-	const oidcToken = request.headers.get("x-vercel-oidc-token")?.trim();
-	if (oidcToken) {
-		return oidcToken;
-	}
-
-	const authorization = request.headers.get("authorization")?.trim();
-	if (!authorization) {
-		return undefined;
-	}
-
-	if (/^bearer\s+/i.test(authorization)) {
-		return authorization.replace(/^bearer\s+/i, "").trim();
-	}
-
-	return authorization;
-}
-
-function buildMcpEnv(input: {
-	relayUrl: string;
-	relaySessionId: string;
-	relayToken: string;
-	oidcToken?: string;
-	vercelProtectionBypass?: string;
-	giselleProtectionBypass?: string;
-}): Record<string, string> {
-	const env: Record<string, string> = {
-		BROWSER_TOOL_RELAY_URL: input.relayUrl,
-		BROWSER_TOOL_RELAY_SESSION_ID: input.relaySessionId,
-		BROWSER_TOOL_RELAY_TOKEN: input.relayToken,
-	};
-
-	if (input.oidcToken) {
-		env.VERCEL_OIDC_TOKEN = input.oidcToken;
-	}
-
-	if (input.vercelProtectionBypass?.trim()) {
-		env.VERCEL_PROTECTION_BYPASS = input.vercelProtectionBypass.trim();
-	}
-
-	if (input.giselleProtectionBypass?.trim()) {
-		env.GISELLE_PROTECTION_BYPASS = input.giselleProtectionBypass.trim();
-	}
-
-	return env;
-}
-
-async function patchGeminiSettingsEnv(
-	sandbox: Sandbox,
-	mcpEnv: Record<string, string>,
-): Promise<void> {
-	const buffer = await sandbox.readFileToBuffer({
-		path: GEMINI_SETTINGS_PATH,
-	});
-	if (!buffer) {
-		throw new Error(
-			`Gemini settings not found in sandbox at ${GEMINI_SETTINGS_PATH}. Ensure the snapshot contains a pre-configured settings.json.`,
-		);
-	}
-
-	const settings: GeminiSettings = JSON.parse(new TextDecoder().decode(buffer));
-
-	if (settings.mcpServers) {
-		settings.mcpServers = Object.fromEntries(
-			Object.entries(settings.mcpServers).map(([key, server]) => [
-				key,
-				{ ...server, env: { ...server.env, ...mcpEnv } },
-			]),
-		);
-	}
-
-	await sandbox.writeFiles([
-		{
-			path: GEMINI_SETTINGS_PATH,
-			content: Buffer.from(JSON.stringify(settings, null, 2)),
-		},
-	]);
-}
+export type CreateChatHandlerOptions<TRequest extends BaseChatRequest> = {
+	agent: ChatAgent<TRequest>;
+};
 
 function emitText(
 	controller: ReadableStreamDefaultController<Uint8Array>,
@@ -124,18 +48,12 @@ function emitEvent(
 	emitText(controller, `${JSON.stringify(payload)}\n`, encoder);
 }
 
-type GeminiChatRouteOptions = {
-	requestParser?: typeof requestSchema;
-};
-
-export function createGeminiChatHandler(
-	_options: GeminiChatRouteOptions = {},
+export function createChatHandler<TRequest extends BaseChatRequest>(
+	options: CreateChatHandlerOptions<TRequest>,
 ): (request: Request) => Promise<Response> {
-	const requestParser = requestSchema;
-
 	return async function POST(request: Request): Promise<Response> {
 		const payload = await request.json().catch(() => null);
-		const parsed = requestParser.safeParse(payload);
+		const parsed = options.agent.requestSchema.safeParse(payload);
 
 		if (!parsed.success) {
 			return Response.json(
@@ -196,74 +114,39 @@ export function createGeminiChatHandler(
 				};
 
 				(async () => {
-					const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-					const sandboxSnapshotId = requiredEnv("SANDBOX_SNAPSHOT_ID");
-					const oidcToken =
-						extractTokenFromRequest(request) ??
-						process.env.VERCEL_OIDC_TOKEN ??
-						"";
-					if (!oidcToken) {
-						throw new Error(
-							"Planner authentication is required: set OIDC token in x-vercel-oidc-token or VERCEL_OIDC_TOKEN.",
-						);
-					}
-					const vercelProtectionBypass =
-						process.env.VERCEL_PROTECTION_BYPASS?.trim() || undefined;
-					const giselleProtectionBypass =
-						process.env.GISELLE_PROTECTION_PASSWORD?.trim() || undefined;
+					const sandbox = parsed.data.sandbox_id
+						? await Sandbox.get({ sandboxId: parsed.data.sandbox_id })
+						: await (async () => {
+								const snapshotId = options.agent.snapshotId?.trim();
+								if (!snapshotId) {
+									throw new Error(
+										"Agent must provide snapshotId when sandbox_id is not provided.",
+									);
+								}
 
-					const relayUrl =
-						process.env.BROWSER_TOOL_RELAY_URL?.trim() ||
-						new URL(request.url).origin;
-
-					const {
-						message,
-						session_id: sessionId,
-						sandbox_id: sandboxId,
-						relay_session_id: relaySessionId,
-						relay_token: relayToken,
-					} = parsed.data;
-
-					const sandbox = sandboxId
-						? await Sandbox.get({ sandboxId })
-						: await Sandbox.create({
-								source: {
-									type: "snapshot",
-									snapshotId: sandboxSnapshotId,
-								},
-							});
+								return Sandbox.create({
+									source: {
+										type: "snapshot",
+										snapshotId,
+									},
+								});
+							})();
 
 					enqueueEvent({ type: "sandbox", sandbox_id: sandbox.sandboxId });
-
-					const mcpEnv = buildMcpEnv({
-						relayUrl,
-						relaySessionId,
-						relayToken,
-						oidcToken,
-						vercelProtectionBypass,
-						giselleProtectionBypass,
+					await options.agent.prepareSandbox({
+						request,
+						parsed: parsed.data,
+						sandbox,
+					});
+					const command = options.agent.createCommand({
+						request,
+						parsed: parsed.data,
 					});
 
-					await patchGeminiSettingsEnv(sandbox, mcpEnv);
-
-					const args = [
-						"--prompt",
-						message,
-						"--output-format",
-						"stream-json",
-						"--approval-mode",
-						"yolo",
-					];
-					if (sessionId) {
-						args.push("--resume", sessionId);
-					}
-
 					await sandbox.runCommand({
-						cmd: "gemini",
-						args,
-						env: {
-							GEMINI_API_KEY: geminiApiKey,
-						},
+						cmd: command.cmd,
+						args: command.args,
+						env: command.env ?? {},
 						stdout: new Writable({
 							write(chunk, _encoding, callback) {
 								const text =

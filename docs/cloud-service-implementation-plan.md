@@ -252,7 +252,8 @@ export {
   touchBridgeBrowserConnected,
 } from "./bridge-broker";
 
-export { createGeminiChatHandler } from "./chat-handler";
+export { createChatHandler } from "./chat-handler";
+export { createGeminiAgent } from "./agents/gemini-agent";
 ```
 
 #### File moves
@@ -493,7 +494,10 @@ Published npm package. For self-hosted mode. Inherits the server-side logic from
 Move the current `packages/agent/src/index.ts` mostly as-is. Change imports to use `@giselles-ai/agent-core`.
 
 ```ts
-import { createGeminiChatHandler } from "@giselles-ai/agent-core";
+import {
+  createGeminiAgent,
+  createChatHandler,
+} from "@giselles-ai/agent-core";
 import {
   assertBridgeSession,
   BRIDGE_SSE_KEEPALIVE_INTERVAL_MS,
@@ -549,7 +553,7 @@ The Cloud API service operated by Giselles.
 
 #### Responsibilities
 
-1. Receive `agent.run` POST and execute Sandbox + Gemini CLI via `agent-core`'s `createGeminiChatHandler`
+1. Receive `agent.run` POST and execute Sandbox + Gemini CLI via `agent-core`'s `createChatHandler` + `createGeminiAgent`
 2. Provide SSE (`bridge.events` GET)
 3. Handle `bridge.dispatch` / `bridge.respond` POST
 4. Validate `Authorization: Bearer <API_KEY>` (Giselle Cloud API Key)
@@ -729,7 +733,7 @@ GISELLE_CLOUD_API_ENDPOINT=https://studio.giselles.ai/api/...
 |---|---|---|
 | 4-1 | Create `apps/cloud-api/` | New app |
 | 4-2 | Implement HTTP server + routing | New files |
-| 4-3 | `agent.run` handler: API Key validation + call `agent-core`'s `createGeminiChatHandler` + inject `bridgeUrl` | New files |
+| 4-3 | `agent.run` handler: API Key validation + call `agent-core`'s `createChatHandler` + `createGeminiAgent` + inject `bridgeUrl` | New files |
 | 4-4 | SSE (`bridge.events`) handler: port existing `createBridgeEventsRoute` | New files |
 | 4-5 | `bridge.dispatch` / `bridge.respond` handler: port existing logic | New files |
 | 4-6 | Add CORS middleware | New files |

@@ -1,5 +1,6 @@
 import {
-	createGeminiChatHandler,
+	createChatHandler,
+	createGeminiAgent,
 	createRelaySession,
 	toRelayError,
 } from "@giselles-ai/sandbox-agent-core";
@@ -19,17 +20,25 @@ const agentRunSchema = z.object({
 	sandbox_id: z.string().min(1).optional(),
 });
 
+function requiredEnv(name: string): string {
+	const value = process.env[name]?.trim();
+	if (!value) {
+		throw new Error(`Missing required environment variable: ${name}`);
+	}
+	return value;
+}
+
 function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
 }
 
-function resolveCloudApiOrigin(request: Request): string {
+function resolveRelayUrl(request: Request): string {
 	const configuredOrigin = process.env.CLOUD_API_ORIGIN?.trim();
 	if (configuredOrigin) {
-		return trimTrailingSlash(configuredOrigin);
+		return `${trimTrailingSlash(configuredOrigin)}/agent-api/relay`;
 	}
 
-	return new URL(request.url).origin;
+	return `${new URL(request.url).origin}/agent-api/relay`;
 }
 
 function createGeminiRequest(input: {
@@ -145,7 +154,15 @@ export async function POST(request: Request): Promise<Response> {
 	}
 
 	try {
-		const chatHandler = createGeminiChatHandler();
+		const relayUrl = resolveRelayUrl(request);
+		const chatHandler = createChatHandler({
+			agent: createGeminiAgent({
+				snapshotId: requiredEnv("SANDBOX_SNAPSHOT_ID"),
+				browserTool: {
+					relayUrl,
+				},
+			}),
+		});
 		const session = await createRelaySession();
 		console.info(`${LOG_PREFIX} run.session.created`, {
 			sessionId: session.sessionId,
@@ -156,12 +173,11 @@ export async function POST(request: Request): Promise<Response> {
 			session,
 		});
 		const chatResponse = await chatHandler(chatRequest);
-		const cloudApiOrigin = resolveCloudApiOrigin(request);
 
 		const response = mergeRelaySessionStream({
 			chatResponse,
 			session,
-			relayUrl: `${cloudApiOrigin}/agent-api/relay`,
+			relayUrl,
 		});
 		return withCors(response);
 	} catch (error) {

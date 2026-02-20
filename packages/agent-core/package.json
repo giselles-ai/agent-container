@@ -23,6 +23,7 @@
 		"build": "pnpm clean && tsup --config tsup.ts",
 		"clean": "rm -rf dist *.tsbuildinfo",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "pnpm exec vitest run",
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {

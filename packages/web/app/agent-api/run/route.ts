@@ -1,5 +1,6 @@
 import {
-	createGeminiChatHandler,
+	createChatHandler,
+	createGeminiAgent,
 	createRelaySession,
 	toRelayError,
 } from "@giselles-ai/sandbox-agent-core";
@@ -17,6 +18,27 @@ const agentRunSchema = z.object({
 	session_id: z.string().min(1).optional(),
 	sandbox_id: z.string().min(1).optional(),
 });
+
+function requiredEnv(name: string): string {
+	const value = process.env[name]?.trim();
+	if (!value) {
+		throw new Error(`Missing required environment variable: ${name}`);
+	}
+	return value;
+}
+
+function trimTrailingSlash(value: string): string {
+	return value.replace(/\/+$/, "");
+}
+
+function resolveRelayUrl(request: Request): string {
+	const configuredRelayUrl = process.env.BROWSER_TOOL_RELAY_URL?.trim();
+	if (configuredRelayUrl) {
+		return trimTrailingSlash(configuredRelayUrl);
+	}
+
+	return `${new URL(request.url).origin}/agent-api/relay`;
+}
 
 function createGeminiRequest(input: {
 	request: Request;
@@ -119,7 +141,15 @@ export async function POST(request: Request): Promise<Response> {
 	}
 
 	try {
-		const chatHandler = createGeminiChatHandler();
+		const relayUrl = resolveRelayUrl(request);
+		const chatHandler = createChatHandler({
+			agent: createGeminiAgent({
+				snapshotId: requiredEnv("SANDBOX_SNAPSHOT_ID"),
+				browserTool: {
+					relayUrl,
+				},
+			}),
+		});
 		const session = await createRelaySession();
 		console.info(`${LOG_PREFIX} run.session.created`, {
 			sessionId: session.sessionId,
@@ -130,10 +160,6 @@ export async function POST(request: Request): Promise<Response> {
 			session,
 		});
 		const chatResponse = await chatHandler(chatRequest);
-		if (process.env.BROWSER_TOOL_RELAY_URL === undefined) {
-			throw new Error("BROWSER_TOOL_RELAY_URL is not defined");
-		}
-		const relayUrl = process.env.BROWSER_TOOL_RELAY_URL.trim();
 
 		return mergeRelaySessionStream({
 			chatResponse,
