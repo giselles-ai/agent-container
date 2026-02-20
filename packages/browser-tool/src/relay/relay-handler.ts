@@ -1,8 +1,5 @@
-import {
-	relayRequestSchema,
-	relayResponseSchema,
-} from "@giselles-ai/browser-tool";
 import { z } from "zod";
+import { relayRequestSchema, relayResponseSchema } from "../types";
 import {
 	assertRelaySession,
 	createRelaySubscriber,
@@ -130,7 +127,7 @@ function createRelayEventsRoute(request: Request): Promise<Response> {
 					request.signal.addEventListener("abort", onAbort);
 					sendSseComment("connected");
 
-					subscriber.on("message", (channel, message) => {
+					subscriber.on("message", (channel: string, message: string) => {
 						if (closed || channel !== requestChannel) {
 							return;
 						}
@@ -150,7 +147,7 @@ function createRelayEventsRoute(request: Request): Promise<Response> {
 						}
 					});
 
-					subscriber.on("error", (error) => {
+					subscriber.on("error", (error: unknown) => {
 						if (closed) {
 							return;
 						}

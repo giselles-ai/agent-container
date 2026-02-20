@@ -6,8 +6,3 @@ export {
 	type RunChatInput,
 	runChat,
 } from "./chat-run";
-export { createRelayHandler } from "./relay-handler";
-export {
-	createRelaySession,
-	toRelayError,
-} from "./relay-store";

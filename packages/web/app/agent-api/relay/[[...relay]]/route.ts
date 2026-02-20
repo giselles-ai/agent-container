@@ -1,4 +1,4 @@
-import { createRelayHandler } from "@giselles-ai/sandbox-agent-core";
+import { createRelayHandler } from "@giselles-ai/browser-tool/relay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

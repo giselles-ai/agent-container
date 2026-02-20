@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
+import Redis from "ioredis";
 import {
 	type RelayErrorCode,
 	type RelayRequest,
 	type RelayResponse,
 	relayResponseSchema,
-} from "@giselles-ai/browser-tool";
-import Redis from "ioredis";
+} from "../types";
 
 const DEFAULT_SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_REQUEST_TTL_SEC = 60;

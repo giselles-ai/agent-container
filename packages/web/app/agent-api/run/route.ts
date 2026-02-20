@@ -1,9 +1,8 @@
 import {
-	createGeminiAgent,
 	createRelaySession,
-	runChat,
 	toRelayError,
-} from "@giselles-ai/sandbox-agent-core";
+} from "@giselles-ai/browser-tool/relay";
+import { createGeminiAgent, runChat } from "@giselles-ai/sandbox-agent-core";
 import { z } from "zod";
 
 export const runtime = "nodejs";

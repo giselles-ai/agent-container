@@ -19,4 +19,10 @@ export default defineConfig([
 		format: ["esm"],
 		dts: true,
 	},
+	{
+		entry: ["src/relay/index.ts"],
+		outDir: "dist/relay",
+		format: ["esm"],
+		dts: true,
+	},
 ]);

@@ -27,6 +27,11 @@
 			"types": "./dist/mcp-server/index.d.ts",
 			"import": "./dist/mcp-server/index.js",
 			"default": "./dist/mcp-server/index.js"
+		},
+		"./relay": {
+			"types": "./dist/relay/index.d.ts",
+			"import": "./dist/relay/index.js",
+			"default": "./dist/relay/index.js"
 		}
 	},
 	"scripts": {
@@ -37,6 +42,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.0.0",
+		"ioredis": "^5.9.2",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {
