@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ChatAgent } from "./chat-handler";
 import {
+	type AgentRunPayload,
 	createAgentRunHandler,
 	createGeminiRunHandler,
-	type AgentRunPayload,
 } from "./run-handler";
 
 const {
@@ -113,7 +113,7 @@ describe("createAgentRunHandler", () => {
 	it("returns 400 JSON when payload is invalid", async () => {
 		const handler = createAgentRunHandler({
 			payloadSchema: createPayloadSchema(),
-			createAgent: () => ({} as ChatAgent<{ message: string }>),
+			createAgent: () => ({}) as ChatAgent<{ message: string }>,
 			mapToChatPayload: () => ({ message: "unused" }),
 		});
 
@@ -229,7 +229,7 @@ describe("createAgentRunHandler", () => {
 
 		const handler = createAgentRunHandler({
 			payloadSchema: createPayloadSchema(),
-			createAgent: () => ({} as ChatAgent<{ message: string }>),
+			createAgent: () => ({}) as ChatAgent<{ message: string }>,
 			mapToChatPayload: ({ payload }) => ({ message: payload.message }),
 		});
 
@@ -272,7 +272,8 @@ describe("createGeminiRunHandler", () => {
 			}>,
 		);
 		createChatHandlerMock.mockImplementation(
-			() => async () => createStreamResponse(JSON.stringify({ type: "message" })),
+			() => async () =>
+				createStreamResponse(JSON.stringify({ type: "message" })),
 		);
 		toRelayErrorMock.mockImplementation((error: unknown) => ({
 			code: "INTERNAL",

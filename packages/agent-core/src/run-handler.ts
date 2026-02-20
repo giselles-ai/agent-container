@@ -24,21 +24,22 @@ export type AgentRunPayload = z.infer<typeof agentRunSchema>;
 
 type RelaySession = Awaited<ReturnType<typeof createRelaySession>>;
 
-export type CreateAgentRunHandlerOptions<TChatRequest extends BaseChatRequest> = {
-	payloadSchema: z.ZodType<AgentRunPayload>;
-	createAgent(input: {
-		request: Request;
-		payload: AgentRunPayload;
-		relayUrl: string;
-	}): ChatAgent<TChatRequest>;
-	mapToChatPayload(input: {
-		request: Request;
-		payload: AgentRunPayload;
-		session: RelaySession;
-	}): TChatRequest;
-	resolveRelayUrl?: (request: Request) => string;
-	logPrefix?: string;
-};
+export type CreateAgentRunHandlerOptions<TChatRequest extends BaseChatRequest> =
+	{
+		payloadSchema: z.ZodType<AgentRunPayload>;
+		createAgent(input: {
+			request: Request;
+			payload: AgentRunPayload;
+			relayUrl: string;
+		}): ChatAgent<TChatRequest>;
+		mapToChatPayload(input: {
+			request: Request;
+			payload: AgentRunPayload;
+			session: RelaySession;
+		}): TChatRequest;
+		resolveRelayUrl?: (request: Request) => string;
+		logPrefix?: string;
+	};
 
 export type CreateGeminiRunHandlerOptions = {
 	snapshotId?: string;
@@ -160,9 +161,12 @@ export function createAgentRunHandler<TChatRequest extends BaseChatRequest>(
 				}
 
 				const session = await createRelaySession();
-				console.info(`${options.logPrefix ?? DEFAULT_LOG_PREFIX} run.session.created`, {
-					sessionId: session.sessionId,
-				});
+				console.info(
+					`${options.logPrefix ?? DEFAULT_LOG_PREFIX} run.session.created`,
+					{
+						sessionId: session.sessionId,
+					},
+				);
 
 				const chatHandler = createChatHandler({
 					agent: options.createAgent({
@@ -190,7 +194,11 @@ export function createAgentRunHandler<TChatRequest extends BaseChatRequest>(
 			} catch (error) {
 				const relayError = toRelayError(error);
 				return Response.json(
-					{ ok: false, errorCode: relayError.code, message: relayError.message },
+					{
+						ok: false,
+						errorCode: relayError.code,
+						message: relayError.message,
+					},
 					{ status: relayError.status },
 				);
 			}
