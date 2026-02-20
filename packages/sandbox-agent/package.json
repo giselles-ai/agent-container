@@ -32,7 +32,7 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@vercel/sandbox": "^1.0.0",
+		"@vercel/sandbox": "1.6.0",
 		"zod": "4.3.6"
 	},
 	"peerDependencies": {
@@ -40,9 +40,9 @@
 		"react-dom": ">=19.0.0"
 	},
 	"devDependencies": {
-		"@google/gemini-cli-core": "^0.28.2",
-		"@types/node": "25.0.10",
-		"@types/react": "19.2.10",
+		"@google/gemini-cli-core": "0.29.5",
+		"@types/node": "25.3.0",
+		"@types/react": "19.2.14",
 		"@types/react-dom": "19.2.3",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3"
