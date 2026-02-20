@@ -44,7 +44,6 @@ jobs:
             const fs = require('fs');
             const paths = [
               'packages/browser-tool/package.json',
-              'packages/agent-core/package.json',
               'packages/sandbox-agent/package.json',
             ];
             const bump = '${{ inputs.bump }}';
@@ -70,7 +69,6 @@ jobs:
             const fs = require('fs');
             const paths = [
               'packages/browser-tool/package.json',
-              'packages/agent-core/package.json',
               'packages/sandbox-agent/package.json',
             ];
             const pkgs = paths.map(p => JSON.parse(fs.readFileSync(p, 'utf8')));
@@ -93,10 +91,6 @@ jobs:
         working-directory: packages/browser-tool
         run: npm publish --provenance --access public
 
-      - name: Publish @giselles-ai/sandbox-agent-core
-        working-directory: packages/agent-core
-        run: npm publish --provenance --access public
-
       - name: Publish @giselles-ai/sandbox-agent
         working-directory: packages/sandbox-agent
         run: npm publish --provenance --access public
@@ -110,7 +104,7 @@ jobs:
           node -e "
             const fs = require('fs');
             const paths = [
-              'packages/agent-core/package.json',
+              'packages/browser-tool/package.json',
               'packages/sandbox-agent/package.json',
             ];
             for (const p of paths) {
@@ -131,7 +125,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/browser-tool/package.json packages/agent-core/package.json packages/sandbox-agent/package.json
+          git add packages/browser-tool/package.json packages/sandbox-agent/package.json
           git commit -m "Release v$VERSION"
           git tag "v$VERSION"
           git push origin HEAD

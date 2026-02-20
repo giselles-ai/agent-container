@@ -1,7 +1,7 @@
 "use client";
 
 import { browserTool } from "@giselles-ai/browser-tool/react";
-import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
+import { useAgent } from "@giselles-ai/sandbox-agent/react";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 function DemoForm() {

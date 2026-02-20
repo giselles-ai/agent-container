@@ -22,7 +22,7 @@ A monorepo for running AI agents inside sandboxed containers with browser automa
 
 | Package | Path | Description |
 |---------|------|-------------|
-| `@giselles-ai/sandbox-agent-core` | `packages/agent-core` | Server internals — Redis bridge broker, bridge handler, Gemini chat handler |
+| `@giselles-ai/sandbox-agent` | `packages/sandbox-agent` | Server internals — Redis bridge broker, bridge handler, Gemini chat handler |
 | `@giselles-ai/browser-tool` | `packages/browser-tool` | Browser tool types/schemas, DOM operations (`snapshot`/`execute`), MCP server |
 
 ## Apps
@@ -76,8 +76,9 @@ Redis URL is also read from these fallback env names: `REDIS_TLS_URL`, `KV_URL`,
 
 ### Breaking Changes
 
-- `@giselles-ai/sandbox-agent` was removed. The public API for agent hooks is now exposed from:
-  - `useAgent` from `@giselles-ai/sandbox-agent-core/react`
+- `@giselles-ai/sandbox-agent-core` was renamed to `@giselles-ai/sandbox-agent`. The old import path is no longer published.
+- The public API for agent hooks is now exposed from:
+  - `@giselles-ai/sandbox-agent/react`
 - If you still need browser-tool UI types/hooks, use `@giselles-ai/browser-tool/react` directly.
 - Legacy route handler exports are no longer published from
   `@giselles-ai/sandbox-agent-core`.
@@ -87,7 +88,7 @@ Redis URL is also read from these fallback env names: `REDIS_TLS_URL`, `KV_URL`,
 ### Client Usage
 
 ```ts
-import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
+import { useAgent } from "@giselles-ai/sandbox-agent/react";
 
 const { sendMessage } = useAgent({
 	endpoint: "/agent-api/run",
@@ -97,7 +98,7 @@ const { sendMessage } = useAgent({
 ### React Hook
 
 ```tsx
-import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
+import { useAgent } from "@giselles-ai/sandbox-agent/react";
 
 function Chat() {
   const { status, messages, tools, error, sendMessage } = useAgent({

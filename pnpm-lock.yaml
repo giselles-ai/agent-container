@@ -27,7 +27,7 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/agent-core:
+  packages/sandbox-agent:
     dependencies:
       '@vercel/sandbox':
         specifier: ^1.0.0
@@ -100,9 +100,9 @@ importers:
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool
-      '@giselles-ai/sandbox-agent-core':
+      '@giselles-ai/sandbox-agent':
         specifier: workspace:*
-        version: link:../agent-core
+        version: link:../sandbox-agent
       next:
         specifier: 16.1.6
         version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

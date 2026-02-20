@@ -1,5 +1,7 @@
 # Cloud Service Implementation Plan
 
+> Note: This document is a historical implementation plan. Current package names in this repository use `@giselles-ai/sandbox-agent` at `packages/sandbox-agent` (renamed from the historical `@giselles-ai/agent-core` / `packages/agent-core` references shown below).
+
 ## Overview
 
 Provide the agent-container API as a Giselles Cloud Service, enabling users to get started with only `GISELLE_SANDBOX_AGENT_API_KEY`.
