@@ -7,3 +7,4 @@ const relay = createRelayHandler();
 
 export const GET = relay.GET;
 export const POST = relay.POST;
+export const OPTIONS = relay.OPTIONS;
