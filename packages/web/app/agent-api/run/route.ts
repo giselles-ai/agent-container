@@ -1,7 +1,7 @@
 import {
-	createChatHandler,
 	createGeminiAgent,
 	createRelaySession,
+	runChat,
 	toRelayError,
 } from "@giselles-ai/sandbox-agent-core";
 import { z } from "zod";
@@ -19,6 +19,13 @@ const agentRunSchema = z.object({
 
 type AgentRunInput = z.infer<typeof agentRunSchema>;
 type RelaySession = Awaited<ReturnType<typeof createRelaySession>>;
+type GeminiInput = {
+	message: string;
+	session_id?: string;
+	sandbox_id?: string;
+	relay_session_id: string;
+	relay_token: string;
+};
 
 class InvalidRunInputError extends Error {
 	readonly detail: unknown;
@@ -51,7 +58,16 @@ async function parseRunInput(request: Request): Promise<AgentRunInput> {
 	return parsed.data;
 }
 
-function resolveSnapshotId(_input: AgentRunInput, _request: Request): string {
+function resolveMessage(input: AgentRunInput): string {
+	const trimmedMessage = input.message.trim();
+	const trimmedDocument = input.document?.trim();
+
+	return trimmedDocument
+		? `${trimmedMessage}\n\nDocument:\n${trimmedDocument}`
+		: trimmedMessage;
+}
+
+function resolveSnapshotId(): string {
 	return requiredEnv("SANDBOX_SNAPSHOT_ID");
 }
 
@@ -60,13 +76,66 @@ function resolveRelayUrl(request: Request): string {
 	if (configuredRelayUrl) {
 		return trimTrailingSlash(configuredRelayUrl);
 	}
-
 	return `${new URL(request.url).origin}/agent-api/relay`;
+}
+
+function resolveOidcToken(request: Request): string | undefined {
+	const header = request.headers.get("x-vercel-oidc-token")?.trim();
+	if (header) {
+		return header;
+	}
+
+	const authorization = request.headers.get("authorization")?.trim();
+	if (!authorization) {
+		return undefined;
+	}
+
+	if (/^bearer\s+/i.test(authorization)) {
+		return authorization.replace(/^bearer\s+/i, "").trim();
+	}
+
+	return authorization;
+}
+
+function createGeminiAgentEnv(input: {
+	request: Request;
+	relayUrl: string;
+	relaySession: RelaySession;
+}): Record<string, string> {
+	const env: Record<string, string> = {
+		GEMINI_API_KEY: requiredEnv("GEMINI_API_KEY"),
+		BROWSER_TOOL_RELAY_URL: input.relayUrl,
+		BROWSER_TOOL_RELAY_SESSION_ID: input.relaySession.sessionId,
+		BROWSER_TOOL_RELAY_TOKEN: input.relaySession.token,
+	};
+
+	const oidcToken = resolveOidcToken(input.request);
+	const fallbackOidcToken = process.env.VERCEL_OIDC_TOKEN?.trim();
+	if (oidcToken) {
+		env.VERCEL_OIDC_TOKEN = oidcToken;
+	} else if (fallbackOidcToken) {
+		env.VERCEL_OIDC_TOKEN = fallbackOidcToken;
+	}
+
+	const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS?.trim();
+	if (vercelProtectionBypass) {
+		env.VERCEL_PROTECTION_BYPASS = vercelProtectionBypass;
+	}
+
+	const giselleProtectionPassword =
+		process.env.GISELLE_PROTECTION_PASSWORD?.trim();
+	if (giselleProtectionPassword) {
+		env.GISELLE_PROTECTION_PASSWORD = giselleProtectionPassword;
+	}
+
+	return env;
 }
 
 function createGeminiSandboxAgent(input: {
 	snapshotId: string;
+	request: Request;
 	relayUrl: string;
+	relaySession: RelaySession;
 }) {
 	return createGeminiAgent({
 		snapshotId: input.snapshotId,
@@ -75,34 +144,25 @@ function createGeminiSandboxAgent(input: {
 				relayUrl: input.relayUrl,
 			},
 		},
+		env: createGeminiAgentEnv({
+			request: input.request,
+			relayUrl: input.relayUrl,
+			relaySession: input.relaySession,
+		}),
 	});
 }
 
-function createGeminiRequest(input: {
-	request: Request;
+function buildGeminiInput(input: {
 	runInput: AgentRunInput;
 	session: RelaySession;
-}): Request {
-	const headers = new Headers(input.request.headers);
-	headers.set("content-type", "application/json");
-
-	const trimmedDocument = input.runInput.document?.trim();
-	const message = trimmedDocument
-		? `${input.runInput.message.trim()}\n\nDocument:\n${trimmedDocument}`
-		: input.runInput.message.trim();
-
-	return new Request(input.request.url, {
-		method: "POST",
-		headers,
-		body: JSON.stringify({
-			message,
-			session_id: input.runInput.session_id,
-			sandbox_id: input.runInput.sandbox_id,
-			relay_session_id: input.session.sessionId,
-			relay_token: input.session.token,
-		}),
-		signal: input.request.signal,
-	});
+}): GeminiInput {
+	return {
+		message: resolveMessage(input.runInput),
+		session_id: input.runInput.session_id,
+		sandbox_id: input.runInput.sandbox_id,
+		relay_session_id: input.session.sessionId,
+		relay_token: input.session.token,
+	};
 }
 
 function mergeRelaySessionStream(input: {
@@ -164,18 +224,27 @@ function mergeRelaySessionStream(input: {
 
 async function runAgentStreamResponse(input: {
 	request: Request;
-	agent: ReturnType<typeof createGeminiSandboxAgent>;
 	runInput: AgentRunInput;
 }): Promise<Response> {
-	const session = await createRelaySession();
-	const chatHandler = createChatHandler({ agent: input.agent });
 	const relayUrl = resolveRelayUrl(input.request);
-	const chatRequest = createGeminiRequest({
+	const session = await createRelaySession();
+
+	const agent = createGeminiSandboxAgent({
+		snapshotId: resolveSnapshotId(),
 		request: input.request,
-		runInput: input.runInput,
-		session,
+		relayUrl,
+		relaySession: session,
 	});
-	const chatResponse = await chatHandler(chatRequest);
+
+	const chatResponse = await runChat({
+		agent,
+		signal: input.request.signal,
+		input: buildGeminiInput({
+			runInput: input.runInput,
+			session,
+		}),
+	});
+
 	return mergeRelaySessionStream({
 		chatResponse,
 		session,
@@ -186,14 +255,8 @@ async function runAgentStreamResponse(input: {
 export async function POST(request: Request): Promise<Response> {
 	try {
 		const input = await parseRunInput(request);
-		const agent = createGeminiSandboxAgent({
-			snapshotId: resolveSnapshotId(input, request),
-			relayUrl: resolveRelayUrl(request),
-		});
-
 		return await runAgentStreamResponse({
 			request,
-			agent,
 			runInput: input,
 		});
 	} catch (error) {
@@ -211,7 +274,11 @@ export async function POST(request: Request): Promise<Response> {
 
 		const relayError = toRelayError(error);
 		return Response.json(
-			{ ok: false, errorCode: relayError.code, message: relayError.message },
+			{
+				ok: false,
+				errorCode: relayError.code,
+				message: relayError.message,
+			},
 			{ status: relayError.status },
 		);
 	}

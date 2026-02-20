@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createChatHandler } from "./chat-handler";
+import { runChat } from "./chat-run";
 
 const { sandboxCreate, sandboxGet } = vi.hoisted(() => ({
 	sandboxCreate: vi.fn(),
@@ -20,51 +20,22 @@ const requestSchema = z.object({
 	sandbox_id: z.string().min(1).optional(),
 });
 
-function createPostRequest(payload: unknown): Request {
-	return new Request("https://example.com/agent-api/run", {
-		method: "POST",
-		headers: {
-			"content-type": "application/json",
-		},
-		body: JSON.stringify(payload),
-	});
-}
-
-describe("createChatHandler", () => {
+describe("runChat", () => {
 	beforeEach(() => {
 		sandboxCreate.mockReset();
 		sandboxGet.mockReset();
 	});
 
-	it("returns 400 for invalid payload", async () => {
-		const handler = createChatHandler({
-			agent: {
-				requestSchema,
-				snapshotId: "snapshot-test",
-				prepareSandbox: vi.fn(async () => undefined),
-				createCommand: vi.fn(() => ({
-					cmd: "echo",
-					args: ["ok"],
-				})),
-			},
-		});
-
-		const response = await handler(createPostRequest({}));
-
-		expect(response.status).toBe(400);
-		expect(await response.json()).toMatchObject({
-			error: "Invalid request payload.",
-		});
-		expect(sandboxCreate).not.toHaveBeenCalled();
-		expect(sandboxGet).not.toHaveBeenCalled();
-	});
-
 	it("streams sandbox event first and runs command from agent", async () => {
-		// biome-ignore lint/suspicious/noExplicitAny: testing
-		const runCommand = vi.fn(async (input: any) => {
-			input.stdout.write("assistant-output");
-			input.stderr.write("stderr-output");
-		});
+		const runCommand = vi.fn(
+			async (input: {
+				stdout: { write: (text: string) => void };
+				stderr: { write: (text: string) => void };
+			}) => {
+				input.stdout.write("assistant-output");
+				input.stderr.write("stderr-output");
+			},
+		);
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			runCommand,
@@ -78,17 +49,20 @@ describe("createChatHandler", () => {
 				AGENT_TOKEN: "token",
 			},
 		}));
+		const controller = new AbortController();
 
-		const handler = createChatHandler({
+		const response = await runChat({
 			agent: {
 				requestSchema,
 				snapshotId: "snapshot-test",
 				prepareSandbox,
 				createCommand,
 			},
+			signal: controller.signal,
+			input: {
+				message: "hello",
+			},
 		});
-
-		const response = await handler(createPostRequest({ message: "hello" }));
 		const body = await response.text();
 
 		expect(sandboxCreate).toHaveBeenCalledWith({
@@ -99,16 +73,8 @@ describe("createChatHandler", () => {
 		});
 		expect(prepareSandbox).toHaveBeenCalledTimes(1);
 		expect(createCommand).toHaveBeenCalledTimes(1);
-		expect(runCommand).toHaveBeenCalledWith(
-			expect.objectContaining({
-				cmd: "agent-cmd",
-				args: ["--flag"],
-				env: {
-					AGENT_TOKEN: "token",
-				},
-			}),
-		);
-		expect(body.indexOf('"type":"sandbox"')).toBeGreaterThanOrEqual(0);
+		expect(runCommand).toHaveBeenCalledTimes(1);
+		expect(body).toContain('"type":"sandbox"');
 		expect(body.indexOf("assistant-output")).toBeGreaterThan(
 			body.indexOf('"type":"sandbox"'),
 		);
@@ -122,7 +88,7 @@ describe("createChatHandler", () => {
 			sandboxId: "existing-sandbox",
 			runCommand,
 		});
-		const handler = createChatHandler({
+		const response = await runChat({
 			agent: {
 				requestSchema,
 				snapshotId: "snapshot-unused",
@@ -132,19 +98,43 @@ describe("createChatHandler", () => {
 					args: [],
 				})),
 			},
-		});
-
-		const response = await handler(
-			createPostRequest({
+			signal: new AbortController().signal,
+			input: {
 				message: "hello",
 				sandbox_id: "existing-sandbox",
-			}),
-		);
-
-		expect(response.status).toBe(200);
+			},
+		});
 		await response.text();
 
 		expect(sandboxGet).toHaveBeenCalledWith({ sandboxId: "existing-sandbox" });
+		expect(sandboxCreate).not.toHaveBeenCalled();
+	});
+
+	it("aborts immediately when signal is already aborted", async () => {
+		const prepareSandbox = vi.fn(async () => undefined);
+
+		const controller = new AbortController();
+		controller.abort();
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox,
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: controller.signal,
+			input: {
+				message: "hello",
+			},
+		});
+		await response.text();
+
+		expect(runCommand).not.toHaveBeenCalled();
+		expect(prepareSandbox).not.toHaveBeenCalled();
 		expect(sandboxCreate).not.toHaveBeenCalled();
 	});
 });

@@ -1,7 +1,7 @@
 import type { MCPServerConfig } from "@google/gemini-cli-core";
 import type { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
-import type { ChatAgent } from "../chat-handler";
+import type { ChatAgent } from "../chat-run";
 
 const GEMINI_SETTINGS_PATH = "/home/vercel-sandbox/.gemini/settings.json";
 
@@ -22,6 +22,7 @@ export type GeminiAgentRequest = z.infer<typeof geminiRequestSchema>;
 
 export type GeminiAgentOptions = {
 	snapshotId?: string;
+	env?: Record<string, string>;
 	tools?: {
 		browser?: {
 			relayUrl?: string;
@@ -29,71 +30,12 @@ export type GeminiAgentOptions = {
 	};
 };
 
-function requiredEnv(name: string): string {
-	const value = process.env[name]?.trim();
+function requiredEnv(env: Record<string, string>, name: string): string {
+	const value = env[name]?.trim();
 	if (!value) {
 		throw new Error(`Missing required environment variable: ${name}`);
 	}
 	return value;
-}
-
-function trimTrailingSlash(value: string): string {
-	return value.replace(/\/+$/, "");
-}
-
-function extractTokenFromRequest(request: Request): string | undefined {
-	const oidcToken = request.headers.get("x-vercel-oidc-token")?.trim();
-	if (oidcToken) {
-		return oidcToken;
-	}
-
-	const authorization = request.headers.get("authorization")?.trim();
-	if (!authorization) {
-		return undefined;
-	}
-
-	if (/^bearer\s+/i.test(authorization)) {
-		return authorization.replace(/^bearer\s+/i, "").trim();
-	}
-
-	return authorization;
-}
-
-function resolveDefaultSnapshotId(): string {
-	return requiredEnv("SANDBOX_SNAPSHOT_ID");
-}
-
-function resolveDefaultBrowserToolRelayUrl(): string {
-	return requiredEnv("BROWSER_TOOL_RELAY_URL");
-}
-
-function buildBridgeTransportEnv(input: {
-	bridgeUrl: string;
-	relaySessionId: string;
-	relayToken: string;
-	oidcToken?: string;
-	vercelProtectionBypass?: string;
-	giselleProtectionBypass?: string;
-}): Record<string, string> {
-	const env: Record<string, string> = {
-		BROWSER_TOOL_RELAY_URL: input.bridgeUrl,
-		BROWSER_TOOL_RELAY_SESSION_ID: input.relaySessionId,
-		BROWSER_TOOL_RELAY_TOKEN: input.relayToken,
-	};
-
-	if (input.oidcToken) {
-		env.VERCEL_OIDC_TOKEN = input.oidcToken;
-	}
-
-	if (input.vercelProtectionBypass?.trim()) {
-		env.VERCEL_PROTECTION_BYPASS = input.vercelProtectionBypass.trim();
-	}
-
-	if (input.giselleProtectionBypass?.trim()) {
-		env.GISELLE_PROTECTION_BYPASS = input.giselleProtectionBypass.trim();
-	}
-
-	return env;
 }
 
 async function patchGeminiSettingsTransportEnv(
@@ -170,16 +112,16 @@ function assertBrowserToolRelayCredentials(
 export function createGeminiAgent(
 	options: GeminiAgentOptions = {},
 ): ChatAgent<GeminiAgentRequest> {
-	const snapshotId = options.snapshotId?.trim() || resolveDefaultSnapshotId();
+	const env = options.env ?? {};
+	const snapshotId =
+		options.snapshotId?.trim() || requiredEnv(env, "SANDBOX_SNAPSHOT_ID");
 	const browserToolEnabled = options.tools?.browser !== undefined;
-	const browserToolRelayUrl = browserToolEnabled
-		? trimTrailingSlash(
-				(
-					options.tools?.browser?.relayUrl?.trim() ||
-					resolveDefaultBrowserToolRelayUrl()
-				).trim(),
-			)
-		: undefined;
+	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
+	if (browserToolEnabled) {
+		requiredEnv(env, "BROWSER_TOOL_RELAY_URL");
+		requiredEnv(env, "BROWSER_TOOL_RELAY_SESSION_ID");
+		requiredEnv(env, "BROWSER_TOOL_RELAY_TOKEN");
+	}
 	if (browserToolEnabled && !browserToolRelayUrl) {
 		throw new Error("tools.browser.relayUrl is empty.");
 	}
@@ -187,56 +129,35 @@ export function createGeminiAgent(
 	return {
 		requestSchema: createGeminiRequestSchema(browserToolEnabled),
 		snapshotId,
-		async prepareSandbox({ request, parsed, sandbox }): Promise<void> {
+		async prepareSandbox({ input, sandbox }): Promise<void> {
 			if (!browserToolEnabled) {
 				return;
 			}
-			if (!browserToolRelayUrl) {
-				throw new Error("tools.browser.relayUrl is empty.");
-			}
 
-			const oidcToken =
-				extractTokenFromRequest(request) ?? process.env.VERCEL_OIDC_TOKEN ?? "";
-			if (!oidcToken) {
-				throw new Error(
-					"Planner authentication is required: set OIDC token in x-vercel-oidc-token or VERCEL_OIDC_TOKEN.",
-				);
-			}
+			requiredEnv(env, "VERCEL_OIDC_TOKEN");
 
-			assertBrowserToolRelayCredentials(parsed);
+			assertBrowserToolRelayCredentials(input);
 
-			const vercelProtectionBypass =
-				process.env.VERCEL_PROTECTION_BYPASS?.trim() || undefined;
-			const giselleProtectionBypass =
-				process.env.GISELLE_PROTECTION_PASSWORD?.trim() || undefined;
-			const bridgeTransportEnv = buildBridgeTransportEnv({
-				bridgeUrl: browserToolRelayUrl,
-				relaySessionId: parsed.relay_session_id,
-				relayToken: parsed.relay_token,
-				oidcToken,
-				vercelProtectionBypass,
-				giselleProtectionBypass,
-			});
-			await patchGeminiSettingsTransportEnv(sandbox, bridgeTransportEnv);
+			await patchGeminiSettingsTransportEnv(sandbox, env);
 		},
-		createCommand({ parsed }) {
+		createCommand({ input }) {
 			const args = [
 				"--prompt",
-				parsed.message,
+				input.message,
 				"--output-format",
 				"stream-json",
 				"--approval-mode",
 				"yolo",
 			];
-			if (parsed.session_id) {
-				args.push("--resume", parsed.session_id);
+			if (input.session_id) {
+				args.push("--resume", input.session_id);
 			}
 
 			return {
 				cmd: "gemini",
 				args,
 				env: {
-					GEMINI_API_KEY: requiredEnv("GEMINI_API_KEY"),
+					GEMINI_API_KEY: requiredEnv(env, "GEMINI_API_KEY"),
 				},
 			};
 		},

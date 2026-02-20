@@ -1,9 +1,11 @@
+export { createGeminiAgent } from "./agents/gemini-agent";
 export {
-	createGeminiAgent,
-} from "./agents/gemini-agent";
-export {
-	createChatHandler,
-} from "./chat-handler";
+	type BaseChatRequest,
+	type ChatAgent,
+	type ChatCommand,
+	type RunChatInput,
+	runChat,
+} from "./chat-run";
 export { createRelayHandler } from "./relay-handler";
 export {
 	createRelaySession,

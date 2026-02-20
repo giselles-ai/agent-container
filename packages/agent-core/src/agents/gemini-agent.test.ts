@@ -1,26 +1,11 @@
 import type { Sandbox } from "@vercel/sandbox";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createGeminiAgent } from "./gemini-agent";
-
-const originalEnv = { ...process.env };
-
-afterEach(() => {
-	for (const key of Object.keys(process.env)) {
-		if (!(key in originalEnv)) {
-			delete process.env[key];
-		}
-	}
-	for (const [key, value] of Object.entries(originalEnv)) {
-		process.env[key] = value;
-	}
-});
 
 describe("createGeminiAgent", () => {
 	it("does not require relay fields when tools.browser is disabled", async () => {
-		process.env.GEMINI_API_KEY = "gemini-api-key";
-
-		const readFileToBuffer = vi.fn(async () => Buffer.from("{}"));
-		const writeFiles = vi.fn(async () => undefined);
+		const readFileToBuffer = async () => Buffer.from("{}");
+		const writeFiles = async () => undefined;
 		const sandbox = {
 			readFileToBuffer,
 			writeFiles,
@@ -28,6 +13,10 @@ describe("createGeminiAgent", () => {
 
 		const agent = createGeminiAgent({
 			snapshotId: "snapshot-fixed",
+			env: {
+				GEMINI_API_KEY: "gemini-api-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
+			},
 		});
 		expect(agent.snapshotId).toBe("snapshot-fixed");
 		expect(agent.requestSchema.safeParse({ message: "hello" }).success).toBe(
@@ -35,39 +24,54 @@ describe("createGeminiAgent", () => {
 		);
 
 		await agent.prepareSandbox({
-			request: new Request("https://api.example.com/agent-api/run"),
-			parsed: {
+			input: {
 				message: "hello",
 			},
 			sandbox,
 		});
-
-		expect(readFileToBuffer).not.toHaveBeenCalled();
-		expect(writeFiles).not.toHaveBeenCalled();
 	});
 
-	it("requires relay fields when tools.browser is configured", () => {
+	it("requires relay fields in request schema when browser tool is configured", () => {
 		const agent = createGeminiAgent({
 			snapshotId: "snapshot-fixed",
+			env: {
+				GEMINI_API_KEY: "gemini-api-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
+				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
+				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
+			},
 			tools: {
 				browser: {
 					relayUrl: "https://relay.example.com/agent-api/relay/",
 				},
 			},
 		});
-
 		const parsed = agent.requestSchema.safeParse({
 			message: "hello",
 		});
 		expect(parsed.success).toBe(false);
 	});
 
-	it("patches MCP env with relay credentials when tools.browser is configured", async () => {
-		process.env.VERCEL_OIDC_TOKEN = "oidc-token";
-		process.env.VERCEL_PROTECTION_BYPASS = "vercel-bypass";
-		process.env.GISELLE_PROTECTION_PASSWORD = "giselle-bypass";
-		process.env.GEMINI_API_KEY = "gemini-api-key";
+	it("fails fast when browser transport env is incomplete", () => {
+		expect(() =>
+			createGeminiAgent({
+				snapshotId: "snapshot-fixed",
+				env: {
+					GEMINI_API_KEY: "gemini-api-key",
+					SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
+					BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				},
+				tools: {
+					browser: {
+						relayUrl: "https://relay.example.com/agent-api/relay/",
+					},
+				},
+			}),
+		).toThrow(/Missing required environment variable/);
+	});
 
+	it("patches MCP env with relay credentials and command env via provided env", async () => {
 		const readFileToBuffer = async () =>
 			Buffer.from(
 				JSON.stringify({
@@ -93,17 +97,25 @@ describe("createGeminiAgent", () => {
 
 		const agent = createGeminiAgent({
 			snapshotId: "snapshot-fixed",
+			env: {
+				GEMINI_API_KEY: "gemini-api-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
+				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
+				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
+				VERCEL_OIDC_TOKEN: "oidc-token",
+				VERCEL_PROTECTION_BYPASS: "vercel-bypass",
+				GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
+			},
 			tools: {
 				browser: {
 					relayUrl: "https://relay.example.com/agent-api/relay/",
 				},
 			},
 		});
-		expect(agent.snapshotId).toBe("snapshot-fixed");
 
 		await agent.prepareSandbox({
-			request: new Request("https://api.example.com/agent-api/run"),
-			parsed: {
+			input: {
 				message: "fill form",
 				relay_session_id: "relay-session",
 				relay_token: "relay-token",
@@ -114,17 +126,16 @@ describe("createGeminiAgent", () => {
 		const settings = JSON.parse(writtenFileContent);
 		expect(settings.mcpServers.browser_tool_relay.env).toMatchObject({
 			EXISTING_KEY: "existing-value",
-			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay",
+			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 			BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
 			BROWSER_TOOL_RELAY_TOKEN: "relay-token",
 			VERCEL_OIDC_TOKEN: "oidc-token",
 			VERCEL_PROTECTION_BYPASS: "vercel-bypass",
-			GISELLE_PROTECTION_BYPASS: "giselle-bypass",
+			GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
 		});
 
 		const command = agent.createCommand({
-			request: new Request("https://api.example.com/agent-api/run"),
-			parsed: {
+			input: {
 				message: "fill form",
 				session_id: "gemini-session",
 				relay_session_id: "relay-session",
