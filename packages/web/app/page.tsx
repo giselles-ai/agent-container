@@ -9,7 +9,7 @@ export default function Page() {
 				<p className="mt-3 text-sm text-slate-300/90">
 					Open the Gemini Browser Tool demo to run browser automation through
 					<code className="mx-1 rounded bg-slate-800 px-1 py-0.5">
-						/api/agent
+						/agent-api/run
 					</code>
 					with{" "}
 					<code className="mx-1 rounded bg-slate-800 px-1 py-0.5">

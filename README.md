@@ -22,7 +22,6 @@ A monorepo for running AI agents inside sandboxed containers with browser automa
 
 | Package | Path | Description |
 |---------|------|-------------|
-| `@giselles-ai/sandbox-agent` | `packages/sandbox-agent` | Client SDK — `handleAgentRunner()` route handler + `useAgent()` React hook |
 | `@giselles-ai/sandbox-agent-core` | `packages/agent-core` | Server internals — Redis bridge broker, bridge handler, Gemini chat handler |
 | `@giselles-ai/browser-tool` | `packages/browser-tool` | Browser tool types/schemas, DOM operations (`snapshot`/`execute`), MCP server |
 
@@ -70,38 +69,39 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |----------|-------------|
-| `GISELLE_SANDBOX_AGENT_API_KEY` | API key for cloud mode authentication |
-| `GISELLE_SANDBOX_AGENT_BASE_URL` | Override the default cloud API endpoint |
 | `GISELLE_PROTECTION_PASSWORD` | App-level password protection |
 | `VERCEL_PROTECTION_BYPASS` | Bypass Vercel preview deployment protection |
 
 Redis URL is also read from these fallback env names: `REDIS_TLS_URL`, `KV_URL`, `UPSTASH_REDIS_TLS_URL`, `UPSTASH_REDIS_URL`.
 
+### Breaking Changes
+
+- `@giselles-ai/sandbox-agent` was removed. The public API for agent hooks is now exposed from:
+  - `useAgent` from `@giselles-ai/sandbox-agent-core/react`
+- If you still need browser-tool UI types/hooks, use `@giselles-ai/browser-tool/react` directly.
+- Legacy route handler exports are no longer published from
+  `@giselles-ai/sandbox-agent-core`.
+
 ## Usage
 
-### Route Handler
+### Client Usage
 
 ```ts
-import { handleAgentRunner } from "@giselles-ai/sandbox-agent";
+import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
 
-export const runtime = "nodejs";
-
-const handler = handleAgentRunner({
-  apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
-  baseUrl: "https://studio.giselles.ai/agent-api", // default
+const { sendMessage } = useAgent({
+	endpoint: "/agent-api/run",
 });
-
-export const POST = handler.POST;
 ```
 
 ### React Hook
 
 ```tsx
-import { useAgent } from "@giselles-ai/sandbox-agent/react";
+import { useAgent } from "@giselles-ai/sandbox-agent-core/react";
 
 function Chat() {
   const { status, messages, tools, error, sendMessage } = useAgent({
-    endpoint: "/api/agent",
+    endpoint: "/agent-api/run",
   });
 
   return (

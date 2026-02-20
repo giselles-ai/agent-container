@@ -7,7 +7,7 @@
 		"dev": "pnpm --filter demo dev",
 		"build": "turbo build",
 		"typecheck": "pnpm -r typecheck",
-		"format": "pnpm exec biome check --write .",
+		"format": "pnpm exec biome check --write",
 		"snapshot:browser-tool": "node scripts/create-browser-tool-snapshot.mjs",
 		"sandbox:local:browser-tool": "node scripts/prepare-local-browser-tool-sandbox.mjs",
 		"mcp:check": "pnpm --filter @giselles/mcp-smoke run check",
