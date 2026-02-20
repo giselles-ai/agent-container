@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents working with this codebase.
+This project is pre-public launch and still under active development, so rapid iteration is preferred over compatibility guarantees. We actively welcome disruptive and even breaking changes if they move the product forward. Careful backward-compatibility work and deep corner-case hardening are not required by default—prioritize shipping fast and learning quickly. We are intentionally pushing limits by combining cutting-edge tools and platforms (e.g., Vercel Sandbox and Gemini CLI) to explore new possibilities. Follow KISS and YAGNI, but stay bold: ship practical, experimental code first, then refine only when necessary.
 
 <!-- llms-furl:start -->
 
