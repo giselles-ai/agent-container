@@ -48,6 +48,7 @@ export type AgentToolHandler = {
 export type UseAgentOptions = {
 	endpoint: string;
 	tools?: Record<string, AgentToolHandler>;
+	headers?: Record<string, string>;
 };
 
 export type AgentHookState = {
@@ -161,7 +162,11 @@ function normalizeTools(tools: UseAgentOptions["tools"]): AgentToolHandler[] {
 	return Object.values(tools);
 }
 
-export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
+export function useAgent({
+	endpoint,
+	tools,
+	headers: customHeaders,
+}: UseAgentOptions): AgentHookState {
 	const [relayStatus, setRelayStatus] = useState<RelayStatus>("idle");
 	const [running, setRunning] = useState(false);
 	const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -222,6 +227,7 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
+					...customHeaders,
 				},
 				body: JSON.stringify({
 					type: "relay.respond",
@@ -237,7 +243,7 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 				ok: response.ok,
 			});
 		},
-		[normalizedEndpoint],
+		[normalizedEndpoint, customHeaders],
 	);
 
 	const addWarnings = useCallback((next: string[]) => {
@@ -333,9 +339,16 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 		setRelayStatus("connecting");
 
 		const relayBase = currentSession.relayUrl ?? normalizedEndpoint;
-		const source = new EventSource(
-			`${relayBase}?type=relay.events&sessionId=${encodeURIComponent(currentSession.sessionId)}&token=${encodeURIComponent(currentSession.token)}`,
-		);
+		const sseUrl = new URL(relayBase, window.location.origin);
+		sseUrl.searchParams.set("type", "relay.events");
+		sseUrl.searchParams.set("sessionId", currentSession.sessionId);
+		sseUrl.searchParams.set("token", currentSession.token);
+		if (customHeaders) {
+			for (const [key, value] of Object.entries(customHeaders)) {
+				sseUrl.searchParams.set(key, value);
+			}
+		}
+		const source = new EventSource(sseUrl.toString());
 		console.info(`${LOG_PREFIX} sse.connect`, {
 			sessionId: currentSession.sessionId,
 		});
@@ -394,7 +407,7 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 				}, 1500);
 			}
 		};
-	}, [cleanupRelay, handleRelayEvent, normalizedEndpoint]);
+	}, [cleanupRelay, handleRelayEvent, normalizedEndpoint, customHeaders]);
 
 	useEffect(() => {
 		mountedRef.current = true;
@@ -593,6 +606,7 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 					method: "POST",
 					headers: {
 						"content-type": "application/json",
+						...customHeaders,
 					},
 					body: JSON.stringify({
 						type: "agent.run",
@@ -661,6 +675,7 @@ export function useAgent({ endpoint, tools }: UseAgentOptions): AgentHookState {
 			normalizedEndpoint,
 			running,
 			sandboxId,
+			customHeaders,
 		],
 	);
 
