@@ -13,10 +13,11 @@ A key use case is embedding a Chat UI into existing web applications to drive RP
 │  │  useAgent()  │──┼───────▶│  runChat()       │───────▶│  │  Gemini CLI    │  │
 │  │  hook        │◀─┼─NDJSON─│                  │◀stdout─│  │  (agent)       │  │
 │  └──────────────┘  │        │                  │        │  └───────┬────────┘  │
-│  ┌──────────────┐  │        │  ┌────────────┐  │        │          │ MCP       │
-│  │  browserTool │◀─┼──SSE───│  │  Relay     │  │        │  ┌───────▼────────┐  │
-│  │  (DOM ops)   │──┼──POST──│  │  Handler   │◀─┼─Redis──│  │  MCP Server    │  │
-│  └──────────────┘  │        │  └────────────┘  │        │  │  (RelayClient) │  │
+│                    │        │                  │        │          │ MCP       │
+│  ┌──────────────┐  │        │  ┌────────────┐  │        │  ┌───────▼────────┐  │
+│  │  browserTool │◀─┼──SSE───│  │  Relay     │  │        │  │  MCP Server    │  │
+│  │  (DOM ops)   │──┼──POST──│  │  Handler   │◀─┼─Redis──│  │  (RelayClient) │  │
+│  └──────────────┘  │        │  └────────────┘  │        │  └────────────────┘  │
 └────────────────────┘        └──────────────────┘        └──────────────────────┘
    Browser                       Your Server                  Sandboxed Container
 ```
@@ -27,12 +28,12 @@ A key use case is embedding a Chat UI into existing web applications to drive RP
 Browser (React)           Route Handler            Redis              Sandbox (Gemini CLI + MCP)
      │                         │                     │                          │
      │─── POST agent.run ─────▶│                     │                          │
-     │                         │── createRelaySession ▶│                         │
+     │                         │─ createRelaySession▶│                          │
      │◀── NDJSON stream ───────│                     │                          │
      │    (relay.session)      │── runChat() ────────┼─────────────────────────▶│
      │                         │                     │                          │
      │◀── SSE (relay.events) ──│◀─── subscribe ──────│                          │
-     │                         │                     │    MCP: getFormSnapshot   │
+     │                         │                     │    MCP: getFormSnapshot  │
      │                         │                     │◀── relay.dispatch ───────│
      │                         │                     │── publish request ──────▶│
      │◀── snapshot_request ────│                     │                          │
@@ -42,7 +43,7 @@ Browser (React)           Route Handler            Redis              Sandbox (G
      │─── snapshot_response ──▶│── relay.respond ───▶│                          │
      │                         │                     │── publish response ─────▶│
      │                         │                     │                          │
-     │                         │                     │  MCP: executeFormActions  │
+     │                         │                     │  MCP: executeFormActions │
      │                         │                     │◀── relay.dispatch ───────│
      │◀── execute_request ─────│                     │                          │
      │                         │                     │                          │
