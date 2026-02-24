@@ -1,5 +1,13 @@
 import { GiselleAgentModel } from "./giselle-agent-model";
 import type { GiselleProviderOptions } from "./types";
+
+export type { MapResult, NdjsonMapperContext } from "./ndjson-mapper";
+export {
+	createMapperContext,
+	extractJsonObjects,
+	finishStream,
+	mapNdjsonEvent,
+} from "./ndjson-mapper";
 export { GiselleAgentModel };
 
 export function giselle(options: GiselleProviderOptions): GiselleAgentModel {
