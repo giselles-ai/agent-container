@@ -1,3 +1,11 @@
+import { GiselleAgentModel } from "./giselle-agent-model";
+import type { GiselleProviderOptions } from "./types";
+export { GiselleAgentModel };
+
+export function giselle(options: GiselleProviderOptions): GiselleAgentModel {
+	return new GiselleAgentModel(options);
+}
+
 export type {
 	ConnectCloudApiParams,
 	ConnectCloudApiResult,
