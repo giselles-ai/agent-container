@@ -8,6 +8,15 @@ export {
 	finishStream,
 	mapNdjsonEvent,
 } from "./ndjson-mapper";
+export {
+	createSession,
+	deleteSession,
+	getLiveConnection,
+	loadSession,
+	removeLiveConnection,
+	saveLiveConnection,
+	updateSession,
+} from "./session-manager";
 export { GiselleAgentModel };
 
 export function giselle(options: GiselleProviderOptions): GiselleAgentModel {
