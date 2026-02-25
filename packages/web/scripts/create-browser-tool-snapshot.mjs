@@ -16,6 +16,8 @@ const TIMEOUT_MS = Number.parseInt(
 	10,
 );
 const BASE_SNAPSHOT_ID = process.env.BASE_SNAPSHOT_ID?.trim() || "";
+const SNAPSHOT_AGENT =
+	process.env.SNAPSHOT_AGENT?.trim() === "codex" ? "codex" : "gemini";
 const INCLUDE_PATHS = [
 	"package.json",
 	"pnpm-lock.yaml",
@@ -113,6 +115,35 @@ async function runCommandOrThrow(sandbox, input) {
 	return { stdout, stderr };
 }
 
+async function ensureSnapshotAgent(sandbox, agent) {
+	if (agent === "codex") {
+		console.log("[snapshot] installing codex cli...");
+		await runCommandOrThrow(sandbox, {
+			cmd: "npm",
+			args: ["install", "-g", "@openai/codex"],
+		});
+
+		console.log("[snapshot] validating codex cli...");
+		await runCommandOrThrow(sandbox, {
+			cmd: "bash",
+			args: ["-lc", ["set -e", "which codex", "codex --version"].join("\n")],
+		});
+		return;
+	}
+
+	console.log("[snapshot] installing gemini cli...");
+	await runCommandOrThrow(sandbox, {
+		cmd: "npm",
+		args: ["install", "-g", "@google/gemini-cli"],
+	});
+
+	console.log("[snapshot] validating gemini cli...");
+	await runCommandOrThrow(sandbox, {
+		cmd: "bash",
+		args: ["-lc", ["set -e", "which gemini"].join("\n")],
+	});
+}
+
 async function main() {
 	if (!Number.isFinite(TIMEOUT_MS) || TIMEOUT_MS <= 0) {
 		throw new Error(
@@ -135,7 +166,7 @@ async function main() {
 		console.log(`[snapshot] using existing base snapshot: ${baseSnapshotId}`);
 	} else {
 		console.log(
-			"[snapshot] BASE_SNAPSHOT_ID not set, creating base snapshot with gemini-cli...",
+			`[snapshot] BASE_SNAPSHOT_ID not set, creating base snapshot with ${SNAPSHOT_AGENT}-cli...`,
 		);
 
 		const baseSandbox = await Sandbox.create({
@@ -145,11 +176,7 @@ async function main() {
 		console.log(`[snapshot] base sandbox created: ${baseSandbox.sandboxId}`);
 
 		try {
-			console.log("[snapshot] installing gemini cli...");
-			await runCommandOrThrow(baseSandbox, {
-				cmd: "npm",
-				args: ["install", "-g", "@google/gemini-cli"],
-			});
+			await ensureSnapshotAgent(baseSandbox, SNAPSHOT_AGENT);
 
 			console.log("[snapshot] creating base snapshot...");
 			const baseSnapshot = await baseSandbox.snapshot();
@@ -184,6 +211,8 @@ async function main() {
 	console.log(`[snapshot] sandbox created: ${sandbox.sandboxId}`);
 
 	try {
+		await ensureSnapshotAgent(sandbox, SNAPSHOT_AGENT);
+
 		const filesForSandbox = await Promise.all(
 			uploadFiles.map(async (absolutePath) => {
 				const relativePath = path.relative(REPO_ROOT, absolutePath);
@@ -235,16 +264,19 @@ async function main() {
 		});
 
 		console.log("[snapshot] validating artifacts...");
+		const validationArgs = [
+			"set -e",
+			`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
+		];
+		if (SNAPSHOT_AGENT === "codex") {
+			validationArgs.push("which codex", "codex --version");
+		} else {
+			validationArgs.push("which gemini");
+		}
+
 		await runCommandOrThrow(sandbox, {
 			cmd: "bash",
-			args: [
-				"-lc",
-				[
-					"set -e",
-					`test -f ${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`,
-					"which gemini",
-				].join("\n"),
-			],
+			args: ["-lc", validationArgs.join("\n")],
 		});
 
 		const mcpServerDistPath = `${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`;
@@ -264,13 +296,19 @@ async function main() {
 			},
 		};
 
-		console.log("[snapshot] writing gemini settings.json...");
-		await sandbox.writeFiles([
-			{
-				path: "/home/vercel-sandbox/.gemini/settings.json",
-				content: Buffer.from(JSON.stringify(geminiSettings, null, 2)),
-			},
-		]);
+		if (SNAPSHOT_AGENT === "gemini") {
+			console.log("[snapshot] writing gemini settings.json...");
+			await sandbox.writeFiles([
+				{
+					path: "/home/vercel-sandbox/.gemini/settings.json",
+					content: Buffer.from(JSON.stringify(geminiSettings, null, 2)),
+				},
+			]);
+		} else {
+			console.log(
+				"[snapshot] skipping gemini settings.json for codex snapshot",
+			);
+		}
 
 		console.log("[snapshot] creating snapshot (sandbox will be stopped)...");
 		const snapshot = await sandbox.snapshot();

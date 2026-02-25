@@ -106,7 +106,7 @@ flowchart TD
 | 0 | [phase-0-codex-agent.md](./phase-0-codex-agent.md) | 🔲 TODO | `createCodexAgent()` implementing `ChatAgent` interface |
 | 1 | [phase-1-codex-mapper.md](./phase-1-codex-mapper.md) | 🔲 TODO | Codex JSONL → normalized NDJSON mapper + stdout transform in `runChat` |
 | 2 | [phase-2-route-integration.md](./phase-2-route-integration.md) | 🔲 TODO | Agent selection in `sandbox-agent/web` route + env configuration |
-| 3 | [phase-3-snapshot-e2e.md](./phase-3-snapshot-e2e.md) | 🔲 TODO | Sandbox snapshot with Codex CLI + end-to-end verification |
+| 3 | [phase-3-snapshot-e2e.md](./phase-3-snapshot-e2e.md) | ✅ DONE | Sandbox snapshot with Codex CLI + end-to-end verification |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies

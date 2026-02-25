@@ -260,7 +260,10 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |---|---|
+| `AGENT_TYPE` | Agent selection (`gemini` default, `codex` for OpenAI Codex) |
 | `GEMINI_API_KEY` | Google Gemini API key |
+| `OPENAI_API_KEY` | OpenAI API key for Codex mode |
+| `CODEX_API_KEY` | Optional alias for `OPENAI_API_KEY` in Codex mode |
 | `SANDBOX_SNAPSHOT_ID` | Sandbox snapshot ID (see [Creating a Snapshot](#creating-a-snapshot)) |
 | `REDIS_URL` | Redis connection URL for relay sessions |
 
@@ -282,6 +285,24 @@ pnpm snapshot:browser-tool
 
 Creates a Vercel Sandbox snapshot containing Gemini CLI and the built browser-tool MCP server. The script outputs the recommended values for `SANDBOX_SNAPSHOT_ID` and related env vars.
 
+For a Codex-enabled snapshot:
+
+```bash
+SNAPSHOT_AGENT=codex pnpm snapshot:browser-tool
+```
+
+or
+
+```bash
+pnpm snapshot:browser-tool:codex
+```
+
+Codex snapshots include:
+
+- `codex` installed globally in the snapshot image
+- Built browser-tool MCP artifacts (so current repo upload/build flow remains unchanged)
+- No Gemini settings file is written
+
 ## Commands
 
 | Command | Description |
@@ -291,6 +312,7 @@ Creates a Vercel Sandbox snapshot containing Gemini CLI and the built browser-to
 | `pnpm typecheck` | Type-check all packages |
 | `pnpm format` | Format with Biome |
 | `pnpm snapshot:browser-tool` | Create a sandbox snapshot |
+| `pnpm snapshot:browser-tool:codex` | Create a Codex-enabled sandbox snapshot |
 | `pnpm sandbox:local:browser-tool` | Prepare local sandbox environment |
 | `pnpm mcp:check` | Run MCP smoke tests |
 | `pnpm knip` | Check for unused exports/dependencies |

@@ -30,50 +30,45 @@ flowchart LR
 
 ### 1. Codex CLI Sandbox Snapshot
 
-**Option A: npm global install in snapshot build**
+Updated in:
 
-Create or extend the snapshot build script to install Codex CLI:
+- `packages/web/scripts/create-browser-tool-snapshot.mjs`
+- `package.json` (`snapshot:browser-tool:codex`)
+- `README.md` (snapshot command docs)
 
-```bash
-# Inside the sandbox during snapshot creation:
-npm install -g @openai/codex
-codex --version  # Verify installation
-```
+Implementation requirements:
 
-**Option B: Add to existing snapshot build script**
+- Add `SNAPSHOT_AGENT=codex` branch support.
+- Install `@openai/codex` and validate with `codex --version`.
+- Skip writing `/home/vercel-sandbox/.gemini/settings.json` for Codex snapshots.
+- Preserve existing browser-tool MCP upload/build path.
 
-Check existing snapshot scripts in `scripts/` (e.g., `create-browser-tool-snapshot.mjs`). Follow the same pattern to create a Codex-compatible snapshot. The snapshot should include:
+Snapshot acceptance checks:
 
-- Node.js runtime (already in base image)
-- `codex` CLI binary (installed globally via npm)
-- Working directory at `/vercel/sandbox`
-
-**Snapshot requirements:**
-- `codex --version` runs successfully
-- `codex exec --json --yolo --skip-git-repo-check "echo hello"` produces JSONL output
-- No pre-configured API key (injected at runtime via env var)
+- PASS if script prints `snapshotId` and exits successfully.
+- PASS if final validation confirms `codex` is available and returns version.
+- PASS if the resulting snapshot can run `codex` in the image.
 
 ### 2. Environment configuration documentation
 
-Create or update a section in the project README or a `.env.example` file documenting:
+Updated in:
+
+- `packages/web/.env.example`
+- `README.md`
+
+Doc expectations:
 
 ```bash
-# Agent selection (default: gemini)
-AGENT_TYPE=codex
-
-# Codex agent configuration
-OPENAI_API_KEY=sk-...
-
-# Sandbox snapshot with Codex CLI installed
-SANDBOX_SNAPSHOT_ID=snap_...
-
-# (Existing Gemini config — unchanged)
-# GEMINI_API_KEY=...
+AGENT_TYPE=gemini
+OPENAI_API_KEY=
+CODEX_API_KEY=
+GEMINI_API_KEY=
+SANDBOX_SNAPSHOT_ID=
 ```
 
 ### 3. E2E verification checklist
 
-Perform the following manual verification steps:
+Perform these manual checks and record PASS/FAIL:
 
 #### 3a. Standalone Codex CLI test
 
@@ -82,68 +77,89 @@ Perform the following manual verification steps:
 OPENAI_API_KEY=sk-... codex exec --json --yolo --skip-git-repo-check "Say hello world"
 ```
 
-Expected: JSONL output with events like `session.created`, `message.output_text.delta`, `message.output_text.done`, `response.completed`.
+PASS criteria:
 
-Capture this output and verify it matches the mapping table in [AGENTS.md](./AGENTS.md). If event types differ, update the mapper in `codex-mapper.ts`.
+- Process exits successfully.
+- Output is JSONL.
+- Output includes `session.created`-style init and message events.
+- If event types differ from expected, update:
+  - `packages/sandbox-agent/src/agents/codex-mapper.ts`
+  - `packages/sandbox-agent/src/agents/codex-mapper.test.ts`
 
 #### 3b. Sandbox execution test
 
-1. Create a sandbox from the Codex snapshot
-2. Run `codex exec --json --yolo --skip-git-repo-check "What is 2+2?"` inside the sandbox with `OPENAI_API_KEY` env var
-3. Verify JSONL output streams correctly through the sandbox
+1. Create a sandbox from the Codex snapshot (`snapshotId` from step 1).
+2. Run:
+   `OPENAI_API_KEY=sk-... codex exec --json --yolo --skip-git-repo-check "What is 2+2?"`
+3. Verify JSONL output streams and exits normally.
 
 #### 3c. Route integration test
 
-1. Start `sandbox-agent/web` with `AGENT_TYPE=codex` and `OPENAI_API_KEY=sk-...`
-2. Send a POST request to the chat API endpoint:
+1. Start `sandbox-agent/web` with `AGENT_TYPE=codex` and `OPENAI_API_KEY=sk-...`.
+2. POST to the chat endpoint:
    ```bash
-   curl -X POST http://localhost:3000/agents/<slug>/snapshots/<snapshotId>/chat/api \
+   curl -N -X POST http://localhost:3000/agents/<slug>/snapshots/<snapshotId>/chat/api \
      -H "Content-Type: application/json" \
      -d '{"message": "What is 2+2?"}'
    ```
-3. Verify the response is streaming NDJSON with normalized event types (`init`, `message`, etc.)
+3. PASS criteria:
+   - Content-Type is `application/x-ndjson`.
+   - First event is `sandbox`.
+   - Followed by normalized `init`.
+   - At least one `message` event is present.
+   - No raw Codex JSONL leaks when mapped.
 
 #### 3d. Full stack test (via giselle-provider)
 
-1. Start both `sandbox-agent/web` (as Cloud API) and `packages/web` (consumer app)
-2. Configure the consumer to point at the Cloud API
-3. Use the browser UI to send a message
-4. Verify:
-   - Text streams correctly in the chat interface
-   - No errors in browser console or server logs
-   - Session ID is propagated correctly
+1. Start `sandbox-agent/web` as Cloud API and `packages/web` as consumer.
+2. Ensure self-hosted env uses `AGENT_TYPE=codex` and `SANDBOX_SNAPSHOT_ID` from phase 3.
+3. Send a chat message from UI.
+4. PASS criteria:
+   - Assistant text streams in the UI.
+   - No JSON parse/streaming errors in browser console.
+   - No hard failures in server logs.
+   - Session ID propagation remains unchanged (`init` event present).
+
+#### 3e. File-upload transform check
+
+1. Include a `files` payload in the chat request.
+2. Confirm uploaded file paths are prepended to prompt text (`Available files in the sandbox`).
+3. Confirm stream remains mapped (`init`, `message`) and UI behavior is still valid.
 
 ### 4. Known limitations to document
 
-- **No session resume:** Codex `exec` mode is one-shot; `session_id` is not used for resume (unlike Gemini's `--resume` flag). Multi-turn conversations require the full message history to be sent each time.
-- **No browser-tool integration:** The Codex agent does not configure MCP servers for browser-tool relay. This is a future enhancement.
-- **No file upload transformation:** The file upload logic in the route prepends file paths to the Gemini prompt. Verify this works for Codex or adjust the prompt format if needed.
+- **No session resume:** Codex `exec` mode is one-shot; `session_id` is not used for resume.
+- **No browser-tool MCP integration:** The Codex path does not configure `browser_tool_relay`.
+- **`BASE_SNAPSHOT_ID` caveat:** If a pre-existing base snapshot is supplied, the script still validates/installs the selected snapshot CLI into the working snapshot.
 
 ## Files to Create/Modify
 
 | File | Action |
 |---|---|
-| Snapshot build script (TBD) | **Create or Modify** (add Codex CLI installation) |
-| `.env.example` or README section | **Modify** (document Codex env vars) |
-| `packages/sandbox-agent/src/agents/codex-mapper.ts` | **Modify** (if real CLI output differs from assumed format) |
+| `package.json` | **Modify** (add `snapshot:browser-tool:codex`) |
+| `packages/web/scripts/create-browser-tool-snapshot.mjs` | **Modify** (Codex install/validation branch + conditional settings file write) |
+| `packages/web/.env.example` | **Modify** (document `AGENT_TYPE`, `OPENAI_API_KEY`, `CODEX_API_KEY`) |
+| `README.md` | **Modify** (document Codex snapshot command + runtime env vars) |
+| `packages/sandbox-agent/src/agents/codex-mapper.ts` | **Modify only if needed** (if CLI event format differs from current mapping) |
 
 ## Verification
 
 ```bash
-# Final full build to confirm nothing is broken
-pnpm build
+# Snapshot creation
+pnpm snapshot:browser-tool:codex
 
-# Run all tests
+# Optional unit verification
 pnpm --filter @giselles-ai/sandbox-agent test
 ```
 
 ## Done Criteria
 
-- [ ] Sandbox snapshot with Codex CLI installed exists and is documented
-- [ ] `codex exec --json` runs successfully inside the snapshot
-- [ ] Route correctly streams normalized NDJSON when `AGENT_TYPE=codex`
-- [ ] `giselle-provider` processes Codex output without errors (text streams to UI)
-- [ ] Codex event mapping is verified against real CLI output (mapper updated if needed)
-- [ ] Environment variables are documented
-- [ ] Known limitations are documented
-- [ ] Update the status in [AGENTS.md](./AGENTS.md) to `✅ DONE`
+- [x] Snapshot script supports `SNAPSHOT_AGENT=codex`.
+- [x] `snapshot:browser-tool:codex` command exists.
+- [x] Snapshot with Codex CLI installed is documented.
+- [x] Codex CLI verification (`codex --version`, `codex exec --json ...`) is documented.
+- [ ] Route correctly streams normalized NDJSON when `AGENT_TYPE=codex`.
+- [ ] `giselle-provider` consumer renders streamed Codex text without regression.
+- [ ] Codex output mapper has been verified against real output.
+- [ ] Environment variables are documented in README/.env example.
+- [ ] Known limitations are documented.
