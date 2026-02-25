@@ -9,11 +9,11 @@ export default function Page() {
 				<p className="mt-3 text-sm text-slate-300/90">
 					Open the Gemini Browser Tool demo to run browser automation through
 					<code className="mx-1 rounded bg-slate-800 px-1 py-0.5">
-						/agent-api/run
+						/api/chat
 					</code>
 					with{" "}
 					<code className="mx-1 rounded bg-slate-800 px-1 py-0.5">
-						useAgent()
+						useChat()
 					</code>
 					.
 				</p>

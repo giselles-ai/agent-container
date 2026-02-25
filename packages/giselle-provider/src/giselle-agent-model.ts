@@ -7,6 +7,7 @@ import type {
 	LanguageModelV3ToolResultOutput,
 } from "@ai-sdk/provider";
 import { UnsupportedFunctionalityError } from "@ai-sdk/provider";
+import Redis from "ioredis";
 import {
 	createMapperContext,
 	extractJsonObjects,
@@ -35,14 +36,155 @@ type ExtractedToolResult = {
 	output: unknown;
 };
 
-function createDefaultRelaySubscription(): RelaySubscription {
+const REDIS_URL_ENV_CANDIDATES = [
+	"REDIS_URL",
+	"REDIS_TLS_URL",
+	"KV_URL",
+	"UPSTASH_REDIS_TLS_URL",
+	"UPSTASH_REDIS_URL",
+] as const;
+const RELAY_SUBSCRIBER_REDIS_OPTIONS = {
+	enableReadyCheck: false,
+	autoResubscribe: false,
+	autoResendUnfulfilledCommands: false,
+	maxRetriesPerRequest: 2,
+} as const;
+const RELAY_BROWSER_PRESENCE_TTL_SEC = 90;
+const RELAY_BROWSER_KEEPALIVE_INTERVAL_MS = 20 * 1000;
+
+function resolveRedisUrl(): string {
+	for (const name of REDIS_URL_ENV_CANDIDATES) {
+		const value = process.env[name]?.trim();
+		if (value) {
+			return value;
+		}
+	}
+
+	throw new Error(
+		`Missing Redis URL. Set one of: ${REDIS_URL_ENV_CANDIDATES.join(", ")}`,
+	);
+}
+
+function relayRequestChannel(sessionId: string): string {
+	return `relay:${sessionId}:request`;
+}
+
+function browserPresenceKey(sessionId: string): string {
+	return `relay:browser:${sessionId}`;
+}
+
+function createDefaultRelaySubscription(params: {
+	sessionId: string;
+	token: string;
+	relayUrl: string;
+}): RelaySubscription {
+	const channel = relayRequestChannel(params.sessionId);
+	const redis = new Redis(resolveRedisUrl(), {
+		maxRetriesPerRequest: 2,
+	});
+	const subscriber = redis.duplicate(RELAY_SUBSCRIBER_REDIS_OPTIONS);
+	const queue: Record<string, unknown>[] = [];
+	const waiters: Array<{
+		resolve: (request: Record<string, unknown>) => void;
+		reject: (error: Error) => void;
+	}> = [];
+	let keepaliveId: ReturnType<typeof setInterval> | null = null;
+	let closed = false;
+
+	const resolveNext = (request: Record<string, unknown>): void => {
+		const waiter = waiters.shift();
+		if (waiter) {
+			waiter.resolve(request);
+			return;
+		}
+		queue.push(request);
+	};
+
+	const rejectAll = (error: Error): void => {
+		while (waiters.length > 0) {
+			waiters.shift()?.reject(error);
+		}
+	};
+
+	const touchBrowserPresence = async (): Promise<void> => {
+		await redis.set(
+			browserPresenceKey(params.sessionId),
+			"1",
+			"EX",
+			RELAY_BROWSER_PRESENCE_TTL_SEC,
+		);
+	};
+
+	subscriber.on("message", (receivedChannel: string, message: string) => {
+		if (closed || receivedChannel !== channel) {
+			return;
+		}
+
+		try {
+			const parsed = JSON.parse(message);
+			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+				return;
+			}
+
+			resolveNext(parsed as Record<string, unknown>);
+		} catch {
+			// Ignore malformed relay payloads.
+		}
+	});
+
+	subscriber.on("error", (error: unknown) => {
+		if (closed) {
+			return;
+		}
+		rejectAll(new Error(`Relay subscriber failed: ${toStringError(error)}`));
+	});
+
+	void touchBrowserPresence().catch(() => undefined);
+
+	const ready = (async () => {
+		await subscriber.subscribe(channel);
+		await touchBrowserPresence();
+		keepaliveId = setInterval(() => {
+			void touchBrowserPresence().catch(() => undefined);
+		}, RELAY_BROWSER_KEEPALIVE_INTERVAL_MS);
+	})();
+
 	return {
 		nextRequest: async () => {
-			throw new Error(
-				"createRelaySubscription is not implemented for giselle-provider phase 3.",
-			);
+			await ready;
+
+			if (queue.length > 0) {
+				return queue.shift() as Record<string, unknown>;
+			}
+
+			if (closed) {
+				throw new Error("Relay subscription is closed.");
+			}
+
+			return await new Promise<Record<string, unknown>>((resolve, reject) => {
+				waiters.push({ resolve, reject });
+			});
 		},
-		close: async () => {},
+		close: async () => {
+			if (closed) {
+				return;
+			}
+
+			closed = true;
+			if (keepaliveId) {
+				clearInterval(keepaliveId);
+			}
+
+			rejectAll(new Error("Relay subscription closed."));
+
+			await subscriber.unsubscribe(channel).catch(() => undefined);
+			await subscriber.quit().catch(() => {
+				subscriber.disconnect();
+			});
+			await redis.quit().catch(() => {
+				redis.disconnect();
+			});
+		},
 	};
 }
 
@@ -89,7 +231,7 @@ function createDefaultDeps(): GiselleProviderDeps {
 				response,
 			};
 		},
-		createRelaySubscription: () => createDefaultRelaySubscription(),
+		createRelaySubscription: (params) => createDefaultRelaySubscription(params),
 		sendRelayResponse: async (params) => {
 			const response = await fetch(params.relayUrl, {
 				method: "POST",
@@ -207,7 +349,12 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				id: input.providerSessionId,
 			});
 
-			if (input.isResume) {
+			// `useChat` always sends a chat `id`. Treating every request that includes
+			// an id as a resume causes false-positive resume attempts on first turns.
+			// We only resume when tool results are present in the prompt.
+			const hasToolResults =
+				this.extractToolResults(input.options.prompt).length > 0;
+			if (input.isResume && hasToolResults) {
 				await this.resumeStream(input);
 				return;
 			}
@@ -313,6 +460,13 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				controller: input.controller,
 				connection: hotConnection,
 			});
+
+			const refreshedSession = await loadSession(input.providerSessionId);
+			if (!refreshedSession || !refreshedSession.pendingRequestId) {
+				await removeLiveConnection(input.providerSessionId).catch(
+					() => undefined,
+				);
+			}
 			return;
 		}
 
@@ -337,9 +491,62 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 		const decoder = new TextDecoder();
 		let pausedForTool = false;
+		let relayWatcherError: Error | null = null;
+		let relayWatcherStarted = false;
+		let relayWatcher: Promise<void> | null = null;
+
+		const startRelayWatcher = () => {
+			if (relayWatcherStarted || !input.connection.relaySubscription) {
+				return;
+			}
+
+			relayWatcherStarted = true;
+			relayWatcher = (async () => {
+				while (!pausedForTool && input.connection.relaySubscription) {
+					const relayEvent =
+						await input.connection.relaySubscription.nextRequest();
+					if (pausedForTool) {
+						return;
+					}
+
+					const paused = await this.processRelayRequest({
+						providerSessionId: input.providerSessionId,
+						controller: input.controller,
+						connection: input.connection,
+						context,
+						event: relayEvent,
+					});
+					if (!paused) {
+						continue;
+					}
+
+					pausedForTool = true;
+					await input.connection.relaySubscription
+						.close()
+						.catch(() => undefined);
+					input.connection.relaySubscription = null;
+					await input.connection.reader.cancel().catch(() => undefined);
+					try {
+						input.connection.reader.releaseLock();
+					} catch {
+						// ignore
+					}
+					return;
+				}
+			})().catch((error) => {
+				relayWatcherError = new Error(
+					`Relay subscription failed: ${toStringError(error)}`,
+				);
+			});
+		};
 
 		try {
 			while (true) {
+				startRelayWatcher();
+				if (relayWatcherError) {
+					throw relayWatcherError;
+				}
+
 				const { done, value } = await input.connection.reader.read();
 				if (done) {
 					break;
@@ -357,11 +564,19 @@ export class GiselleAgentModel implements LanguageModelV3 {
 						context,
 						objectText,
 					});
+					startRelayWatcher();
+					if (relayWatcherError) {
+						throw relayWatcherError;
+					}
 					if (paused) {
 						pausedForTool = true;
 						return;
 					}
 				}
+			}
+
+			if (pausedForTool) {
+				return;
 			}
 
 			const trailingBuffer = input.connection.buffer.trim();
@@ -378,16 +593,28 @@ export class GiselleAgentModel implements LanguageModelV3 {
 					return;
 				}
 			}
+			if (pausedForTool) {
+				return;
+			}
 
 			const finishParts = finishStream(context);
 			for (const part of finishParts) {
 				input.controller.enqueue(part);
 			}
 
-			input.controller.close();
+			await input.connection.relaySubscription?.close().catch(() => undefined);
+			input.connection.relaySubscription = null;
 			await deleteSession(input.providerSessionId);
+
+			input.controller.close();
 		} catch (error) {
+			if (pausedForTool) {
+				return;
+			}
+
 			input.connection.textBlockOpen = context.textBlockOpen;
+			await input.connection.relaySubscription?.close().catch(() => undefined);
+			input.connection.relaySubscription = null;
 			await removeLiveConnection(input.providerSessionId).catch(
 				() => undefined,
 			);
@@ -395,7 +622,14 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				`Failed to process NDJSON stream: ${toStringError(error)}`,
 			);
 		} finally {
+			if (relayWatcher) {
+				await relayWatcher.catch(() => undefined);
+			}
+
 			if (!pausedForTool) {
+				await removeLiveConnection(input.providerSessionId).catch(
+					() => undefined,
+				);
 				try {
 					input.connection.reader.releaseLock();
 				} catch {
@@ -422,6 +656,19 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		const mapped = mapNdjsonEvent(event, input.context);
 		if (mapped.sessionUpdate) {
 			await updateSession(input.providerSessionId, mapped.sessionUpdate);
+
+			if (
+				!input.connection.relaySubscription &&
+				typeof mapped.sessionUpdate.relaySessionId === "string" &&
+				typeof mapped.sessionUpdate.relayToken === "string" &&
+				typeof mapped.sessionUpdate.relayUrl === "string"
+			) {
+				input.connection.relaySubscription = this.deps.createRelaySubscription({
+					sessionId: mapped.sessionUpdate.relaySessionId,
+					token: mapped.sessionUpdate.relayToken,
+					relayUrl: mapped.sessionUpdate.relayUrl,
+				});
+			}
 		}
 
 		for (const part of mapped.parts) {
@@ -434,6 +681,31 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 		input.connection.textBlockOpen = input.context.textBlockOpen;
 		saveLiveConnection(input.providerSessionId, input.connection);
+		input.controller.close();
+		return true;
+	}
+
+	private async processRelayRequest(input: {
+		providerSessionId: string;
+		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
+		connection: LiveConnection;
+		context: ReturnType<typeof createMapperContext>;
+		event: Record<string, unknown>;
+	}): Promise<boolean> {
+		const mapped = mapNdjsonEvent(input.event, input.context);
+		if (mapped.sessionUpdate) {
+			await updateSession(input.providerSessionId, mapped.sessionUpdate);
+		}
+
+		for (const part of mapped.parts) {
+			input.controller.enqueue(part);
+		}
+
+		if (!mapped.relayRequest) {
+			return false;
+		}
+
+		input.connection.textBlockOpen = input.context.textBlockOpen;
 		input.controller.close();
 		return true;
 	}
