@@ -30,6 +30,12 @@ type ChatRequestBody = {
 	[key: string]: unknown;
 };
 
+type ResolvedAgentType = "gemini" | "codex";
+type ResolvedAgentConfig = {
+	type?: ResolvedAgentType;
+	snapshotId?: string;
+};
+
 class InvalidChatRequestError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -101,6 +107,42 @@ function asNonEmptyString(value: unknown): string | undefined {
 	}
 	const trimmed = value.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveAgentType(value: unknown): ResolvedAgentType | undefined {
+	const normalized = asNonEmptyString(value)?.toLowerCase();
+	if (normalized === "gemini" || normalized === "codex") {
+		return normalized;
+	}
+	return undefined;
+}
+
+function resolveAgentSnapshotId(value: unknown): string | undefined {
+	return asNonEmptyString(value);
+}
+
+function resolveAgentConfig(
+	body: ChatRequestBody,
+): ResolvedAgentConfig | undefined {
+	const providerOptions = asRecord(body.providerOptions);
+	const giselleOptions = asRecord(providerOptions?.giselle);
+	const agentOptions = asRecord(giselleOptions?.agent);
+
+	const type =
+		resolveAgentType(agentOptions?.type) ??
+		resolveAgentType(process.env.AGENT_TYPE);
+	const snapshotId =
+		resolveAgentSnapshotId(agentOptions?.snapshotId) ??
+		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID);
+
+	if (!type && !snapshotId) {
+		return undefined;
+	}
+
+	return {
+		...(type ? { type } : {}),
+		...(snapshotId ? { snapshotId } : {}),
+	};
 }
 
 async function parseChatRequestBody(
@@ -186,11 +228,13 @@ export async function POST(request: Request): Promise<Response> {
 		const messages = await parseChatMessages(body);
 		const sessionId = resolveSessionId(body);
 		const providerOptions = mergeProviderOptions(body, sessionId);
+		const agent = resolveAgentConfig(body);
 
 		const result = streamText({
 			model: giselle({
 				cloudApiUrl: CLOUD_API_URL,
 				headers: buildCloudApiHeaders(),
+				agent,
 			}),
 			messages: await convertToModelMessages(messages),
 			tools,

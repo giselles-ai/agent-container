@@ -104,6 +104,7 @@ Custom AI SDK `LanguageModelV3` provider — the bridge between CLI agents runni
 |---|---|
 | `giselle()` | Factory function returning a `GiselleAgentModel` instance |
 | `GiselleAgentModel` | `LanguageModelV3` implementation (`doStream`) |
+| `GiselleAgentConfig` | Agent selection config passed to the provider (`type`, `snapshotId`) |
 | `extractJsonObjects()` | NDJSON parser |
 | `mapNdjsonEvent()` | NDJSON event → `LanguageModelV3StreamPart` mapper |
 | `createSession()` / `loadSession()` | Redis session management |
@@ -116,6 +117,8 @@ Core SDK for running CLI agents in Vercel Sandbox containers. Defines the `ChatA
 |---|---|
 | `ChatAgent` | Interface for pluggable CLI agent implementations |
 | `createGeminiAgent()` | Gemini CLI agent (runs `gemini --output-format stream-json`) |
+| `AGENT_METADATA_PATH` | Path to agent metadata file inside snapshots (`/.agent-metadata.json`) |
+| `readAgentMetadata()` | Read agent metadata from a sandbox snapshot |
 | `runChat()` | Sandbox orchestrator — creates/resumes a sandbox and streams NDJSON |
 
 ### `@giselles-ai/browser-tool`
@@ -174,6 +177,39 @@ export async function POST(request: Request) {
   return result.toUIMessageStreamResponse();
 }
 ```
+
+### Agent Selection
+
+`giselle()` can accept an optional `agent` object to select the backend on a per-request basis:
+
+```ts
+const result = streamText({
+  model: giselle({
+    cloudApiUrl: "https://studio.giselles.ai",
+    headers: { authorization: "Bearer ..." },
+    agent: { type: "codex" },
+  }),
+  messages: await convertToModelMessages(messages),
+  tools,
+  abortSignal: request.signal,
+});
+
+const metadataDrivenResult = streamText({
+  model: giselle({
+    cloudApiUrl: "https://studio.giselles.ai",
+    headers: { authorization: "Bearer ..." },
+    agent: { snapshotId: "snap_custom_research_agent" },
+  }),
+  messages: await convertToModelMessages(messages),
+  tools,
+  abortSignal: request.signal,
+});
+```
+
+Resolution order:
+1. `agent.type` in `providerOptions.giselle.agent` (request-scoped, highest priority)
+2. `AGENT_TYPE` environment variable
+3. Cloud API may still finalize selection from snapshot metadata (`/.agent-metadata.json`), which can override request/env values
 
 ### React (useChat + onToolCall)
 
@@ -260,11 +296,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable | Description |
 |---|---|
-| `AGENT_TYPE` | Agent selection (`gemini` default, `codex` for OpenAI Codex) |
+| `AGENT_TYPE` | Deployment fallback agent selection (`gemini` default, `codex` for OpenAI Codex) |
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `OPENAI_API_KEY` | OpenAI API key for Codex mode |
 | `CODEX_API_KEY` | Optional alias for `OPENAI_API_KEY` in Codex mode |
-| `SANDBOX_SNAPSHOT_ID` | Sandbox snapshot ID (see [Creating a Snapshot](#creating-a-snapshot)) |
+| `SANDBOX_SNAPSHOT_ID` | Optional fallback snapshot ID for env-based agent selection (overridden by request config when provided) |
 | `REDIS_URL` | Redis connection URL for relay sessions |
 
 #### Optional
