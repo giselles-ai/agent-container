@@ -1,59 +1,58 @@
 # Giselle Agent Container
 
-A unified SDK for running AI agents inside sandboxed containers with browser automation capabilities — like the [Vercel AI SDK](https://sdk.vercel.ai/), but for agentic CLI tools. Currently supports [Gemini CLI](https://github.com/google-gemini/gemini-cli) running in [Vercel Sandbox](https://vercel.com/docs/sandbox), with plans to support [Codex CLI](https://github.com/openai/codex) and other agents behind a single, consistent API and React UI layer.
+Run CLI-based AI agents (like [Gemini CLI](https://github.com/google-gemini/gemini-cli)) inside sandboxed containers and communicate with them through the [Vercel AI SDK](https://sdk.vercel.ai/) protocol. The custom `LanguageModelV3` provider translates the agent's NDJSON output into standard AI SDK streams, so your React app can use `useChat` and `streamText` as if it were talking to any other LLM — while the actual work is done by a CLI agent running in a [Vercel Sandbox](https://vercel.com/docs/sandbox).
 
-A key use case is embedding a Chat UI into existing web applications to drive RPA-style form automation — the agent reasons about the page, and a custom MCP server relays DOM snapshots and actions between the sandbox and the user's browser via Redis.
+A key use case is RPA-style form automation: the sandboxed agent reasons about a page via an MCP server, and browser-tool operations flow through the AI SDK's `onToolCall` mechanism to snapshot DOM state and execute actions directly in the user's browser.
 
 ## Architecture
 
 ```
-┌────────────────────┐        ┌──────────────────┐        ┌──────────────────────┐
-│  React App         │        │  Route Handler   │        │  Vercel Sandbox      │
-│  ┌──────────────┐  │  POST  │                  │        │  ┌────────────────┐  │
-│  │  useAgent()  │──┼───────▶│  runChat()       │───────▶│  │  Gemini CLI    │  │
-│  │  hook        │◀─┼─NDJSON─│                  │◀stdout─│  │  (agent)       │  │
-│  └──────────────┘  │        │                  │        │  └───────┬────────┘  │
-│                    │        │                  │        │          │ MCP       │
-│  ┌──────────────┐  │        │  ┌────────────┐  │        │  ┌───────▼────────┐  │
-│  │  browserTool │◀─┼──SSE───│  │  Relay     │  │        │  │  MCP Server    │  │
-│  │  (DOM ops)   │──┼──POST──│  │  Handler   │◀─┼─Redis──│  │  (RelayClient) │  │
-│  └──────────────┘  │        │  └────────────┘  │        │  └────────────────┘  │
-└────────────────────┘        └──────────────────┘        └──────────────────────┘
-   Browser                       Your Server                  Sandboxed Container
+┌────────────────────┐        ┌──────────────────────┐        ┌──────────────────────┐
+│  React App         │        │  Your Server         │        │  Vercel Sandbox      │
+│  ┌──────────────┐  │  POST  │  ┌────────────────┐  │        │  ┌────────────────┐  │
+│  │  useChat()   │──┼───────▶│  │  streamText()  │  │        │  │  Gemini CLI    │  │
+│  │  (@ai-sdk)   │◀─┼─stream─│  │  + giselle()   │──┼─NDJSON▶│  │  (CLI agent)   │  │
+│  └──────────────┘  │        │  │  (provider)    │◀─┼─NDJSON─│  │                │  │
+│                    │        │  └────────────────┘  │        │  └───────┬────────┘  │
+│  ┌──────────────┐  │        │                      │        │          │ MCP       │
+│  │  onToolCall  │  │        │  ┌────────────────┐  │        │  ┌───────▼────────┐  │
+│  │  (DOM ops)   │  │        │  │  Session Mgr   │◀─┼─Redis──│  │  MCP Server    │  │
+│  └──────────────┘  │        │  └────────────────┘  │        │  └────────────────┘  │
+└────────────────────┘        └──────────────────────┘        └──────────────────────┘
+   Browser                       Route Handler                   Sandboxed Container
 ```
+
+The `giselle-provider` package is the bridge: it wraps the Cloud API (which orchestrates the sandbox) as a `LanguageModelV3`, so the NDJSON stream from the CLI agent is translated into AI SDK stream parts that `useChat` understands natively.
 
 ### Sequence: Browser Tool Form Automation
 
 ```
-Browser (React)           Route Handler            Redis              Sandbox (Gemini CLI + MCP)
-     │                         │                     │                          │
-     │─── POST agent.run ─────▶│                     │                          │
-     │                         │─ createRelaySession▶│                          │
-     │◀── NDJSON stream ───────│                     │                          │
-     │    (relay.session)      │── runChat() ────────┼─────────────────────────▶│
-     │                         │                     │                          │
-     │◀── SSE (relay.events) ──│◀─── subscribe ──────│                          │
-     │                         │                     │    MCP: getFormSnapshot  │
-     │                         │                     │◀── relay.dispatch ───────│
-     │                         │                     │── publish request ──────▶│
-     │◀── snapshot_request ────│                     │                          │
-     │                         │                     │                          │
-     │  (DOM snapshot)         │                     │                          │
-     │                         │                     │                          │
-     │─── snapshot_response ──▶│── relay.respond ───▶│                          │
-     │                         │                     │── publish response ─────▶│
-     │                         │                     │                          │
-     │                         │                     │  MCP: executeFormActions │
-     │                         │                     │◀── relay.dispatch ───────│
-     │◀── execute_request ─────│                     │                          │
-     │                         │                     │                          │
-     │  (DOM mutations)        │                     │                          │
-     │                         │                     │                          │
-     │─── execute_response ───▶│── relay.respond ───▶│                          │
-     │                         │                     │── publish response ─────▶│
-     │                         │                     │                          │
-     │◀── NDJSON (message) ────│◀─────── stdout ─────┼──────────────────────────│
-     ▼                         ▼                     ▼                          ▼
+Browser (useChat)             Route Handler            Redis              Sandbox (CLI Agent + MCP)
+     │                             │                     │                          │
+     │─── POST /api/chat ─────────▶│                     │                          │
+     │                             │── streamText() ─────┼─────────────────────────▶│
+     │◀── AI SDK stream ───────────│                     │                          │
+     │                             │                     │                          │
+     │                             │                     │   MCP: getFormSnapshot   │
+     │◀── tool-call ───────────────│◀─── NDJSON ─────────┼──────────────────────────│
+     │    (getFormSnapshot)        │                     │                          │
+     │                             │                     │                          │
+     │  onToolCall → snapshot()    │                     │                          │
+     │                             │                     │                          │
+     │─── POST /api/chat ─────────▶│── relay.respond ───▶│                          │
+     │    (tool results)           │                     │── publish response ─────▶│
+     │                             │                     │                          │
+     │                             │                     │   MCP: executeFormActions│
+     │◀── tool-call ───────────────│◀─── NDJSON ─────────┼──────────────────────────│
+     │    (executeFormActions)     │                     │                          │
+     │                             │                     │                          │
+     │  onToolCall → execute()     │                     │                          │
+     │                             │                     │                          │
+     │─── POST /api/chat ─────────▶│── relay.respond ───▶│                          │
+     │    (tool results)           │                     │── publish response ─────▶│
+     │                             │                     │                          │
+     │◀── AI SDK stream (done) ────│◀─────── NDJSON ─────┼──────────────────────────│
+     ▼                             ▼                     ▼                          ▼
 ```
 
 ## Project Structure
@@ -61,142 +60,157 @@ Browser (React)           Route Handler            Redis              Sandbox (G
 ```
 agent-container/
 ├── packages/
-│   ├── sandbox-agent/          # @giselles-ai/sandbox-agent — core SDK
+│   ├── giselle-provider/          # @giselles-ai/giselle-provider — AI SDK LanguageModelV3 provider
 │   │   └── src/
-│   │       ├── agents/         # Agent implementations (ChatAgent interface)
-│   │       │   └── gemini-agent.ts
-│   │       ├── client/         # Browser-side streaming client
-│   │       │   └── stream-agent.ts
-│   │       ├── react/          # React hook (useAgent)
-│   │       │   └── use-agent.ts
-│   │       ├── chat-run.ts     # Sandbox orchestrator (runChat)
+│   │       ├── giselle-agent-model.ts  # LanguageModelV3 impl (doStream, relay, resume)
+│   │       ├── ndjson-mapper.ts        # CLI agent NDJSON → AI SDK StreamPart mapper
+│   │       ├── session-manager.ts      # Redis metadata + globalThis live connections
+│   │       ├── types.ts                # GiselleProviderDeps, SessionMetadata, etc.
+│   │       └── index.ts                # giselle() factory + re-exports
+│   ├── sandbox-agent/             # @giselles-ai/sandbox-agent — sandbox orchestrator
+│   │   └── src/
+│   │       ├── agents/            # Agent implementations (ChatAgent interface)
+│   │       │   └── gemini-agent.ts    # Gemini CLI agent
+│   │       ├── chat-run.ts        # runChat() — run CLI agent in Vercel Sandbox
 │   │       └── index.ts
-│   ├── browser-tool/           # @giselles-ai/browser-tool — browser automation
+│   ├── browser-tool/              # @giselles-ai/browser-tool — browser automation
 │   │   └── src/
-│   │       ├── dom/            # Client-side DOM operations
-│   │       │   ├── snapshot.ts # Scan form fields → SnapshotField[]
-│   │       │   └── executor.ts # Apply actions → ExecutionReport
-│   │       ├── mcp-server/     # MCP server (runs inside sandbox)
-│   │       │   ├── relay-client.ts
-│   │       │   └── tools/      # getFormSnapshot, executeFormActions
-│   │       ├── react/          # React integration
-│   │       │   ├── browser-tool.ts  # browserTool() relay handler
-│   │       │   ├── provider.tsx
-│   │       │   └── use-browser-tool.ts
-│   │       ├── relay/          # Redis-backed relay (server-side)
-│   │       │   ├── relay-handler.ts  # SSE + POST route handler
-│   │       │   └── relay-store.ts    # Session management, pub/sub
-│   │       └── types.ts        # Shared Zod schemas & types
-│   └── web/                    # Next.js demo app
+│   │       ├── dom/               # Client-side DOM operations
+│   │       │   ├── snapshot.ts    # Scan form fields → SnapshotField[]
+│   │       │   └── executor.ts    # Apply actions → ExecutionReport
+│   │       ├── mcp-server/        # MCP server (runs inside sandbox)
+│   │       ├── react/             # React integration
+│   │       ├── relay/             # Redis-backed relay (server-side)
+│   │       └── types.ts           # Shared Zod schemas & types
+│   └── web/                       # Next.js demo app
 │       └── app/
-│           ├── agent-api/
-│           │   ├── run/route.ts           # Self-hosted agent endpoint
-│           │   ├── external/run/route.ts  # Cloud API proxy endpoint
-│           │   └── relay/[[...relay]]/route.ts  # Relay SSE + dispatch
-│           ├── gemini-browser-tool/       # Self-hosted demo page
-│           └── external-agent/            # Cloud API demo page
+│           ├── api/chat/route.ts              # AI SDK route (streamText + giselle())
+│           ├── agent-api/relay/[[...relay]]/   # Relay SSE + dispatch
+│           ├── gemini-browser-tool/            # Self-hosted demo page
+│           └── external-agent/                # Cloud API demo page
 ├── sandbox-agent/
-│   ├── web/                    # Agent management platform
-│   └── cli/                    # @giselles-ai/agent-cli
+│   ├── web/                       # Agent management platform
+│   └── cli/                       # @giselles-ai/agent-cli
 └── scripts/
 ```
 
 ## Packages
 
+### `@giselles-ai/giselle-provider`
+
+Custom AI SDK `LanguageModelV3` provider — the bridge between CLI agents running in sandboxes and the AI SDK ecosystem. Translates the agent's NDJSON output into AI SDK stream parts, maps relay-based browser tool requests into `tool-call` parts, and manages two-layer sessions (Redis metadata + process-local live connections) for hot/cold stream resumption.
+
+| Export | Description |
+|---|---|
+| `giselle()` | Factory function returning a `GiselleAgentModel` instance |
+| `GiselleAgentModel` | `LanguageModelV3` implementation (`doStream`) |
+| `extractJsonObjects()` | NDJSON parser |
+| `mapNdjsonEvent()` | NDJSON event → `LanguageModelV3StreamPart` mapper |
+| `createSession()` / `loadSession()` | Redis session management |
+
 ### `@giselles-ai/sandbox-agent`
 
-The core SDK for running AI agents in Vercel Sandbox containers.
+Core SDK for running CLI agents in Vercel Sandbox containers. Defines the `ChatAgent` interface so new CLI agents can be plugged in.
 
-| Export Path | Description |
+| Export | Description |
 |---|---|
-| `@giselles-ai/sandbox-agent` | Server-side — `ChatAgent` interface, `runChat()` orchestrator, `createGeminiAgent()` |
-| `@giselles-ai/sandbox-agent/client` | Browser-side — `streamAgent()` async generator, `toNdjsonResponse()` helper |
-| `@giselles-ai/sandbox-agent/react` | React — `useAgent()` hook with full state management |
-
-#### `ChatAgent` Interface
-
-All agent implementations conform to this interface, enabling future agents (Codex CLI, etc.) to be plugged in:
-
-```ts
-type ChatAgent<TRequest extends BaseChatRequest> = {
-  requestSchema: z.ZodType<TRequest>;
-  snapshotId?: string;
-  prepareSandbox(input: { input: TRequest; sandbox: Sandbox }): Promise<void>;
-  createCommand(input: { input: TRequest }): ChatCommand;
-};
-```
+| `ChatAgent` | Interface for pluggable CLI agent implementations |
+| `createGeminiAgent()` | Gemini CLI agent (runs `gemini --output-format stream-json`) |
+| `runChat()` | Sandbox orchestrator — creates/resumes a sandbox and streams NDJSON |
 
 ### `@giselles-ai/browser-tool`
 
-Browser automation toolkit — DOM operations, MCP server, relay infrastructure.
+Browser automation toolkit — DOM snapshot/execute operations, MCP server for the sandbox, and Redis relay infrastructure.
 
 | Export Path | Description |
 |---|---|
 | `@giselles-ai/browser-tool` | Shared types & Zod schemas (`SnapshotField`, `BrowserToolAction`, etc.) |
 | `@giselles-ai/browser-tool/dom` | Client-side `snapshot()` and `execute()` functions |
-| `@giselles-ai/browser-tool/react` | `browserTool()` relay handler, `BrowserToolProvider`, `useBrowserTool()` |
+| `@giselles-ai/browser-tool/react` | React integration components |
 | `@giselles-ai/browser-tool/relay` | Server-side `createRelayHandler()`, `createRelaySession()` |
 | `@giselles-ai/browser-tool/mcp-server` | MCP server entry point (runs inside sandbox) |
 
-## Deployment Modes
-
-### Self-Hosted
-
-You run the full stack: Next.js app + Redis + Vercel Sandbox. The agent endpoint, relay handler, and browser tool all run in your infrastructure.
-
-```ts
-// app/agent-api/run/route.ts
-import { createGeminiAgent, runChat } from "@giselles-ai/sandbox-agent";
-import { createRelaySession } from "@giselles-ai/browser-tool/relay";
-
-export async function POST(request: Request) {
-  const session = await createRelaySession();
-  const agent = createGeminiAgent({ snapshotId: "...", /* ... */ });
-  return runChat({ agent, signal: request.signal, input: { /* ... */ } });
-}
-```
-
-### Cloud API
-
-Use the hosted Giselle API (`studio.giselles.ai`) — no Redis or snapshot setup needed. Your app proxies requests through `streamAgent()`:
-
-```ts
-// app/agent-api/external/run/route.ts
-import { streamAgent, toNdjsonResponse } from "@giselles-ai/sandbox-agent/client";
-
-export async function POST(request: Request) {
-  return toNdjsonResponse(
-    streamAgent({
-      endpoint: "https://studio.giselles.ai/agent-api/run",
-      message: "Fill out the form",
-      headers: { authorization: "Bearer ..." },
-    }),
-  );
-}
-```
-
 ## Usage
 
-### React Hook
+### Route Handler
+
+```ts
+// app/api/chat/route.ts
+import { giselle } from "@giselles-ai/giselle-provider";
+import { streamText, tool, convertToModelMessages, validateUIMessages } from "ai";
+import { snapshotFieldSchema, browserToolActionSchema, executionReportSchema } from "@giselles-ai/browser-tool";
+import { z } from "zod";
+
+const tools = {
+  getFormSnapshot: tool({
+    description: "Capture the current state of form fields on the page.",
+    inputSchema: z.object({ instruction: z.string() }),
+    outputSchema: z.object({ fields: z.array(snapshotFieldSchema) }),
+  }),
+  executeFormActions: tool({
+    description: "Execute fill, click, and select actions on form fields.",
+    inputSchema: z.object({
+      actions: z.array(browserToolActionSchema),
+      fields: z.array(snapshotFieldSchema),
+    }),
+    outputSchema: z.object({ report: executionReportSchema }),
+  }),
+};
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const messages = await validateUIMessages({ messages: body.messages, tools });
+
+  const result = streamText({
+    model: giselle({
+      cloudApiUrl: "https://studio.giselles.ai",
+      headers: { authorization: "Bearer ..." },
+    }),
+    messages: await convertToModelMessages(messages),
+    tools,
+    abortSignal: request.signal,
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### React (useChat + onToolCall)
 
 ```tsx
-import { useAgent } from "@giselles-ai/sandbox-agent/react";
-import { browserTool } from "@giselles-ai/browser-tool/react";
+import { useChat } from "@ai-sdk/react";
+import { snapshot, execute } from "@giselles-ai/browser-tool/dom";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 function Chat() {
-  const { status, messages, tools, error, sendMessage } = useAgent({
-    endpoint: "/agent-api/run",
-    tools: {
-      browserTool: browserTool(),  // Enable browser automation
+  const { status, messages, sendMessage, addToolOutput } = useChat({
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    onToolCall: async ({ toolCall }) => {
+      if (toolCall.toolName === "getFormSnapshot") {
+        addToolOutput({
+          tool: "getFormSnapshot",
+          toolCallId: toolCall.toolCallId,
+          output: { fields: snapshot() },
+        });
+      }
+      if (toolCall.toolName === "executeFormActions") {
+        const report = execute(toolCall.input.actions, toolCall.input.fields);
+        addToolOutput({
+          tool: "executeFormActions",
+          toolCallId: toolCall.toolCallId,
+          output: { report },
+        });
+      }
     },
   });
 
   return (
     <div>
-      {messages.map((m) => <p key={m.id}>{m.role}: {m.content}</p>)}
-      <button onClick={() => sendMessage({ message: "Fill out the form" })}>
-        Send
-      </button>
+      {messages.map((m) => (
+        <p key={m.id}>{m.role}: {m.parts.map(p => p.type === "text" ? p.text : "").join("")}</p>
+      ))}
+      <button onClick={() => sendMessage({ text: "Fill out the form" })}>Send</button>
     </div>
   );
 }
@@ -236,6 +250,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment Variables
 
+#### Required (cloud API)
+
+| Variable | Description |
+|---|---|
+| `EXTERNAL_AGENT_API_BEARER_TOKEN` | Bearer token for the Giselle cloud API |
+
 #### Required (self-hosted)
 
 | Variable | Description |
@@ -243,12 +263,6 @@ Open [http://localhost:3000](http://localhost:3000).
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `SANDBOX_SNAPSHOT_ID` | Sandbox snapshot ID (see [Creating a Snapshot](#creating-a-snapshot)) |
 | `REDIS_URL` | Redis connection URL for relay sessions |
-
-#### Required (cloud API)
-
-| Variable | Description |
-|---|---|
-| `EXTERNAL_AGENT_API_BEARER_TOKEN` | Bearer token for the Giselle cloud API |
 
 #### Optional
 
