@@ -37,6 +37,8 @@ A stateful line-based mapper that:
 3. Maps Codex events to the normalized NDJSON format
 
 > **Before implementing:** Run `codex exec --json "say hello"` locally to capture real JSONL output. Verify the event types and field names below match the actual CLI output. Adjust the mapping table if needed.
+>
+> Note from local verification (2026-02-25): this environment emitted `thread.started`, `turn.started`, and reconnect-style `error` messages before the expected payload stream. Keep mapper drops unknown event types.
 
 ```typescript
 /**

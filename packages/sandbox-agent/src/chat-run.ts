@@ -14,11 +14,17 @@ export type ChatCommand = {
 	env?: Record<string, string>;
 };
 
+export type StdoutMapper = {
+	push(chunk: string): string[];
+	flush(): string[];
+};
+
 export type ChatAgent<TRequest extends BaseChatRequest> = {
 	requestSchema: z.ZodType<TRequest>;
 	snapshotId?: string;
 	prepareSandbox(input: { input: TRequest; sandbox: Sandbox }): Promise<void>;
 	createCommand(input: { input: TRequest }): ChatCommand;
+	createStdoutMapper?: () => StdoutMapper;
 };
 
 export type RunChatInput<TRequest extends BaseChatRequest> = {
@@ -98,6 +104,7 @@ export function runChat<TRequest extends BaseChatRequest>(
 
 				emitText(controller, text, encoder);
 			};
+			const mapper = input.agent.createStdoutMapper?.();
 
 			void (async () => {
 				try {
@@ -136,7 +143,13 @@ export function runChat<TRequest extends BaseChatRequest>(
 							write(chunk, _encoding, callback) {
 								const text =
 									typeof chunk === "string" ? chunk : chunk.toString("utf8");
-								enqueueStdout(text);
+								if (mapper) {
+									for (const line of mapper.push(text)) {
+										enqueueStdout(line);
+									}
+								} else {
+									enqueueStdout(text);
+								}
 								callback();
 							},
 						}),
@@ -159,6 +172,11 @@ export function runChat<TRequest extends BaseChatRequest>(
 						error instanceof Error ? error.message : String(error);
 					enqueueEvent({ type: "stderr", content: `[error] ${message}` });
 				} finally {
+					if (mapper) {
+						for (const line of mapper.flush()) {
+							enqueueStdout(line);
+						}
+					}
 					input.signal.removeEventListener("abort", onAbort);
 					close();
 				}

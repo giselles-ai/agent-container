@@ -136,4 +136,102 @@ describe("runChat", () => {
 		expect(prepareSandbox).not.toHaveBeenCalled();
 		expect(sandboxCreate).not.toHaveBeenCalled();
 	});
+
+	it("uses agent-provided stdout mapper when present", async () => {
+		const runCommand = vi.fn(
+			async (input: {
+				stdout: { write: (text: string) => void };
+				stderr: { write: (text: string) => void };
+			}) => {
+				input.stdout.write(
+					'{"type":"session.created","id":"session-1","model":"codex-small"}\n',
+				);
+				input.stdout.write("ignored raw output");
+			},
+		);
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			runCommand,
+		});
+
+		const prepareSandbox = vi.fn(async () => undefined);
+		const createStdoutMapper = vi.fn(() => ({
+			push: vi
+				.fn((chunk) => {
+					if (chunk.startsWith('{"type":"session.created"')) {
+						return [
+							JSON.stringify({
+								type: "init",
+								session_id: "session-1",
+								modelId: "codex-small",
+							}) + "\n",
+						];
+					}
+					return [];
+				}),
+			flush: vi.fn(() => []),
+		}));
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox,
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+				createStdoutMapper,
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+		const body = await response.text();
+
+		expect(createStdoutMapper).toHaveBeenCalledTimes(1);
+		expect(body).toContain('"type":"init"');
+		expect(body).not.toContain("ignored raw output");
+		expect(body).toContain("sandbox-1");
+		expect(body.indexOf('"type":"sandbox"')).toBeLessThan(
+			body.indexOf('"type":"init"'),
+		);
+	});
+
+	it("flushes mapper output in finally", async () => {
+		const runCommand = vi.fn(async () => undefined);
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			runCommand,
+		});
+
+		const prepareSandbox = vi.fn(async () => undefined);
+		const flush = vi.fn(() => [
+			JSON.stringify({ type: "message", role: "assistant", content: "final" }) +
+				"\n",
+		]);
+		const push = vi.fn(() => []);
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox,
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+				createStdoutMapper: vi.fn(() => ({ push, flush })),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+
+		const body = await response.text();
+
+		expect(flush).toHaveBeenCalledTimes(1);
+		expect(body).toContain('"type":"message"');
+		expect(body).toContain('"content":"final"');
+	});
 });
