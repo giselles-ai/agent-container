@@ -130,7 +130,7 @@ flowchart TD
 | 1 | [phase-1-provider-core.md](./phase-1-provider-core.md) | ✅ DONE | `GiselleAgentModel` implementing `LanguageModelV3`, `doStream`, factory |
 | 2 | [phase-2-ndjson-mapping.md](./phase-2-ndjson-mapping.md) | ✅ DONE | NDJSON parser + event → `LanguageModelV3StreamPart` mapper |
 | 3 | [phase-3-session-management.md](./phase-3-session-management.md) | ✅ DONE | Redis metadata + `globalThis` live connections + relay integration |
-| 4 | [phase-4-route-handler.md](./phase-4-route-handler.md) | 🔲 TODO | Rewrite `run/route.ts` to use `streamText()` + `giselle()` |
+| 4 | [phase-4-route-handler.md](./phase-4-route-handler.md) | ✅ DONE | Add `/api/chat` route using `streamText()` + `giselle()` |
 | 5 | [phase-5-react-integration.md](./phase-5-react-integration.md) | 🔲 TODO | Replace `useAgent` with `useChat` + `onToolCall` |
 | 6 | [phase-6-cleanup.md](./phase-6-cleanup.md) | 🔲 TODO | Delete legacy `stream-agent.ts`, `use-agent.ts`, update exports |
 
