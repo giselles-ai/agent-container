@@ -1,3 +1,8 @@
+export type GiselleAgentConfig = {
+	type?: "gemini" | "codex";
+	snapshotId?: string;
+};
+
 /**
  * Parameters for connecting to the Giselle Cloud API.
  */
@@ -7,6 +12,8 @@ export type ConnectCloudApiParams = {
 	document?: string;
 	sessionId?: string;
 	sandboxId?: string;
+	agentType?: string;
+	snapshotId?: string;
 	headers?: Record<string, string>;
 	signal?: AbortSignal;
 };
@@ -77,5 +84,6 @@ export type LiveConnection = {
 export type GiselleProviderOptions = {
 	cloudApiUrl: string;
 	headers?: Record<string, string>;
+	agent?: GiselleAgentConfig;
 	deps?: Partial<GiselleProviderDeps>;
 };

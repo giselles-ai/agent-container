@@ -215,6 +215,8 @@ function createDefaultDeps(): GiselleProviderDeps {
 					document: params.document,
 					session_id: params.sessionId,
 					sandbox_id: params.sandboxId,
+					agent_type: params.agentType,
+					snapshot_id: params.snapshotId,
 				}),
 				signal: params.signal,
 			});
@@ -722,6 +724,8 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			message: this.extractUserMessage(options.prompt),
 			sessionId: resumeData?.sessionId,
 			sandboxId: resumeData?.sandboxId,
+			agentType: this.options.agent?.type,
+			snapshotId: this.options.agent?.snapshotId,
 			headers: this.mergeCloudHeaders(options.headers),
 			signal: options.abortSignal,
 		});

@@ -224,6 +224,157 @@ describe("GiselleAgentModel", () => {
 		expect(sessionState.liveConnections.size).toBe(0);
 	});
 
+	it("passes agent type to cloud API", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "agent-type-1" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: cloudReader.reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			agent: { type: "codex" },
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: "codex",
+				snapshotId: undefined,
+			}),
+		);
+	});
+
+	it("passes snapshot ID to cloud API", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "snapshot-id-1" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: cloudReader.reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			agent: { snapshotId: "snap_custom_123" },
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: undefined,
+				snapshotId: "snap_custom_123",
+			}),
+		);
+	});
+
+	it("omits agent fields when no agent config is provided", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "snapshot-id-2" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: cloudReader.reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: undefined,
+				snapshotId: undefined,
+			}),
+		);
+	});
+
+	it("passes both agent type and snapshot ID to cloud API", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "snapshot-id-3" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: cloudReader.reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			agent: { type: "gemini", snapshotId: "snap_combo_1" },
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: "gemini",
+				snapshotId: "snap_combo_1",
+			}),
+		);
+	});
+
 	it("pauses on tool-call and keeps session + live connection", async () => {
 		const cloudReader = createNdjsonReader([
 			{ type: "init", session_id: "gem-2" },
