@@ -1,4 +1,6 @@
 import { Writable } from "node:stream";
+import type { ChatAgent } from "@giselles-ai/sandbox-agent";
+import * as sandboxAgentLib from "@giselles-ai/sandbox-agent";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
@@ -17,6 +19,138 @@ type ChatRequestBody = {
 };
 
 const createTimestamp = () => new Date().toISOString();
+type AgentType = "gemini" | "codex";
+
+function resolveAgentType(): AgentType {
+	const value = process.env.AGENT_TYPE?.trim().toLowerCase();
+	if (value === "codex") {
+		return "codex";
+	}
+
+	return "gemini";
+}
+
+function createRouteAgent(
+	snapshotId: string,
+	agentType: AgentType,
+): ChatAgent<{ message: string; session_id?: string; sandbox_id?: string }> {
+	const trimmedSnapshotId = snapshotId.trim();
+	const sharedEnv = {
+		SANDBOX_SNAPSHOT_ID: trimmedSnapshotId,
+	};
+
+	if (agentType === "codex") {
+		const createCodexAgent = (
+			sandboxAgentLib as {
+				createCodexAgent?: (options: {
+					snapshotId?: string;
+					env?: Record<string, string>;
+				}) => ChatAgent<{
+					message: string;
+					session_id?: string;
+					sandbox_id?: string;
+				}>;
+			}
+		).createCodexAgent;
+
+		if (!createCodexAgent) {
+			throw new Error(
+				"Missing required export: createCodexAgent from @giselles-ai/sandbox-agent.",
+			);
+		}
+
+		const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
+		const codexApiKey = process.env.CODEX_API_KEY?.trim();
+		const env = {
+			...sharedEnv,
+			...(openAiApiKey ? { OPENAI_API_KEY: openAiApiKey } : {}),
+			...(codexApiKey ? { CODEX_API_KEY: codexApiKey } : {}),
+		};
+
+		return createCodexAgent({
+			snapshotId: trimmedSnapshotId,
+			env,
+		});
+	}
+
+	return sandboxAgentLib.createGeminiAgent({
+		snapshotId: trimmedSnapshotId,
+		env: {
+			GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
+			...sharedEnv,
+		},
+	});
+}
+
+async function writeGeminiSettings(sandbox: Sandbox) {
+	await sandbox.writeFiles([
+		{
+			path: "/home/vercel-sandbox/.gemini/settings.json",
+			content: Buffer.from(
+				`{ "security": { "auth": { "selectedType": "gemini-api-key" } } }`,
+			),
+		},
+	]);
+}
+
+function sanitizeFilename(name: string, fallback: string) {
+	const trimmed = name.trim().replace(/[/\\\\]+/g, "_");
+	const safe = trimmed.replace(/[^\w.\-+]+/g, "_");
+	return safe.length > 0 ? safe : fallback;
+}
+
+function parseRequest(
+	agent: ChatAgent<{
+		message: string;
+		session_id?: string;
+		sandbox_id?: string;
+	}>,
+	body: ChatRequestBody | null,
+) {
+	if (!body) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{ error: "Missing request body" },
+				{ status: 400 },
+			),
+		};
+	}
+
+	const message = body.message?.trim();
+	if (!message) {
+		return {
+			ok: false as const,
+			error: NextResponse.json({ error: "Missing message" }, { status: 400 }),
+		};
+	}
+
+	const parsed = agent.requestSchema.safeParse({
+		message,
+		session_id: body.session_id?.trim(),
+		sandbox_id: body.sandbox_id?.trim(),
+	});
+	if (!parsed.success) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{
+					error: "Invalid request",
+					details: parsed.error.issues,
+				},
+				{ status: 422 },
+			),
+		};
+	}
+
+	return {
+		ok: true as const,
+		data: {
+			...parsed.data,
+			files: body.files ?? [],
+		},
+	};
+}
 
 export async function initSandbox(snapshotId: string) {
 	const sandbox = await Sandbox.create({
@@ -37,33 +171,25 @@ export async function POST(
 
 	const { snapshotId } = await ctx.params;
 	const body = (await req.json().catch(() => null)) as ChatRequestBody | null;
-	const input = body?.message?.trim();
-	if (!input) {
+	if (!body?.message?.trim()) {
 		return NextResponse.json({ error: "Missing message" }, { status: 400 });
 	}
-	const sessionId = body?.session_id?.trim();
-	const sandboxId = body?.sandbox_id?.trim();
-	const incomingFiles = body?.files ?? [];
 
-	const sanitizeFilename = (name: string, fallback: string) => {
-		const trimmed = name.trim().replace(/[/\\\\]+/g, "_");
-		const safe = trimmed.replace(/[^\w.\-+]+/g, "_");
-		return safe.length > 0 ? safe : fallback;
-	};
-
-	let prompt = input;
-	const args = [
-		"--prompt",
-		prompt,
-		"--output-format",
-		"stream-json",
-		"--approval-mode",
-		"yolo",
-	];
-	if (sessionId) {
-		args.push("--resume", sessionId);
+	const agentType = resolveAgentType();
+	const agent = createRouteAgent(snapshotId, agentType);
+	const requestParse = parseRequest(agent, body);
+	if (!requestParse.ok) {
+		return requestParse.error;
 	}
 
+	const {
+		message,
+		session_id: sessionId,
+		sandbox_id: sandboxId,
+		files: incomingFiles,
+	} = requestParse.data;
+
+	let prompt = message;
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
 			const encoder = new TextEncoder();
@@ -125,20 +251,25 @@ export async function POST(
 				const sandbox = sandboxId
 					? await Sandbox.get({ sandboxId })
 					: await initSandbox(snapshotId);
+				const mapper = agent.createStdoutMapper?.();
 
 				enqueueEvent({
 					type: "sandbox",
 					sandbox_id: sandbox.sandboxId,
 				});
 
-				await sandbox.writeFiles([
-					{
-						path: "/home/vercel-sandbox/.gemini/settings.json",
-						content: Buffer.from(
-							`{ "security": { "auth": { "selectedType": "gemini-api-key" } } }`,
-						),
+				await agent.prepareSandbox({
+					input: {
+						message: prompt,
+						session_id: sessionId,
+						sandbox_id: sandboxId,
 					},
-				]);
+					sandbox,
+				});
+
+				if (agentType === "gemini") {
+					await writeGeminiSettings(sandbox);
+				}
 
 				let sandboxPaths: string[] = [];
 				if (incomingFiles.length > 0) {
@@ -174,22 +305,34 @@ export async function POST(
 						...sandboxPaths.map((path) => `- ${path}`),
 						"",
 						"User message:",
-						input,
+						message,
 					].join("\n");
-					args[1] = prompt;
 				}
 
-				await sandbox.runCommand({
-					cmd: "gemini",
-					args,
-					env: {
-						GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
+				const command = agent.createCommand({
+					input: {
+						message: prompt,
+						session_id: sessionId,
+						sandbox_id: sandboxId,
 					},
+				});
+
+				await sandbox.runCommand({
+					cmd: command.cmd,
+					args: command.args,
+					cwd: "/vercel/sandbox",
+					env: command.env ?? {},
 					stdout: new Writable({
 						write(chunk, _encoding, callback) {
 							const text =
 								typeof chunk === "string" ? chunk : chunk.toString("utf8");
-							enqueueText(text);
+							if (mapper) {
+								for (const line of mapper.push(text)) {
+									enqueueText(line);
+								}
+							} else {
+								enqueueText(text);
+							}
 							callback();
 						},
 					}),
@@ -241,6 +384,11 @@ export async function POST(
 				})
 				.finally(() => {
 					req.signal.removeEventListener("abort", onAbort);
+					if (mapper) {
+						for (const line of mapper.flush()) {
+							enqueueText(line);
+						}
+					}
 					close();
 				});
 		},

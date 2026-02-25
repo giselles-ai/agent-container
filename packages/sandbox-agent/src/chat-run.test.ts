@@ -156,19 +156,18 @@ describe("runChat", () => {
 
 		const prepareSandbox = vi.fn(async () => undefined);
 		const createStdoutMapper = vi.fn(() => ({
-			push: vi
-				.fn((chunk) => {
-					if (chunk.startsWith('{"type":"session.created"')) {
-						return [
-							JSON.stringify({
-								type: "init",
-								session_id: "session-1",
-								modelId: "codex-small",
-							}) + "\n",
-						];
-					}
-					return [];
-				}),
+			push: vi.fn((chunk) => {
+				if (chunk.startsWith('{"type":"session.created"')) {
+					return [
+						`${JSON.stringify({
+							type: "init",
+							session_id: "session-1",
+							modelId: "codex-small",
+						})}\n`,
+					];
+				}
+				return [];
+			}),
 			flush: vi.fn(() => []),
 		}));
 		const response = await runChat({

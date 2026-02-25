@@ -14,10 +14,24 @@ describe("createCodexStdoutMapper", () => {
 		const lines = mapper.push(`${events}\n`);
 
 		expect(lines).toEqual([
-			JSON.stringify({ type: "init", session_id: "session-1", modelId: "codex-small" }) + "\n",
-			JSON.stringify({ type: "message", role: "assistant", content: "Hello", delta: true }) + "\n",
-			JSON.stringify({ type: "message", role: "assistant", content: "!", delta: false }) + "\n",
-			JSON.stringify({ type: "stderr", content: "Oops" }) + "\n",
+			`${JSON.stringify({
+				type: "init",
+				session_id: "session-1",
+				modelId: "codex-small",
+			})}\n`,
+			`${JSON.stringify({
+				type: "message",
+				role: "assistant",
+				content: "Hello",
+				delta: true,
+			})}\n`,
+			`${JSON.stringify({
+				type: "message",
+				role: "assistant",
+				content: "!",
+				delta: false,
+			})}\n`,
+			`${JSON.stringify({ type: "stderr", content: "Oops" })}\n`,
 		]);
 	});
 
@@ -37,32 +51,41 @@ describe("createCodexStdoutMapper", () => {
 		);
 
 		expect(lines).toEqual([
-			JSON.stringify({ type: "message", role: "assistant", content: "done", delta: false }) + "\n",
+			`${JSON.stringify({
+				type: "message",
+				role: "assistant",
+				content: "done",
+				delta: false,
+			})}\n`,
 		]);
 	});
 
 	it("handles fragmented chunks and flushes trailing complete line", () => {
 		const mapper = createCodexStdoutMapper();
-		const first = mapper.push('{"type":"message.output_text.delta","delta":"Hel');
-		const second = mapper.push('lo"}\n{"type":"message.output_text.done","text":"X"}');
+		const first = mapper.push(
+			'{"type":"message.output_text.delta","delta":"Hel',
+		);
+		const second = mapper.push(
+			'lo"}\n{"type":"message.output_text.done","text":"X"}',
+		);
 		const final = mapper.flush();
 
 		expect(first).toEqual([]);
 		expect(second).toEqual([
-			JSON.stringify({
+			`${JSON.stringify({
 				type: "message",
 				role: "assistant",
 				content: "Hello",
 				delta: true,
-			}) + "\n",
+			})}\n`,
 		]);
 		expect(final).toEqual([
-			JSON.stringify({
+			`${JSON.stringify({
 				type: "message",
 				role: "assistant",
 				content: "X",
 				delta: false,
-			}) + "\n",
+			})}\n`,
 		]);
 	});
 });

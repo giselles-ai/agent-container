@@ -88,7 +88,7 @@ export function createCodexStdoutMapper(): CodexStdoutMapper {
 			const combined = buffer;
 			const lines = combined.split("\n");
 			buffer = lines.pop() ?? "";
-			return processLines(lines.join("\n") + "\n");
+			return processLines(`${lines.join("\n")}\n`);
 		},
 		flush(): string[] {
 			if (buffer.trim().length === 0) {
