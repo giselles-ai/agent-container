@@ -1,13 +1,13 @@
 {
-	"name": "@giselles-ai/sandbox-agent",
-	"version": "0.1.9",
+	"name": "@giselles-ai/giselle-provider",
+	"version": "0.1.0",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/giselles-ai/agent-container.git",
-		"directory": "packages/sandbox-agent"
+		"directory": "packages/giselle-provider"
 	},
 	"files": [
 		"dist"
@@ -22,19 +22,18 @@
 	"scripts": {
 		"build": "pnpm clean && tsup --config tsup.ts",
 		"clean": "rm -rf dist *.tsbuildinfo",
+		"test": "vitest run src/__tests__/*.test.ts",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
-		"test": "pnpm exec vitest run",
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
-		"@vercel/sandbox": "1.6.0",
+		"@ai-sdk/provider": "3.0.7",
+		"@ai-sdk/provider-utils": "4.0.13",
+		"ioredis": "5.9.3",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {
-		"@google/gemini-cli-core": "0.29.5",
 		"@types/node": "25.3.0",
-		"@types/react": "19.2.14",
-		"@types/react-dom": "19.2.3",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3"
 	}

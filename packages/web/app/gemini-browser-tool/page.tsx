@@ -1,8 +1,62 @@
 "use client";
 
-import { browserTool } from "@giselles-ai/browser-tool/react";
-import { useAgent } from "@giselles-ai/sandbox-agent/react";
+import { useChat } from "@ai-sdk/react";
+import type {
+	BrowserToolAction,
+	SnapshotField,
+} from "@giselles-ai/browser-tool";
+import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
+import {
+	DefaultChatTransport,
+	isToolUIPart,
+	lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === "object";
+}
+
+function toStringError(error: unknown): string {
+	return error instanceof Error ? error.message : "Tool execution failed.";
+}
+
+function dedupeStringArray(values: string[]): string[] {
+	return Array.from(new Set(values));
+}
+
+function parseExecuteInput(value: unknown): {
+	actions: BrowserToolAction[];
+	fields: SnapshotField[];
+} {
+	if (!isRecord(value)) {
+		return {
+			actions: [],
+			fields: [],
+		};
+	}
+
+	return {
+		actions: Array.isArray(value.actions)
+			? (value.actions as BrowserToolAction[])
+			: [],
+		fields: Array.isArray(value.fields)
+			? (value.fields as SnapshotField[])
+			: [],
+	};
+}
+
+function textFromMessageParts(
+	parts: Array<{ type: string; text?: string }>,
+): string {
+	return parts
+		.map((part) => (part.type === "text" ? (part.text ?? "") : ""))
+		.join("");
+}
+
+function toolNameFromPartType(partType: string): string {
+	return partType.startsWith("tool-") ? partType.slice(5) : partType;
+}
 
 function DemoForm() {
 	const [title, setTitle] = useState("");
@@ -13,11 +67,11 @@ function DemoForm() {
 	return (
 		<div className="mx-auto max-w-3xl rounded-2xl border border-slate-700/60 bg-slate-900/50 p-6 shadow-2xl backdrop-blur">
 			<p className="text-xs uppercase tracking-[0.18em] text-cyan-300/80">
-				Gemini Browser Tool Agent
+				Giselle Browser Tool Agent
 			</p>
 			<h1 className="mt-2 text-3xl font-semibold">Form Autofill Prototype</h1>
 			<p className="mt-3 text-sm text-slate-300/90">
-				This page uses Gemini CLI + MCP + SSE agent runner for browser-side DOM
+				This page uses AI SDK `useChat` + `onToolCall` for browser-side DOM
 				execution.
 			</p>
 
@@ -112,23 +166,70 @@ function DemoForm() {
 export default function GeminiBrowserToolPage() {
 	const [input, setInput] = useState("");
 	const [documentText, setDocumentText] = useState("");
+	const [warnings, setWarnings] = useState<string[]>([]);
 
-	const {
-		status,
-		messages,
-		tools,
-		warnings,
-		stderrLogs,
-		sandboxId,
-		geminiSessionId,
-		error,
-		sendMessage,
-	} = useAgent({
-		endpoint: "/agent-api/run",
-		tools: {
-			browserTool: browserTool(),
+	const addWarnings = useCallback((next: string[]) => {
+		if (next.length === 0) {
+			return;
+		}
+
+		setWarnings((current) => dedupeStringArray([...current, ...next]));
+	}, []);
+
+	const { status, messages, error, sendMessage, addToolOutput } = useChat({
+		transport: new DefaultChatTransport({
+			api: "/api/chat",
+		}),
+		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+		onToolCall: async ({ toolCall }) => {
+			if (toolCall.dynamic) {
+				return;
+			}
+
+			try {
+				if (toolCall.toolName === "getFormSnapshot") {
+					const fields = snapshot();
+					addToolOutput({
+						tool: "getFormSnapshot",
+						toolCallId: toolCall.toolCallId,
+						output: { fields },
+					});
+					return;
+				}
+
+				if (toolCall.toolName === "executeFormActions") {
+					const { actions, fields } = parseExecuteInput(toolCall.input);
+					const report = execute(actions, fields);
+					addWarnings(report.warnings);
+					addToolOutput({
+						tool: "executeFormActions",
+						toolCallId: toolCall.toolCallId,
+						output: { report },
+					});
+					return;
+				}
+
+				addToolOutput({
+					state: "output-error",
+					tool: toolCall.toolName,
+					toolCallId: toolCall.toolCallId,
+					errorText: `Unknown tool: ${toolCall.toolName}`,
+				});
+			} catch (toolError) {
+				addToolOutput({
+					state: "output-error",
+					tool: toolCall.toolName,
+					toolCallId: toolCall.toolCallId,
+					errorText: toStringError(toolError),
+				});
+			}
+		},
+		onError: (chatError) => {
+			console.error("Chat error", chatError);
 		},
 	});
+
+	const isBusy = status === "submitted" || status === "streaming";
 
 	const renderedMessages = useMemo(
 		() =>
@@ -145,10 +246,30 @@ export default function GeminiBrowserToolPage() {
 						{message.role}
 					</p>
 					<p className="mt-2 whitespace-pre-wrap text-sm text-slate-100">
-						{message.content}
+						{textFromMessageParts(message.parts)}
 					</p>
 				</div>
 			)),
+		[messages],
+	);
+
+	const toolParts = useMemo(
+		() =>
+			messages.flatMap((message) => {
+				if (message.role !== "assistant") {
+					return [];
+				}
+
+				return message.parts.filter(isToolUIPart).map((part) => ({
+					id: `${message.id}:${part.toolCallId}`,
+					toolName: toolNameFromPartType(part.type),
+					toolCallId: part.toolCallId,
+					state: part.state,
+					input: "input" in part ? part.input : undefined,
+					output: "output" in part ? part.output : undefined,
+					errorText: "errorText" in part ? part.errorText : undefined,
+				}));
+			}),
 		[messages],
 	);
 
@@ -156,22 +277,24 @@ export default function GeminiBrowserToolPage() {
 		async (event: FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
 
-			const trimmed = input.trim();
-			if (!trimmed || status === "running") {
+			const trimmedMessage = input.trim();
+			if (!trimmedMessage || isBusy) {
 				return;
 			}
 
+			const trimmedDocument = documentText.trim();
+			const composedPrompt = trimmedDocument
+				? `${trimmedMessage}\n\nDocument:\n${trimmedDocument}`
+				: trimmedMessage;
+
 			try {
-				await sendMessage({
-					message: trimmed,
-					document: documentText.trim() ? documentText.trim() : undefined,
-				});
+				await sendMessage({ text: composedPrompt });
 				setInput("");
 			} catch {
-				// Error message is managed by useAgent.
+				// Error state is surfaced by useChat.
 			}
 		},
-		[documentText, input, sendMessage, status],
+		[documentText, input, isBusy, sendMessage],
 	);
 
 	return (
@@ -184,8 +307,6 @@ export default function GeminiBrowserToolPage() {
 					Back to home
 				</a>
 				<span>agent: {status}</span>
-				<span>sandbox: {sandboxId ?? "-"}</span>
-				<span>session: {geminiSessionId ?? "-"}</span>
 			</div>
 
 			<DemoForm />
@@ -216,7 +337,9 @@ export default function GeminiBrowserToolPage() {
 						{renderedMessages}
 					</div>
 
-					{error ? <p className="mt-2 text-xs text-rose-300">{error}</p> : null}
+					{error ? (
+						<p className="mt-2 text-xs text-rose-300">{error.message}</p>
+					) : null}
 
 					<form className="mt-3 flex gap-2" onSubmit={handleSubmit}>
 						<input
@@ -227,10 +350,10 @@ export default function GeminiBrowserToolPage() {
 						/>
 						<button
 							type="submit"
-							disabled={!input.trim() || status === "running"}
+							disabled={!input.trim() || isBusy}
 							className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{status === "running" ? "Running..." : "Send"}
+							{isBusy ? "Running..." : "Send"}
 						</button>
 					</form>
 				</div>
@@ -239,10 +362,10 @@ export default function GeminiBrowserToolPage() {
 					<div className="rounded-2xl border border-slate-700 bg-slate-950/85 p-4">
 						<p className="text-sm font-medium text-slate-100">Tool Calls</p>
 						<div className="mt-2 max-h-48 space-y-2 overflow-y-auto text-xs text-slate-200">
-							{tools.length === 0 ? (
+							{toolParts.length === 0 ? (
 								<p className="text-slate-500">No tool calls yet.</p>
 							) : (
-								tools.map((tool) => (
+								toolParts.map((tool) => (
 									<div
 										key={tool.id}
 										className="rounded-lg border border-slate-700 bg-slate-900/70 p-2"
@@ -250,17 +373,18 @@ export default function GeminiBrowserToolPage() {
 										<p className="font-medium text-slate-100">
 											{tool.toolName}
 										</p>
-										<p className="mt-1 text-slate-400">id: {tool.toolId}</p>
-										<p className="mt-1 text-slate-400">
-											status: {tool.status ?? "pending"}
-										</p>
+										<p className="mt-1 text-slate-400">id: {tool.toolCallId}</p>
+										<p className="mt-1 text-slate-400">status: {tool.state}</p>
+										{tool.errorText ? (
+											<p className="mt-1 text-rose-300">{tool.errorText}</p>
+										) : null}
 										<details className="mt-2">
 											<summary className="cursor-pointer text-slate-400">
 												details
 											</summary>
 											<pre className="mt-1 whitespace-pre-wrap text-[11px] text-slate-300">
 												{JSON.stringify(
-													{ parameters: tool.parameters, output: tool.output },
+													{ input: tool.input, output: tool.output },
 													null,
 													2,
 												)}
@@ -281,7 +405,7 @@ export default function GeminiBrowserToolPage() {
 								{warnings.map((warning, index) => (
 									<li
 										key={`${warning}-${
-											// biome-ignore lint/suspicious/noArrayIndexKey: wip
+											// biome-ignore lint/suspicious/noArrayIndexKey: warnings can duplicate
 											index
 										}`}
 									>
@@ -290,22 +414,6 @@ export default function GeminiBrowserToolPage() {
 								))}
 							</ul>
 						)}
-					</div>
-
-					<div className="rounded-2xl border border-slate-700 bg-slate-950/85 p-4">
-						<p className="text-sm font-medium text-slate-100">stderr</p>
-						<div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-rose-200">
-							{stderrLogs.length === 0 ? (
-								<p className="text-slate-500">No stderr logs.</p>
-							) : (
-								stderrLogs.map((line, index) => (
-									// biome-ignore lint/suspicious/noArrayIndexKey: log lines are append-only
-									<p key={index} className="whitespace-pre-wrap">
-										{line}
-									</p>
-								))
-							)}
-						</div>
 					</div>
 				</aside>
 			</section>

@@ -61,17 +61,36 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  packages/giselle-provider:
+    dependencies:
+      '@ai-sdk/provider':
+        specifier: 3.0.7
+        version: 3.0.7
+      '@ai-sdk/provider-utils':
+        specifier: 4.0.13
+        version: 4.0.13(zod@4.3.6)
+      ioredis:
+        specifier: 5.9.3
+        version: 5.9.3
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.3.0
+        version: 25.3.0
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/sandbox-agent:
     dependencies:
       '@vercel/sandbox':
         specifier: 1.6.0
         version: 1.6.0
-      react:
-        specifier: '>=19.0.0'
-        version: 19.2.4
-      react-dom:
-        specifier: '>=19.0.0'
-        version: 19.2.4(react@19.2.4)
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -97,12 +116,18 @@ importers:
 
   packages/web:
     dependencies:
+      '@ai-sdk/react':
+        specifier: 3.0.70
+        version: 3.0.70(react@19.2.4)(zod@4.3.6)
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool
-      '@giselles-ai/sandbox-agent':
+      '@giselles-ai/giselle-provider':
         specifier: workspace:*
-        version: link:../sandbox-agent
+        version: link:../giselle-provider
+      ai:
+        specifier: 6.0.68
+        version: 6.0.68(zod@4.3.6)
       next:
         specifier: 16.1.6
         version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3956,7 +3981,7 @@ snapshots:
       '@google-cloud/logging': 11.2.1
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.0.1(@opentelemetry/api@1.9.0))
       '@google-cloud/opentelemetry-cloud-trace-exporter': 3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.0.1(@opentelemetry/api@1.9.0))
-      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))
+      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
       '@iarna/toml': 2.2.5
       '@joshua.litt/get-ripgrep': 0.0.3
       '@modelcontextprotocol/sdk': 1.26.0(zod@3.25.76)
@@ -4027,7 +4052,7 @@ snapshots:
       - tree-sitter
       - utf-8-validate
 
-  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))':
+  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))':
     dependencies:
       google-auth-library: 10.5.0
       ws: 8.19.0
