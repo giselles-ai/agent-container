@@ -1,6 +1,7 @@
 import { Writable } from "node:stream";
 import type { ChatAgent } from "@giselles-ai/sandbox-agent";
 import * as sandboxAgentLib from "@giselles-ai/sandbox-agent";
+import { readAgentMetadata } from "@giselles-ai/sandbox-agent";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
@@ -9,6 +10,8 @@ type ChatRequestBody = {
 	message?: string;
 	session_id?: string;
 	sandbox_id?: string;
+	agent_type?: string;
+	snapshot_id?: string;
 	files?: Array<{
 		name: string;
 		type: string;
@@ -28,6 +31,26 @@ function resolveAgentType(): AgentType {
 	}
 
 	return "gemini";
+}
+
+async function resolveAgentTypeFromSandbox(
+	sandbox: Sandbox,
+	requestAgentType: string | undefined,
+): Promise<AgentType> {
+	const metadata = await readAgentMetadata(sandbox).catch(() => null);
+	if (metadata?.cli === "gemini" || metadata?.cli === "codex") {
+		return metadata.cli;
+	}
+
+	const bodyType = requestAgentType?.trim().toLowerCase();
+	if (bodyType === "codex") {
+		return "codex";
+	}
+	if (bodyType === "gemini") {
+		return "gemini";
+	}
+
+	return resolveAgentType();
 }
 
 function createRouteAgent(
@@ -99,14 +122,7 @@ function sanitizeFilename(name: string, fallback: string) {
 	return safe.length > 0 ? safe : fallback;
 }
 
-function parseRequest(
-	agent: ChatAgent<{
-		message: string;
-		session_id?: string;
-		sandbox_id?: string;
-	}>,
-	body: ChatRequestBody | null,
-) {
+function parseRequest(body: ChatRequestBody | null) {
 	if (!body) {
 		return {
 			ok: false as const,
@@ -125,18 +141,59 @@ function parseRequest(
 		};
 	}
 
-	const parsed = agent.requestSchema.safeParse({
-		message,
-		session_id: body.session_id?.trim(),
-		sandbox_id: body.sandbox_id?.trim(),
-	});
-	if (!parsed.success) {
+	const session_id = body.session_id?.trim();
+	if (body.session_id !== undefined && !session_id) {
 		return {
 			ok: false as const,
 			error: NextResponse.json(
 				{
 					error: "Invalid request",
-					details: parsed.error.issues,
+					details: [
+						{
+							code: "custom",
+							path: ["session_id"],
+							message: "Invalid input: expected a string with min length 1",
+						},
+					],
+				},
+				{ status: 422 },
+			),
+		};
+	}
+
+	const sandbox_id = body.sandbox_id?.trim();
+	if (body.sandbox_id !== undefined && !sandbox_id) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{
+					error: "Invalid request",
+					details: [
+						{
+							code: "custom",
+							path: ["sandbox_id"],
+							message: "Invalid input: expected a string with min length 1",
+						},
+					],
+				},
+				{ status: 422 },
+			),
+		};
+	}
+
+	if (body.files !== undefined && !Array.isArray(body.files)) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{
+					error: "Invalid request",
+					details: [
+						{
+							code: "custom",
+							path: ["files"],
+							message: "Invalid input: expected an array",
+						},
+					],
 				},
 				{ status: 422 },
 			),
@@ -146,7 +203,11 @@ function parseRequest(
 	return {
 		ok: true as const,
 		data: {
-			...parsed.data,
+			message,
+			session_id,
+			sandbox_id,
+			agent_type: body.agent_type?.trim(),
+			snapshot_id: body.snapshot_id?.trim(),
 			files: body.files ?? [],
 		},
 	};
@@ -175,9 +236,7 @@ export async function POST(
 		return NextResponse.json({ error: "Missing message" }, { status: 400 });
 	}
 
-	const agentType = resolveAgentType();
-	const agent = createRouteAgent(snapshotId, agentType);
-	const requestParse = parseRequest(agent, body);
+	const requestParse = parseRequest(body);
 	if (!requestParse.ok) {
 		return requestParse.error;
 	}
@@ -186,8 +245,11 @@ export async function POST(
 		message,
 		session_id: sessionId,
 		sandbox_id: sandboxId,
+		agent_type: requestAgentType,
+		snapshot_id: snapshotOverride,
 		files: incomingFiles,
 	} = requestParse.data;
+	const effectiveSnapshotId = snapshotOverride || snapshotId;
 
 	let prompt = message;
 	const stream = new ReadableStream<Uint8Array>({
@@ -250,7 +312,12 @@ export async function POST(
 			(async () => {
 				const sandbox = sandboxId
 					? await Sandbox.get({ sandboxId })
-					: await initSandbox(snapshotId);
+					: await initSandbox(effectiveSnapshotId);
+				const agentType = await resolveAgentTypeFromSandbox(
+					sandbox,
+					requestAgentType,
+				);
+				const agent = createRouteAgent(effectiveSnapshotId, agentType);
 				const mapper = agent.createStdoutMapper?.();
 
 				enqueueEvent({
