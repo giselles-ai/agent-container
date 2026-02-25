@@ -103,7 +103,7 @@ flowchart TD
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-snapshot-metadata.md](./phase-0-snapshot-metadata.md) | 🔲 TODO | Bake `/.agent-metadata.json` into snapshots + read helper |
+| 0 | [phase-0-snapshot-metadata.md](./phase-0-snapshot-metadata.md) | ✅ DONE | Bake `/.agent-metadata.json` into snapshots + read helper |
 | 1 | [phase-1-provider-agent-config.md](./phase-1-provider-agent-config.md) | 🔲 TODO | Add `agent` option to `giselle()` provider + pass through to Cloud API |
 | 2 | [phase-2-cloud-api-resolution.md](./phase-2-cloud-api-resolution.md) | 🔲 TODO | Cloud API route reads agent type from metadata / request / env fallback |
 | 3 | [phase-3-consumer-integration.md](./phase-3-consumer-integration.md) | 🔲 TODO | Wire up in `packages/web` consumer + update docs |

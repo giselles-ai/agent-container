@@ -279,6 +279,16 @@ async function main() {
 			args: ["-lc", validationArgs.join("\n")],
 		});
 
+		console.log(
+			`[snapshot] writing agent metadata (cli: ${SNAPSHOT_AGENT})...`,
+		);
+		await sandbox.writeFiles([
+			{
+				path: "/.agent-metadata.json",
+				content: Buffer.from(JSON.stringify({ cli: SNAPSHOT_AGENT })),
+			},
+		]);
+
 		const mcpServerDistPath = `${SANDBOX_ROOT}/packages/browser-tool/dist/mcp-server/index.js`;
 		const geminiSettings = {
 			security: {
