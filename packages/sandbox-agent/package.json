@@ -17,16 +17,6 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
-		},
-		"./client": {
-			"types": "./dist/client/index.d.ts",
-			"import": "./dist/client/index.js",
-			"default": "./dist/client/index.js"
-		},
-		"./react": {
-			"types": "./dist/react/index.d.ts",
-			"import": "./dist/react/index.js",
-			"default": "./dist/react/index.js"
 		}
 	},
 	"scripts": {
@@ -39,10 +29,6 @@
 	"dependencies": {
 		"@vercel/sandbox": "1.6.0",
 		"zod": "4.3.6"
-	},
-	"peerDependencies": {
-		"react": ">=19.0.0",
-		"react-dom": ">=19.0.0"
 	},
 	"devDependencies": {
 		"@google/gemini-cli-core": "0.29.5",

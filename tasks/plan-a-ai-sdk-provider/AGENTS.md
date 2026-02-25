@@ -132,7 +132,7 @@ flowchart TD
 | 3 | [phase-3-session-management.md](./phase-3-session-management.md) | ✅ DONE | Redis metadata + `globalThis` live connections + relay integration |
 | 4 | [phase-4-route-handler.md](./phase-4-route-handler.md) | ✅ DONE | Add `/api/chat` route using `streamText()` + `giselle()` |
 | 5 | [phase-5-react-integration.md](./phase-5-react-integration.md) | ✅ DONE | Replace `useAgent` with `useChat` + `onToolCall` |
-| 6 | [phase-6-cleanup.md](./phase-6-cleanup.md) | 🔲 TODO | Delete legacy `stream-agent.ts`, `use-agent.ts`, update exports |
+| 6 | [phase-6-cleanup.md](./phase-6-cleanup.md) | ✅ DONE | Delete legacy `stream-agent.ts`, `use-agent.ts`, update exports |
 
 > **How to work on this epic:** Read this file first to understand the full architecture. Then check the status table above. Pick the first `🔲 TODO` task whose dependencies (see dependency graph) are `✅ DONE`. Open that task file and follow its instructions. When done, update the status in this table to `✅ DONE`.
 

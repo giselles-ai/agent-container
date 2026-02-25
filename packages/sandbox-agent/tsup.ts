@@ -7,16 +7,4 @@ export default defineConfig([
 		format: ["esm"],
 		dts: true,
 	},
-	{
-		entry: ["src/client/index.ts"],
-		outDir: "dist/client",
-		format: ["esm"],
-		dts: true,
-	},
-	{
-		entry: ["src/react/index.ts"],
-		outDir: "dist/react",
-		format: ["esm"],
-		dts: true,
-	},
 ]);
