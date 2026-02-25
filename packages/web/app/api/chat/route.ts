@@ -121,6 +121,20 @@ function resolveAgentSnapshotId(value: unknown): string | undefined {
 	return asNonEmptyString(value);
 }
 
+const SNAPSHOT_ENV_BY_TYPE: Record<ResolvedAgentType, string> = {
+	gemini: "SANDBOX_SNAPSHOT_ID_GEMINI",
+	codex: "SANDBOX_SNAPSHOT_ID_CODEX",
+};
+
+function resolveSnapshotIdForType(
+	type: ResolvedAgentType | undefined,
+): string | undefined {
+	if (!type) {
+		return undefined;
+	}
+	return asNonEmptyString(process.env[SNAPSHOT_ENV_BY_TYPE[type]]);
+}
+
 function resolveAgentConfig(
 	body: ChatRequestBody,
 ): ResolvedAgentConfig | undefined {
@@ -133,6 +147,7 @@ function resolveAgentConfig(
 		resolveAgentType(process.env.AGENT_TYPE);
 	const snapshotId =
 		resolveAgentSnapshotId(agentOptions?.snapshotId) ??
+		resolveSnapshotIdForType(type) ??
 		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID);
 
 	if (!type && !snapshotId) {
