@@ -1,3 +1,4 @@
+import * as TOML from "@iarna/toml";
 import type { Sandbox } from "@vercel/sandbox";
 import { describe, expect, it } from "vitest";
 import { createCodexAgent } from "./codex-agent";
@@ -136,6 +137,107 @@ describe("createCodexAgent", () => {
 		await expect(
 			agent.prepareSandbox({ input: { message: "hello" }, sandbox }),
 		).resolves.toBeUndefined();
+	});
+
+	it("requires relay fields in request schema when browser tool is configured", () => {
+		const agent = createCodexAgent({
+			snapshotId: "snapshot-codex",
+			env: {
+				OPENAI_API_KEY: "sk-test-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
+				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
+				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
+			},
+			tools: {
+				browser: {
+					relayUrl: "https://relay.example.com/agent-api/relay/",
+				},
+			},
+		});
+		const parsed = agent.requestSchema.safeParse({ message: "hello" });
+		expect(parsed.success).toBe(false);
+	});
+
+	it("fails fast when browser transport env is incomplete", () => {
+		expect(() =>
+			createCodexAgent({
+				snapshotId: "snapshot-codex",
+				env: {
+					OPENAI_API_KEY: "sk-test-key",
+					SANDBOX_SNAPSHOT_ID: "snapshot-codex",
+					BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				},
+				tools: {
+					browser: {
+						relayUrl: "https://relay.example.com/agent-api/relay/",
+					},
+				},
+			}),
+		).toThrow(/Missing required environment variable/);
+	});
+
+	it("patches MCP env with relay credentials via prepareSandbox", async () => {
+		const configToml = `[mcp_servers.browser_tool_relay]
+command = "node"
+args = ["./dist/index.js"]
+cwd = "/vercel/sandbox"
+
+[mcp_servers.browser_tool_relay.env]
+EXISTING_KEY = "existing-value"
+`;
+		const readFileToBuffer = async () => Buffer.from(configToml);
+		let writtenContent = "";
+		const writeFiles = async (files: { content: Buffer }[]) => {
+			writtenContent = files[0]?.content.toString("utf8") ?? "";
+		};
+		const sandbox = {
+			readFileToBuffer,
+			writeFiles,
+		} as unknown as Sandbox;
+
+		const agent = createCodexAgent({
+			snapshotId: "snapshot-codex",
+			env: {
+				OPENAI_API_KEY: "sk-test-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
+				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
+				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
+				VERCEL_OIDC_TOKEN: "oidc-token",
+			},
+			tools: {
+				browser: {
+					relayUrl: "https://relay.example.com/agent-api/relay/",
+				},
+			},
+		});
+
+		await agent.prepareSandbox({
+			input: {
+				message: "fill form",
+				relay_session_id: "relay-session",
+				relay_token: "relay-token",
+			},
+			sandbox,
+		});
+
+		const parsed = TOML.parse(writtenContent) as {
+			mcp_servers?: Record<
+				string,
+				{
+					env?: Record<string, string>;
+				}
+			>;
+		};
+		const serverEnv = parsed.mcp_servers?.browser_tool_relay?.env;
+		expect(serverEnv).toMatchObject({
+			EXISTING_KEY: "existing-value",
+			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
+			BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
+			BROWSER_TOOL_RELAY_TOKEN: "relay-token",
+			VERCEL_OIDC_TOKEN: "oidc-token",
+		});
 	});
 
 	it("provides createStdoutMapper", () => {

@@ -28,6 +28,7 @@
 	},
 	"dependencies": {
 		"@vercel/sandbox": "1.6.0",
+		"@iarna/toml": "3.0.0",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {

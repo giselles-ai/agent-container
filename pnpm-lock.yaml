@@ -88,6 +88,9 @@ importers:
 
   packages/sandbox-agent:
     dependencies:
+      '@iarna/toml':
+        specifier: 3.0.0
+        version: 3.0.0
       '@vercel/sandbox':
         specifier: 1.6.0
         version: 1.6.0
@@ -3987,7 +3990,7 @@ snapshots:
       '@google-cloud/logging': 11.2.1
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.0.1(@opentelemetry/api@1.9.0))
       '@google-cloud/opentelemetry-cloud-trace-exporter': 3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.0.1(@opentelemetry/api@1.9.0))
-      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))
+      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
       '@iarna/toml': 2.2.5
       '@joshua.litt/get-ripgrep': 0.0.3
       '@modelcontextprotocol/sdk': 1.26.0(zod@3.25.76)
@@ -4058,7 +4061,7 @@ snapshots:
       - tree-sitter
       - utf-8-validate
 
-  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))':
+  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))':
     dependencies:
       google-auth-library: 10.5.0
       ws: 8.19.0
