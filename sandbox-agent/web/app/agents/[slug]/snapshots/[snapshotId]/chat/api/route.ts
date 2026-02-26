@@ -280,7 +280,13 @@ export async function POST(
 
 			req.signal.addEventListener("abort", onAbort);
 
-			let mapper: ReturnType<NonNullable<ReturnType<typeof createRouteAgent>["createStdoutMapper"]>> | undefined;
+			let mapper:
+				| ReturnType<
+						NonNullable<
+							ReturnType<typeof createRouteAgent>["createStdoutMapper"]
+						>
+				  >
+				| undefined;
 
 			const captureCommand = async (
 				sandbox: Sandbox,

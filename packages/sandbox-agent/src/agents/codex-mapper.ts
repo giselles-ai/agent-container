@@ -8,10 +8,16 @@ function mapEvent(
 ): Record<string, unknown> | null {
 	const type = event.type;
 
+	if (type === "thread.started") {
+		return {
+			type: "init",
+			session_id: event.thread_id ?? undefined,
+		};
+	}
+
 	if (type === "session.created") {
 		return {
 			type: "init",
-			session_id: event.id ?? undefined,
 			modelId: event.model ?? undefined,
 		};
 	}

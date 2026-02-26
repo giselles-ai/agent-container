@@ -5,6 +5,7 @@ describe("createCodexStdoutMapper", () => {
 	it("maps supported Codex events to normalized NDJSON", () => {
 		const mapper = createCodexStdoutMapper();
 		const events = [
+			'{"type":"thread.started","thread_id":"thread-abc-123"}',
 			'{"type":"session.created","id":"session-1","model":"codex-small"}',
 			'{"type":"message.output_text.delta","delta":"Hello"}',
 			'{"type":"message.output_text.done","text":"!"}',
@@ -16,7 +17,10 @@ describe("createCodexStdoutMapper", () => {
 		expect(lines).toEqual([
 			`${JSON.stringify({
 				type: "init",
-				session_id: "session-1",
+				session_id: "thread-abc-123",
+			})}\n`,
+			`${JSON.stringify({
+				type: "init",
 				modelId: "codex-small",
 			})}\n`,
 			`${JSON.stringify({
@@ -32,6 +36,34 @@ describe("createCodexStdoutMapper", () => {
 				delta: false,
 			})}\n`,
 			`${JSON.stringify({ type: "stderr", content: "Oops" })}\n`,
+		]);
+	});
+
+	it("maps thread.started to init with session_id", () => {
+		const mapper = createCodexStdoutMapper();
+		const lines = mapper.push(
+			'{"type":"thread.started","thread_id":"0199a213-81c0-7800-8aa1-bbab2a035a53"}\n',
+		);
+
+		expect(lines).toEqual([
+			`${JSON.stringify({
+				type: "init",
+				session_id: "0199a213-81c0-7800-8aa1-bbab2a035a53",
+			})}\n`,
+		]);
+	});
+
+	it("maps session.created to init with only modelId", () => {
+		const mapper = createCodexStdoutMapper();
+		const lines = mapper.push(
+			'{"type":"session.created","id":"sess_abc","model":"gpt-5-codex"}\n',
+		);
+
+		expect(lines).toEqual([
+			`${JSON.stringify({
+				type: "init",
+				modelId: "gpt-5-codex",
+			})}\n`,
 		]);
 	});
 
