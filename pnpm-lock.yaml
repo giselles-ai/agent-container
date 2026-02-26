@@ -125,6 +125,9 @@ importers:
       '@giselles-ai/giselle-provider':
         specifier: workspace:*
         version: link:../giselle-provider
+      '@vercel/sandbox':
+        specifier: 1.4.1
+        version: 1.4.1
       ai:
         specifier: 6.0.68
         version: 6.0.68(zod@4.3.6)
@@ -184,6 +187,9 @@ importers:
       '@ai-sdk/react':
         specifier: 3.0.70
         version: 3.0.70(react@19.2.4)(zod@4.3.6)
+      '@giselles-ai/sandbox-agent':
+        specifier: workspace:*
+        version: link:../../packages/sandbox-agent
       '@iarna/toml':
         specifier: 3.0.0
         version: 3.0.0

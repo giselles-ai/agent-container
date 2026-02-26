@@ -9,6 +9,7 @@
 		"start": "next start"
 	},
 	"dependencies": {
+		"@giselles-ai/sandbox-agent": "workspace:*",
 		"@ai-sdk/react": "3.0.70",
 		"@iarna/toml": "3.0.0",
 		"@vercel/blob": "2.0.1",

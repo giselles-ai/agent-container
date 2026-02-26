@@ -1,8 +1,3 @@
-export {
-	AGENT_METADATA_PATH,
-	type AgentMetadata,
-	readAgentMetadata,
-} from "./agents/agent-metadata";
 export { createCodexAgent } from "./agents/codex-agent";
 export { createCodexStdoutMapper } from "./agents/codex-mapper";
 export { createGeminiAgent } from "./agents/gemini-agent";

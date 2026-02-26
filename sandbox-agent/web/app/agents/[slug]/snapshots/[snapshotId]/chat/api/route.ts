@@ -1,7 +1,6 @@
 import { Writable } from "node:stream";
 import type { ChatAgent } from "@giselles-ai/sandbox-agent";
 import * as sandboxAgentLib from "@giselles-ai/sandbox-agent";
-import { readAgentMetadata } from "@giselles-ai/sandbox-agent";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
@@ -33,15 +32,9 @@ function resolveAgentType(): AgentType {
 	return "gemini";
 }
 
-async function resolveAgentTypeFromSandbox(
-	sandbox: Sandbox,
+function resolveAgentTypeForRequest(
 	requestAgentType: string | undefined,
-): Promise<AgentType> {
-	const metadata = await readAgentMetadata(sandbox).catch(() => null);
-	if (metadata?.cli === "gemini" || metadata?.cli === "codex") {
-		return metadata.cli;
-	}
-
+): AgentType {
 	const bodyType = requestAgentType?.trim().toLowerCase();
 	if (bodyType === "codex") {
 		return "codex";
@@ -313,10 +306,7 @@ export async function POST(
 				const sandbox = sandboxId
 					? await Sandbox.get({ sandboxId })
 					: await initSandbox(effectiveSnapshotId);
-				const agentType = await resolveAgentTypeFromSandbox(
-					sandbox,
-					requestAgentType,
-				);
+				const agentType = resolveAgentTypeForRequest(requestAgentType);
 				const agent = createRouteAgent(effectiveSnapshotId, agentType);
 				const mapper = agent.createStdoutMapper?.();
 
