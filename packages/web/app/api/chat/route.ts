@@ -4,6 +4,7 @@ import {
 	snapshotFieldSchema,
 } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
+import { Agent } from "@giselles-ai/sandbox-agent";
 import {
 	consumeStream,
 	convertToModelMessages,
@@ -28,12 +29,6 @@ type ChatRequestBody = {
 	trigger?: unknown;
 	messageId?: unknown;
 	[key: string]: unknown;
-};
-
-type ResolvedAgentType = "gemini" | "codex";
-type ResolvedAgentConfig = {
-	type?: ResolvedAgentType;
-	snapshotId?: string;
 };
 
 class InvalidChatRequestError extends Error {
@@ -109,7 +104,7 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function resolveAgentType(value: unknown): ResolvedAgentType | undefined {
+function resolveAgentType(value: unknown): "gemini" | "codex" | undefined {
 	const normalized = asNonEmptyString(value)?.toLowerCase();
 	if (normalized === "gemini" || normalized === "codex") {
 		return normalized;
@@ -121,9 +116,7 @@ function resolveAgentSnapshotId(value: unknown): string | undefined {
 	return asNonEmptyString(value);
 }
 
-function resolveAgentConfig(
-	body: ChatRequestBody,
-): ResolvedAgentConfig | undefined {
+function resolveAgent(body: ChatRequestBody): Agent {
 	const providerOptions = asRecord(body.providerOptions);
 	const giselleOptions = asRecord(providerOptions?.giselle);
 	const agentOptions = asRecord(giselleOptions?.agent);
@@ -133,16 +126,12 @@ function resolveAgentConfig(
 		resolveAgentType(process.env.AGENT_TYPE);
 	const snapshotId =
 		resolveAgentSnapshotId(agentOptions?.snapshotId) ??
-		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID);
+		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID) ??
+		requiredEnv("SANDBOX_SNAPSHOT_ID");
 
-	if (!type && !snapshotId) {
-		return undefined;
-	}
-
-	return {
-		...(type ? { type } : {}),
-		...(snapshotId ? { snapshotId } : {}),
-	};
+	return Agent.create(type ?? "gemini", {
+		snapshotId,
+	});
 }
 
 async function parseChatRequestBody(
@@ -228,7 +217,7 @@ export async function POST(request: Request): Promise<Response> {
 		const messages = await parseChatMessages(body);
 		const sessionId = resolveSessionId(body);
 		const providerOptions = mergeProviderOptions(body, sessionId);
-		const agent = resolveAgentConfig(body);
+		const agent = resolveAgent(body);
 
 		const result = streamText({
 			model: giselle({

@@ -99,7 +99,7 @@ flowchart TD
 |---|---|---|---|
 | 0 | [phase-0-agent-class.md](./phase-0-agent-class.md) | ✅ DONE | Create `Agent` class in `sandbox-agent` with `create`, `addFiles`, `runCommands`, `prepare` |
 | 1 | [phase-1-provider-integration.md](./phase-1-provider-integration.md) | ✅ DONE | Update `giselle-provider` to accept `Agent`, call `prepare()` in `doStream()` |
-| 2 | [phase-2-route-handler.md](./phase-2-route-handler.md) | 🔲 TODO | Update `packages/web/app/api/chat/route.ts` to use `Agent.create()` |
+| 2 | [phase-2-route-handler.md](./phase-2-route-handler.md) | ✅ DONE | Update `packages/web/app/api/chat/route.ts` to use `Agent.create()` |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
