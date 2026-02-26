@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/browser-tool",
-	"version": "0.1.10",
+	"version": "0.1.11",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
