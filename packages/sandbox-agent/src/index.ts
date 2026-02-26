@@ -1,3 +1,4 @@
+export { Agent } from "./agent";
 export { createCodexAgent } from "./agents/codex-agent";
 export { createCodexStdoutMapper } from "./agents/codex-mapper";
 export { createGeminiAgent } from "./agents/gemini-agent";
