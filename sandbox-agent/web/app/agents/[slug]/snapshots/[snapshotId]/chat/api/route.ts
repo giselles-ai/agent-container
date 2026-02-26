@@ -280,6 +280,8 @@ export async function POST(
 
 			req.signal.addEventListener("abort", onAbort);
 
+			let mapper: ReturnType<NonNullable<ReturnType<typeof createRouteAgent>["createStdoutMapper"]>> | undefined;
+
 			const captureCommand = async (
 				sandbox: Sandbox,
 				cmd: string,
@@ -308,7 +310,7 @@ export async function POST(
 					: await initSandbox(effectiveSnapshotId);
 				const agentType = resolveAgentTypeForRequest(requestAgentType);
 				const agent = createRouteAgent(effectiveSnapshotId, agentType);
-				const mapper = agent.createStdoutMapper?.();
+				mapper = agent.createStdoutMapper?.();
 
 				enqueueEvent({
 					type: "sandbox",

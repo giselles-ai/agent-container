@@ -7,7 +7,7 @@ type SnapshotLog = {
 	status: string;
 	sizeBytes: number;
 	createdAt: string;
-	expiresAt: string;
+	expiresAt?: string;
 };
 
 function createCommandLogger(prefix: string) {
@@ -47,7 +47,7 @@ async function main() {
 		status: snapshot.status,
 		sizeBytes: snapshot.sizeBytes,
 		createdAt: snapshot.createdAt.toISOString(),
-		expiresAt: snapshot.expiresAt.toISOString(),
+		expiresAt: snapshot.expiresAt?.toISOString(),
 	};
 	console.log(`[snapshot] ${JSON.stringify(snapshotInfo, null, 2)}`);
 
