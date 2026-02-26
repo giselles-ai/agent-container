@@ -17,12 +17,20 @@ export default function Page() {
 					</code>
 					.
 				</p>
-				<a
-					href="/gemini-browser-tool"
-					className="mt-5 inline-flex rounded-md border border-slate-600 px-3 py-2 text-sm text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
-				>
-					Open Gemini Browser Tool Demo
-				</a>
+				<div className="mt-5 flex flex-wrap gap-3">
+					<a
+						href="/gemini-browser-tool"
+						className="inline-flex rounded-md border border-slate-600 px-3 py-2 text-sm text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
+					>
+						Open Gemini Browser Tool Demo
+					</a>
+					<a
+						href="/custom-agent"
+						className="inline-flex rounded-md border border-slate-600 px-3 py-2 text-sm text-slate-200 transition hover:border-cyan-400 hover:text-cyan-200"
+					>
+						Open Custom Agent Demo
+					</a>
+				</div>
 			</section>
 		</main>
 	);

@@ -77,7 +77,6 @@ export class Agent {
 		}
 
 		const ops = this._pendingOps;
-		this._pendingOps = [];
 
 		const sandbox = await Sandbox.create({
 			source: { type: "snapshot", snapshotId: this._snapshotId },
@@ -96,5 +95,6 @@ export class Agent {
 
 		const snapshot = await sandbox.snapshot();
 		this._snapshotId = snapshot.snapshotId;
+		this._pendingOps = [];
 	}
 }

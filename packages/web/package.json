@@ -12,6 +12,7 @@
 	"dependencies": {
 		"@giselles-ai/browser-tool": "workspace:*",
 		"@giselles-ai/giselle-provider": "workspace:*",
+		"@giselles-ai/sandbox-agent": "workspace:*",
 		"@ai-sdk/react": "3.0.70",
 		"@vercel/sandbox": "1.4.1",
 		"ai": "6.0.68",

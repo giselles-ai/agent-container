@@ -69,6 +69,9 @@ importers:
       '@ai-sdk/provider-utils':
         specifier: 4.0.13
         version: 4.0.13(zod@4.3.6)
+      '@giselles-ai/sandbox-agent':
+        specifier: workspace:*
+        version: link:../sandbox-agent
       ioredis:
         specifier: 5.9.3
         version: 5.9.3
@@ -128,6 +131,9 @@ importers:
       '@giselles-ai/giselle-provider':
         specifier: workspace:*
         version: link:../giselle-provider
+      '@giselles-ai/sandbox-agent':
+        specifier: workspace:*
+        version: link:../sandbox-agent
       '@vercel/sandbox':
         specifier: 1.4.1
         version: 1.4.1

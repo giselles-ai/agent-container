@@ -112,6 +112,17 @@ describe("Agent", () => {
 			expect(agent.dirty).toBe(false);
 		});
 
+		it("stays dirty when sandbox creation fails", async () => {
+			sandboxCreate.mockRejectedValue(new Error("sandbox unavailable"));
+
+			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
+			agent.addFiles([{ path: "/a.txt", content: Buffer.from("a") }]);
+
+			await expect(agent.prepare()).rejects.toThrow("sandbox unavailable");
+			expect(agent.dirty).toBe(true);
+			expect(agent.snapshotId).toBe("snap_abc");
+		});
+
 		it("applies operations in order", async () => {
 			const callOrder: string[] = [];
 			const writeFiles = vi.fn(async () => {
