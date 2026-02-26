@@ -297,7 +297,9 @@ export default function AgentChatPage(
 	const handleStreamEvent = useCallback(
 		(event: StreamEvent) => {
 			if (event.type === "init") {
-				setSessionId(event.session_id);
+				if (event.session_id) {
+					setSessionId(event.session_id);
+				}
 				setModel(event.model);
 				return;
 			}
