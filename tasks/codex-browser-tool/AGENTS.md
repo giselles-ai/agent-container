@@ -97,7 +97,7 @@ flowchart LR
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-snapshot-codex-config.md](./phase-0-snapshot-codex-config.md) | 🔲 TODO | Write `.codex/config.toml` with MCP server config into the snapshot |
+| 0 | [phase-0-snapshot-codex-config.md](./phase-0-snapshot-codex-config.md) | ✅ DONE | Write `.codex/config.toml` with MCP server config into the snapshot |
 | 1 | [phase-1-agent-browser-tool.md](./phase-1-agent-browser-tool.md) | 🔲 TODO | Add `tools.browser` option and `prepareSandbox` TOML patching to Codex agent |
 | 2 | [phase-2-route-handler.md](./phase-2-route-handler.md) | 🔲 TODO | Wire browser tool options in the sandbox-agent route handler for Codex |
 

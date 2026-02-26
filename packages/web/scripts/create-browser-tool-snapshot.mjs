@@ -293,6 +293,22 @@ async function main() {
 			},
 		]);
 
+		const codexConfigToml = `[mcp_servers.browser_tool_relay]
+command = "node"
+args = ["${mcpServerDistPath}"]
+cwd = "${SANDBOX_ROOT}"
+
+[mcp_servers.browser_tool_relay.env]
+`;
+
+		console.log("[snapshot] writing codex config.toml...");
+		await sandbox.writeFiles([
+			{
+				path: "/home/vercel-sandbox/.codex/config.toml",
+				content: Buffer.from(codexConfigToml),
+			},
+		]);
+
 		console.log("[snapshot] creating snapshot (sandbox will be stopped)...");
 		const snapshot = await sandbox.snapshot();
 
