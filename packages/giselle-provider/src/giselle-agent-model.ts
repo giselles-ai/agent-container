@@ -351,6 +351,20 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				id: input.providerSessionId,
 			});
 
+			// --- NEW: Materialize pending Agent mutations before streaming ---
+			// When the user calls agent.addFiles() or agent.runCommands(), those
+			// operations are lazily queued. We materialize them here — inside
+			// doStream() — because this is the first async context where we can
+			// perform the Sandbox create → apply → snapshot cycle. The resulting
+			// snapshotId is then used for the Cloud API call below.
+			//
+			// This is intentionally placed in doStream() rather than in the
+			// giselle() factory function, because the factory is synchronous
+			// and returns a LanguageModelV3 instance immediately.
+			if (this.options.agent.dirty) {
+				await this.options.agent.prepare();
+			}
+
 			// `useChat` always sends a chat `id`. Treating every request that includes
 			// an id as a resume causes false-positive resume attempts on first turns.
 			// We only resume when tool results are present in the prompt.
@@ -724,8 +738,8 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			message: this.extractUserMessage(options.prompt),
 			sessionId: resumeData?.sessionId,
 			sandboxId: resumeData?.sandboxId,
-			agentType: this.options.agent?.type,
-			snapshotId: this.options.agent?.snapshotId,
+			agentType: this.options.agent.type,
+			snapshotId: this.options.agent.snapshotId,
 			headers: this.mergeCloudHeaders(options.headers),
 			signal: options.abortSignal,
 		});

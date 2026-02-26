@@ -1,7 +1,4 @@
-export type GiselleAgentConfig = {
-	type?: "gemini" | "codex";
-	snapshotId?: string;
-};
+import type { Agent } from "@giselles-ai/sandbox-agent";
 
 /**
  * Parameters for connecting to the Giselle Cloud API.
@@ -84,6 +81,6 @@ export type LiveConnection = {
 export type GiselleProviderOptions = {
 	cloudApiUrl: string;
 	headers?: Record<string, string>;
-	agent?: GiselleAgentConfig;
+	agent: Agent;
 	deps?: Partial<GiselleProviderDeps>;
 };

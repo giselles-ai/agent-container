@@ -135,11 +135,7 @@ describe("Agent", () => {
 
 			await agent.prepare();
 
-			expect(callOrder).toEqual([
-				"writeFiles",
-				"runCommand:apt",
-				"writeFiles",
-			]);
+			expect(callOrder).toEqual(["writeFiles", "runCommand:apt", "writeFiles"]);
 		});
 	});
 });

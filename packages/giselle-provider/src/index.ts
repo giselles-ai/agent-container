@@ -26,7 +26,6 @@ export function giselle(options: GiselleProviderOptions): GiselleAgentModel {
 export type {
 	ConnectCloudApiParams,
 	ConnectCloudApiResult,
-	GiselleAgentConfig,
 	GiselleProviderDeps,
 	GiselleProviderOptions,
 	LiveConnection,

@@ -3,6 +3,7 @@ import type {
 	LanguageModelV3Prompt,
 	LanguageModelV3StreamPart,
 } from "@ai-sdk/provider";
+import { Agent } from "@giselles-ai/sandbox-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
 import type { LiveConnection, SessionMetadata } from "../types";
@@ -157,6 +158,13 @@ async function readAllParts(
 	return parts;
 }
 
+function createAgent(
+	type: "gemini" | "codex" = "gemini",
+	snapshotId = "snap_default",
+): Agent {
+	return Agent.create(type, { snapshotId });
+}
+
 describe("GiselleAgentModel", () => {
 	beforeEach(() => {
 		sessionState.sessions.clear();
@@ -176,6 +184,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent: createAgent("gemini", "snap_default_1"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -236,7 +245,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
-			agent: { type: "codex" },
+			agent: createAgent("codex", "snap_codex_1"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -257,7 +266,7 @@ describe("GiselleAgentModel", () => {
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
 				agentType: "codex",
-				snapshotId: undefined,
+				snapshotId: "snap_codex_1",
 			}),
 		);
 	});
@@ -274,7 +283,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
-			agent: { snapshotId: "snap_custom_123" },
+			agent: createAgent("codex", "snap_custom_123"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -294,13 +303,66 @@ describe("GiselleAgentModel", () => {
 
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
-				agentType: undefined,
+				agentType: "codex",
 				snapshotId: "snap_custom_123",
 			}),
 		);
 	});
 
-	it("omits agent fields when no agent config is provided", async () => {
+	it("calls agent.prepare() when dirty", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "agent-prepare-1" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const callOrder: string[] = [];
+		const connectCloudApi = vi.fn(async () => {
+			callOrder.push("connect");
+			return {
+				reader: cloudReader.reader,
+				response: new Response(null, { status: 200 }),
+			};
+		});
+		const agent = createAgent("gemini", "snap_prepared_1");
+		agent.addFiles([
+			{
+				path: "/app/file.txt",
+				content: Buffer.from("hello"),
+			},
+		]);
+		vi.spyOn(agent, "prepare").mockImplementation(async () => {
+			callOrder.push("prepare");
+		});
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			agent,
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(callOrder).toEqual(["prepare", "connect"]);
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: "gemini",
+				snapshotId: "snap_prepared_1",
+			}),
+		);
+	});
+
+	it("does not call agent.prepare() when clean", async () => {
 		const cloudReader = createNdjsonReader([
 			{ type: "init", session_id: "snapshot-id-2" },
 			{ type: "message", role: "assistant", content: "Done", delta: false },
@@ -309,9 +371,12 @@ describe("GiselleAgentModel", () => {
 			reader: cloudReader.reader,
 			response: new Response(null, { status: 200 }),
 		}));
+		const agent = createAgent("gemini", "snap_clean_1");
+		const prepare = vi.spyOn(agent, "prepare");
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent,
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -329,10 +394,11 @@ describe("GiselleAgentModel", () => {
 		);
 		await readAllParts(result.stream);
 
+		expect(prepare).not.toHaveBeenCalled();
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
-				agentType: undefined,
-				snapshotId: undefined,
+				agentType: "gemini",
+				snapshotId: "snap_clean_1",
 			}),
 		);
 	});
@@ -349,7 +415,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
-			agent: { type: "gemini", snapshotId: "snap_combo_1" },
+			agent: createAgent("gemini", "snap_combo_1"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -398,6 +464,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent: createAgent("gemini", "snap_default_tool"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
@@ -459,6 +526,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent: createAgent("gemini", "snap_default_hot"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
@@ -556,6 +624,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent: createAgent("gemini", "snap_default_cold"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
@@ -643,6 +712,7 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			cloudApiUrl: "https://studio.giselles.ai",
+			agent: createAgent("gemini", "snap_default_error"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
