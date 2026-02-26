@@ -40,7 +40,7 @@ describe("createCodexAgent", () => {
 		).toThrow(/Missing required environment variable/);
 	});
 
-	it("generates correct command args", () => {
+	it("generates correct command args without session_id", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
@@ -62,6 +62,55 @@ describe("createCodexAgent", () => {
 		expect(command.env).toMatchObject({
 			OPENAI_API_KEY: "sk-test-key",
 		});
+	});
+
+	it("generates resume command args when session_id is provided", () => {
+		const agent = createCodexAgent({
+			snapshotId: "snapshot-codex",
+			env: {
+				OPENAI_API_KEY: "sk-test-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
+			},
+		});
+		const command = agent.createCommand({
+			input: {
+				message: "fix the bug",
+				session_id: "0199a213-81c0-7800-8aa1-bbab2a035a53",
+			},
+		});
+		expect(command.cmd).toBe("codex");
+		expect(command.args).toEqual([
+			"exec",
+			"resume",
+			"0199a213-81c0-7800-8aa1-bbab2a035a53",
+			"--json",
+			"--yolo",
+			"--skip-git-repo-check",
+			"fix the bug",
+		]);
+		expect(command.env).toMatchObject({
+			OPENAI_API_KEY: "sk-test-key",
+		});
+	});
+
+	it("does not use resume when session_id is undefined", () => {
+		const agent = createCodexAgent({
+			snapshotId: "snapshot-codex",
+			env: {
+				OPENAI_API_KEY: "sk-test-key",
+				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
+			},
+		});
+		const command = agent.createCommand({
+			input: { message: "hello", session_id: undefined },
+		});
+		expect(command.args).toEqual([
+			"exec",
+			"--json",
+			"--yolo",
+			"--skip-git-repo-check",
+			"hello",
+		]);
 	});
 
 	it("rejects empty message", () => {

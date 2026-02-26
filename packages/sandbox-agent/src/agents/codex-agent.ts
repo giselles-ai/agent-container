@@ -48,13 +48,13 @@ export function createCodexAgent(
 			// No sandbox preparation needed for initial Codex integration.
 		},
 		createCommand({ input }) {
-			const args = [
-				"exec",
-				"--json",
-				"--yolo",
-				"--skip-git-repo-check",
-				input.message,
-			];
+			const args = ["exec"];
+
+			if (input.session_id) {
+				args.push("resume", input.session_id);
+			}
+
+			args.push("--json", "--yolo", "--skip-git-repo-check", input.message);
 
 			return {
 				cmd: "codex",

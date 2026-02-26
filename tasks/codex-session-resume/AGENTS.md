@@ -94,7 +94,7 @@ flowchart LR
 | Phase | Task File | Status | Description |
 |---|---|---|---|
 | 0 | [phase-0-mapper-thread-started.md](./phase-0-mapper-thread-started.md) | ✅ DONE | Map `thread.started` to extract resumable `thread_id` as `session_id` |
-| 1 | [phase-1-agent-resume.md](./phase-1-agent-resume.md) | 🔲 TODO | Use `codex exec resume <session_id>` when `session_id` is provided |
+| 1 | [phase-1-agent-resume.md](./phase-1-agent-resume.md) | ✅ DONE | Use `codex exec resume <session_id>` when `session_id` is provided |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
