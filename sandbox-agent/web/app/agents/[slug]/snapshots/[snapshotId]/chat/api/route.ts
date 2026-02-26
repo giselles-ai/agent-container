@@ -9,6 +9,8 @@ type ChatRequestBody = {
 	message?: string;
 	session_id?: string;
 	sandbox_id?: string;
+	relay_session_id?: string;
+	relay_token?: string;
 	agent_type?: string;
 	snapshot_id?: string;
 	files?: Array<{
@@ -49,7 +51,13 @@ function resolveAgentTypeForRequest(
 function createRouteAgent(
 	snapshotId: string,
 	agentType: AgentType,
-): ChatAgent<{ message: string; session_id?: string; sandbox_id?: string }> {
+): ChatAgent<{
+	message: string;
+	session_id?: string;
+	sandbox_id?: string;
+	relay_session_id?: string;
+	relay_token?: string;
+}> {
 	const trimmedSnapshotId = snapshotId.trim();
 	const sharedEnv = {
 		SANDBOX_SNAPSHOT_ID: trimmedSnapshotId,
@@ -61,10 +69,17 @@ function createRouteAgent(
 				createCodexAgent?: (options: {
 					snapshotId?: string;
 					env?: Record<string, string>;
+					tools?: {
+						browser?: {
+							relayUrl?: string;
+						};
+					};
 				}) => ChatAgent<{
 					message: string;
 					session_id?: string;
 					sandbox_id?: string;
+					relay_session_id?: string;
+					relay_token?: string;
 				}>;
 			}
 		).createCodexAgent;
@@ -77,15 +92,45 @@ function createRouteAgent(
 
 		const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
 		const codexApiKey = process.env.CODEX_API_KEY?.trim();
+		const relayUrl = process.env.BROWSER_TOOL_RELAY_URL?.trim();
 		const env = {
 			...sharedEnv,
 			...(openAiApiKey ? { OPENAI_API_KEY: openAiApiKey } : {}),
 			...(codexApiKey ? { CODEX_API_KEY: codexApiKey } : {}),
+			...(relayUrl ? { BROWSER_TOOL_RELAY_URL: relayUrl } : {}),
+			...(process.env.BROWSER_TOOL_RELAY_SESSION_ID?.trim()
+				? {
+						BROWSER_TOOL_RELAY_SESSION_ID:
+							process.env.BROWSER_TOOL_RELAY_SESSION_ID.trim(),
+					}
+				: {}),
+			...(process.env.BROWSER_TOOL_RELAY_TOKEN?.trim()
+				? {
+						BROWSER_TOOL_RELAY_TOKEN:
+							process.env.BROWSER_TOOL_RELAY_TOKEN.trim(),
+					}
+				: {}),
+			...(process.env.VERCEL_OIDC_TOKEN?.trim()
+				? { VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN.trim() }
+				: {}),
+			...(process.env.VERCEL_PROTECTION_BYPASS?.trim()
+				? {
+						VERCEL_PROTECTION_BYPASS:
+							process.env.VERCEL_PROTECTION_BYPASS.trim(),
+					}
+				: {}),
+			...(process.env.GISELLE_PROTECTION_PASSWORD?.trim()
+				? {
+						GISELLE_PROTECTION_PASSWORD:
+							process.env.GISELLE_PROTECTION_PASSWORD.trim(),
+					}
+				: {}),
 		};
 
 		return createCodexAgent({
 			snapshotId: trimmedSnapshotId,
 			env,
+			...(relayUrl ? { tools: { browser: { relayUrl } } } : {}),
 		});
 	}
 
@@ -174,6 +219,46 @@ function parseRequest(body: ChatRequestBody | null) {
 		};
 	}
 
+	const relay_session_id = body.relay_session_id?.trim();
+	if (body.relay_session_id !== undefined && !relay_session_id) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{
+					error: "Invalid request",
+					details: [
+						{
+							code: "custom",
+							path: ["relay_session_id"],
+							message: "Invalid input: expected a string with min length 1",
+						},
+					],
+				},
+				{ status: 422 },
+			),
+		};
+	}
+
+	const relay_token = body.relay_token?.trim();
+	if (body.relay_token !== undefined && !relay_token) {
+		return {
+			ok: false as const,
+			error: NextResponse.json(
+				{
+					error: "Invalid request",
+					details: [
+						{
+							code: "custom",
+							path: ["relay_token"],
+							message: "Invalid input: expected a string with min length 1",
+						},
+					],
+				},
+				{ status: 422 },
+			),
+		};
+	}
+
 	if (body.files !== undefined && !Array.isArray(body.files)) {
 		return {
 			ok: false as const,
@@ -199,6 +284,8 @@ function parseRequest(body: ChatRequestBody | null) {
 			message,
 			session_id,
 			sandbox_id,
+			relay_session_id,
+			relay_token,
 			agent_type: body.agent_type?.trim(),
 			snapshot_id: body.snapshot_id?.trim(),
 			files: body.files ?? [],
@@ -238,6 +325,8 @@ export async function POST(
 		message,
 		session_id: sessionId,
 		sandbox_id: sandboxId,
+		relay_session_id: relaySessionId,
+		relay_token: relayToken,
 		agent_type: requestAgentType,
 		snapshot_id: snapshotOverride,
 		files: incomingFiles,
@@ -328,6 +417,8 @@ export async function POST(
 						message: prompt,
 						session_id: sessionId,
 						sandbox_id: sandboxId,
+						...(relaySessionId ? { relay_session_id: relaySessionId } : {}),
+						...(relayToken ? { relay_token: relayToken } : {}),
 					},
 					sandbox,
 				});

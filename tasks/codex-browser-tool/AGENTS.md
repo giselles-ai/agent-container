@@ -99,7 +99,7 @@ flowchart LR
 |---|---|---|---|
 | 0 | [phase-0-snapshot-codex-config.md](./phase-0-snapshot-codex-config.md) | ✅ DONE | Write `.codex/config.toml` with MCP server config into the snapshot |
 | 1 | [phase-1-agent-browser-tool.md](./phase-1-agent-browser-tool.md) | ✅ DONE | Add `tools.browser` option and `prepareSandbox` TOML patching to Codex agent |
-| 2 | [phase-2-route-handler.md](./phase-2-route-handler.md) | 🔲 TODO | Wire browser tool options in the sandbox-agent route handler for Codex |
+| 2 | [phase-2-route-handler.md](./phase-2-route-handler.md) | ✅ DONE | Wire browser tool options in the sandbox-agent route handler for Codex |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
