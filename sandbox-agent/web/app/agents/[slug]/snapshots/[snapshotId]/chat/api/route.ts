@@ -90,12 +90,10 @@ function createRouteAgent(
 			);
 		}
 
-		const openAiApiKey = process.env.OPENAI_API_KEY?.trim();
 		const codexApiKey = process.env.CODEX_API_KEY?.trim();
 		const relayUrl = process.env.BROWSER_TOOL_RELAY_URL?.trim();
 		const env = {
 			...sharedEnv,
-			...(openAiApiKey ? { OPENAI_API_KEY: openAiApiKey } : {}),
 			...(codexApiKey ? { CODEX_API_KEY: codexApiKey } : {}),
 			...(relayUrl ? { BROWSER_TOOL_RELAY_URL: relayUrl } : {}),
 			...(process.env.BROWSER_TOOL_RELAY_SESSION_ID?.trim()

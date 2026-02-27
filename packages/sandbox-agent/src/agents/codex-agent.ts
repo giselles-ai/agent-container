@@ -122,12 +122,11 @@ export function createCodexAgent(
 	const snapshotId =
 		options.snapshotId?.trim() || requiredEnv(env, "SANDBOX_SNAPSHOT_ID");
 
-	const apiKey = env.CODEX_API_KEY?.trim() || env.OPENAI_API_KEY?.trim();
-	if (!apiKey) {
-		throw new Error(
-			"Missing required environment variable: CODEX_API_KEY or OPENAI_API_KEY",
-		);
-	}
+	// `codex exec` natively reads CODEX_API_KEY from the environment for
+	// authentication. Do not use OPENAI_API_KEY — it is not supported by
+	// `codex exec` and would silently fail.
+	// See: https://developers.openai.com/codex/noninteractive/#authenticate-in-ci
+	const apiKey = requiredEnv(env, "CODEX_API_KEY");
 
 	const browserToolEnabled = options.tools?.browser !== undefined;
 	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
@@ -169,9 +168,7 @@ export function createCodexAgent(
 			return {
 				cmd: "codex",
 				args,
-				env: {
-					OPENAI_API_KEY: apiKey,
-				},
+				env: { CODEX_API_KEY: apiKey },
 			};
 		},
 		createStdoutMapper() {

@@ -8,7 +8,7 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
@@ -18,19 +18,7 @@ describe("createCodexAgent", () => {
 		);
 	});
 
-	it("accepts CODEX_API_KEY as alternative", () => {
-		const agent = createCodexAgent({
-			snapshotId: "snapshot-codex",
-			env: {
-				CODEX_API_KEY: "sk-test-key",
-				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
-			},
-		});
-		const command = agent.createCommand({ input: { message: "hello" } });
-		expect(command.env).toMatchObject({ OPENAI_API_KEY: "sk-test-key" });
-	});
-
-	it("throws when no API key is provided", () => {
+	it("throws when CODEX_API_KEY is missing", () => {
 		expect(() =>
 			createCodexAgent({
 				snapshotId: "snapshot-codex",
@@ -45,7 +33,7 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
@@ -61,7 +49,7 @@ describe("createCodexAgent", () => {
 			"build a form",
 		]);
 		expect(command.env).toMatchObject({
-			OPENAI_API_KEY: "sk-test-key",
+			CODEX_API_KEY: "sk-test-key",
 		});
 	});
 
@@ -69,7 +57,7 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
@@ -90,7 +78,7 @@ describe("createCodexAgent", () => {
 			"fix the bug",
 		]);
 		expect(command.env).toMatchObject({
-			OPENAI_API_KEY: "sk-test-key",
+			CODEX_API_KEY: "sk-test-key",
 		});
 	});
 
@@ -98,7 +86,7 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
@@ -118,19 +106,19 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
 		expect(agent.requestSchema.safeParse({ message: "" }).success).toBe(false);
 	});
 
-	it("prepareSandbox is a no-op", async () => {
+	it("prepareSandbox is a no-op without browser tool", async () => {
 		const sandbox = {} as unknown as Sandbox;
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});
@@ -143,7 +131,7 @@ describe("createCodexAgent", () => {
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
@@ -164,7 +152,7 @@ describe("createCodexAgent", () => {
 			createCodexAgent({
 				snapshotId: "snapshot-codex",
 				env: {
-					OPENAI_API_KEY: "sk-test-key",
+					CODEX_API_KEY: "sk-test-key",
 					SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 					BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 				},
@@ -199,7 +187,7 @@ EXISTING_KEY = "existing-value"
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
@@ -244,7 +232,7 @@ EXISTING_KEY = "existing-value"
 		const agent = createCodexAgent({
 			snapshotId: "snapshot-codex",
 			env: {
-				OPENAI_API_KEY: "sk-test-key",
+				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 			},
 		});

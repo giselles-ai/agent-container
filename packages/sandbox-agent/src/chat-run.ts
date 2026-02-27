@@ -118,12 +118,16 @@ export function runChat<TRequest extends BaseChatRequest>(
 									);
 								}
 
-								return Sandbox.create({
+								const created = await Sandbox.create({
 									source: {
 										type: "snapshot",
 										snapshotId,
 									},
 								});
+								console.log(
+									`[sandbox] created sandbox=${created.sandboxId} from snapshot=${snapshotId}`,
+								);
+								return created;
 							})();
 
 					enqueueEvent({ type: "sandbox", sandbox_id: sandbox.sandboxId });
@@ -143,6 +147,7 @@ export function runChat<TRequest extends BaseChatRequest>(
 							write(chunk, _encoding, callback) {
 								const text =
 									typeof chunk === "string" ? chunk : chunk.toString("utf8");
+								console.log("[sandbox-agent] raw stdout:", text);
 								if (mapper) {
 									for (const line of mapper.push(text)) {
 										enqueueStdout(line);

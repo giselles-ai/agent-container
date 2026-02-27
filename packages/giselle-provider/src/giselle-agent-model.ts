@@ -669,6 +669,8 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			return false;
 		}
 
+		console.log("[giselle-provider] NDJSON event:", JSON.stringify(event));
+
 		const mapped = mapNdjsonEvent(event, input.context);
 		if (mapped.sessionUpdate) {
 			await updateSession(input.providerSessionId, mapped.sessionUpdate);

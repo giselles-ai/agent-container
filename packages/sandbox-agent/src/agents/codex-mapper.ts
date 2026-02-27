@@ -50,6 +50,19 @@ function mapEvent(
 		};
 	}
 
+	if (type === "item.completed") {
+		const item = event.item as Record<string, unknown> | undefined;
+		if (item?.type === "agent_message" && typeof item.text === "string") {
+			return {
+				type: "message",
+				role: "assistant",
+				content: item.text,
+				delta: false,
+			};
+		}
+		return null;
+	}
+
 	if (type === "response.completed") {
 		return null;
 	}

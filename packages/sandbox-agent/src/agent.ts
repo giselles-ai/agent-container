@@ -81,6 +81,9 @@ export class Agent {
 		const sandbox = await Sandbox.create({
 			source: { type: "snapshot", snapshotId: this._snapshotId },
 		});
+		console.log(
+			`[sandbox] created sandbox=${sandbox.sandboxId} from snapshot=${this._snapshotId}`,
+		);
 
 		for (const op of ops) {
 			switch (op.kind) {
