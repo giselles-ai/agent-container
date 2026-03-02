@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "AI Browser Tool SDK Demo",
-	description: "Prototype for AI-driven form automation in a Next.js app",
+	title: "Giselle Agent SDK — AI agents that act, not just talk",
+	description:
+		"Bring CLI agent superpowers into your Next.js app through the AI SDK you already use. Open source.",
 };
 
 export default function RootLayout({

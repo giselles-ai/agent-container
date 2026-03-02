@@ -120,8 +120,8 @@ flowchart TD
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-site-restructure.md](./phase-0-site-restructure.md) | 🔲 TODO | Move `/` to `/demos`, set up marketing skeleton at `/` |
-| 1 | [phase-1-marketing-narrative.md](./phase-1-marketing-narrative.md) | 🔲 TODO | 3-act narrative content + code snippets |
+| 0 | [phase-0-site-restructure.md](./phase-0-site-restructure.md) | ✅ DONE | Move `/` to `/demos`, set up marketing skeleton at `/` |
+| 1 | [phase-1-marketing-narrative.md](./phase-1-marketing-narrative.md) | ✅ DONE | 3-act narrative content + code snippets |
 | 2 | [phase-2-expense-form.md](./phase-2-expense-form.md) | 🔲 TODO | Expense report form UI with `data-browser-tool-id` attributes |
 | 3 | [phase-3-receipt-generator.md](./phase-3-receipt-generator.md) | 🔲 TODO | Demo receipt generation (OpenAI, Anthropic, Vercel, Google Cloud, GitHub) |
 | 4 | [phase-4-demo-chat.md](./phase-4-demo-chat.md) | 🔲 TODO | AI chat panel + onToolCall for form autofill |
