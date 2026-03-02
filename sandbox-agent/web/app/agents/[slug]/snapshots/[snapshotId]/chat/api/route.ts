@@ -1,4 +1,5 @@
 import { Writable } from "node:stream";
+import { createRelaySession } from "@giselles-ai/browser-tool/relay";
 import type { ChatAgent } from "@giselles-ai/sandbox-agent";
 import * as sandboxAgentLib from "@giselles-ai/sandbox-agent";
 import { Sandbox } from "@vercel/sandbox";
@@ -96,21 +97,6 @@ function createRouteAgent(
 			...sharedEnv,
 			...(codexApiKey ? { CODEX_API_KEY: codexApiKey } : {}),
 			...(relayUrl ? { BROWSER_TOOL_RELAY_URL: relayUrl } : {}),
-			...(process.env.BROWSER_TOOL_RELAY_SESSION_ID?.trim()
-				? {
-						BROWSER_TOOL_RELAY_SESSION_ID:
-							process.env.BROWSER_TOOL_RELAY_SESSION_ID.trim(),
-					}
-				: {}),
-			...(process.env.BROWSER_TOOL_RELAY_TOKEN?.trim()
-				? {
-						BROWSER_TOOL_RELAY_TOKEN:
-							process.env.BROWSER_TOOL_RELAY_TOKEN.trim(),
-					}
-				: {}),
-			...(process.env.VERCEL_OIDC_TOKEN?.trim()
-				? { VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN.trim() }
-				: {}),
 			...(process.env.VERCEL_PROTECTION_BYPASS?.trim()
 				? {
 						VERCEL_PROTECTION_BYPASS:
@@ -410,13 +396,33 @@ export async function POST(
 					sandbox_id: sandbox.sandboxId,
 				});
 
+				const browserRelayUrl = process.env.BROWSER_TOOL_RELAY_URL?.trim();
+				let effectiveRelaySessionId = relaySessionId;
+				let effectiveRelayToken = relayToken;
+
+				if (browserRelayUrl && !effectiveRelaySessionId) {
+					const relaySession = await createRelaySession();
+					effectiveRelaySessionId = relaySession.sessionId;
+					effectiveRelayToken = relaySession.token;
+					enqueueEvent({
+						type: "relay.session",
+						sessionId: relaySession.sessionId,
+						token: relaySession.token,
+						relayUrl: browserRelayUrl,
+					});
+				}
+
 				await agent.prepareSandbox({
 					input: {
 						message: prompt,
 						session_id: sessionId,
 						sandbox_id: sandboxId,
-						...(relaySessionId ? { relay_session_id: relaySessionId } : {}),
-						...(relayToken ? { relay_token: relayToken } : {}),
+						...(effectiveRelaySessionId
+							? { relay_session_id: effectiveRelaySessionId }
+							: {}),
+						...(effectiveRelayToken
+							? { relay_token: effectiveRelayToken }
+							: {}),
 					},
 					sandbox,
 				});
