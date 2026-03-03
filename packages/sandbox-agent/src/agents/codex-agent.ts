@@ -132,8 +132,6 @@ export function createCodexAgent(
 	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
 	if (browserToolEnabled) {
 		requiredEnv(env, "BROWSER_TOOL_RELAY_URL");
-		requiredEnv(env, "BROWSER_TOOL_RELAY_SESSION_ID");
-		requiredEnv(env, "BROWSER_TOOL_RELAY_TOKEN");
 	}
 	if (browserToolEnabled && !browserToolRelayUrl) {
 		throw new Error("tools.browser.relayUrl is empty.");
@@ -150,11 +148,15 @@ export function createCodexAgent(
 				return;
 			}
 
-			requiredEnv(env, "VERCEL_OIDC_TOKEN");
-
 			assertBrowserToolRelayCredentials(_input.input);
 
-			await patchCodexConfigTransportEnv(_input.sandbox, env);
+			const patchEnv = {
+				...env,
+				BROWSER_TOOL_RELAY_SESSION_ID: _input.input.relay_session_id,
+				BROWSER_TOOL_RELAY_TOKEN: _input.input.relay_token,
+			};
+
+			await patchCodexConfigTransportEnv(_input.sandbox, patchEnv);
 		},
 		createCommand({ input }) {
 			const args = ["exec"];

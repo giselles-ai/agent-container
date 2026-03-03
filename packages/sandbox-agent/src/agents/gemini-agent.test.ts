@@ -38,8 +38,6 @@ describe("createGeminiAgent", () => {
 				GEMINI_API_KEY: "gemini-api-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
-				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
-				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
 			},
 			tools: {
 				browser: {
@@ -53,14 +51,13 @@ describe("createGeminiAgent", () => {
 		expect(parsed.success).toBe(false);
 	});
 
-	it("fails fast when browser transport env is incomplete", () => {
+	it("fails fast when BROWSER_TOOL_RELAY_URL env is missing", () => {
 		expect(() =>
 			createGeminiAgent({
 				snapshotId: "snapshot-fixed",
 				env: {
 					GEMINI_API_KEY: "gemini-api-key",
 					SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
-					BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 				},
 				tools: {
 					browser: {
@@ -101,9 +98,6 @@ describe("createGeminiAgent", () => {
 				GEMINI_API_KEY: "gemini-api-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
-				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
-				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
-				VERCEL_OIDC_TOKEN: "oidc-token",
 				VERCEL_PROTECTION_BYPASS: "vercel-bypass",
 				GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
 			},
@@ -129,7 +123,6 @@ describe("createGeminiAgent", () => {
 			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 			BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
 			BROWSER_TOOL_RELAY_TOKEN: "relay-token",
-			VERCEL_OIDC_TOKEN: "oidc-token",
 			VERCEL_PROTECTION_BYPASS: "vercel-bypass",
 			GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
 		});

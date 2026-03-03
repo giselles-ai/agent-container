@@ -134,8 +134,6 @@ describe("createCodexAgent", () => {
 				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
-				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
-				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
 			},
 			tools: {
 				browser: {
@@ -147,14 +145,13 @@ describe("createCodexAgent", () => {
 		expect(parsed.success).toBe(false);
 	});
 
-	it("fails fast when browser transport env is incomplete", () => {
+	it("fails fast when BROWSER_TOOL_RELAY_URL env is missing", () => {
 		expect(() =>
 			createCodexAgent({
 				snapshotId: "snapshot-codex",
 				env: {
 					CODEX_API_KEY: "sk-test-key",
 					SANDBOX_SNAPSHOT_ID: "snapshot-codex",
-					BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 				},
 				tools: {
 					browser: {
@@ -190,9 +187,6 @@ EXISTING_KEY = "existing-value"
 				CODEX_API_KEY: "sk-test-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-codex",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
-				BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
-				BROWSER_TOOL_RELAY_TOKEN: "relay-token",
-				VERCEL_OIDC_TOKEN: "oidc-token",
 			},
 			tools: {
 				browser: {
@@ -224,7 +218,6 @@ EXISTING_KEY = "existing-value"
 			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 			BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
 			BROWSER_TOOL_RELAY_TOKEN: "relay-token",
-			VERCEL_OIDC_TOKEN: "oidc-token",
 		});
 	});
 

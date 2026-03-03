@@ -119,8 +119,6 @@ export function createGeminiAgent(
 	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
 	if (browserToolEnabled) {
 		requiredEnv(env, "BROWSER_TOOL_RELAY_URL");
-		requiredEnv(env, "BROWSER_TOOL_RELAY_SESSION_ID");
-		requiredEnv(env, "BROWSER_TOOL_RELAY_TOKEN");
 	}
 	if (browserToolEnabled && !browserToolRelayUrl) {
 		throw new Error("tools.browser.relayUrl is empty.");
@@ -134,11 +132,15 @@ export function createGeminiAgent(
 				return;
 			}
 
-			requiredEnv(env, "VERCEL_OIDC_TOKEN");
-
 			assertBrowserToolRelayCredentials(input);
 
-			await patchGeminiSettingsTransportEnv(sandbox, env);
+			const patchEnv = {
+				...env,
+				BROWSER_TOOL_RELAY_SESSION_ID: input.relay_session_id,
+				BROWSER_TOOL_RELAY_TOKEN: input.relay_token,
+			};
+
+			await patchGeminiSettingsTransportEnv(sandbox, patchEnv);
 		},
 		createCommand({ input }) {
 			const args = [

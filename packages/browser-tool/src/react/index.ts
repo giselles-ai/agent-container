@@ -9,3 +9,7 @@ export {
 	type BrowserToolProviderProps,
 } from "./provider";
 export { useBrowserTool } from "./use-browser-tool";
+export {
+	type BrowserToolChatHandler,
+	useBrowserToolHandler,
+} from "./use-chat-handler";
