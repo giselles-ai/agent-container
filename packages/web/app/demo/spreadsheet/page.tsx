@@ -11,6 +11,24 @@ import { type FormEvent, useCallback, useMemo, useState } from "react";
 
 import { SpreadsheetGrid } from "./_components/spreadsheet-grid";
 
+const SUGGESTED_PROMPTS = [
+	{
+		label: "GitHub repo comparison",
+		prompt:
+			"Compare development velocity of vercel/next.js, facebook/react, and sveltejs/svelte over the past year. Put repo names in the header row, metrics like commits, PRs merged, contributors, and releases in the rows. Also check which coding agents (AGENTS.md, .cursor, .codex) are used.",
+	},
+	{
+		label: "npm download trends",
+		prompt:
+			"Compare weekly npm downloads for zod, yup, and joi. Put package names in the header row and monthly download counts for the last 6 months in the rows.",
+	},
+	{
+		label: "Language comparison",
+		prompt:
+			"Fill the spreadsheet with a comparison of Python, JavaScript, and Rust. Header row: language names. Rows: typing system, package manager, typical use cases, GitHub stars of main repo.",
+	},
+] as const;
+
 function textFromMessageParts(
 	parts: Array<{ type: string; text?: string }>,
 ): string {
@@ -25,6 +43,7 @@ function toolNameFromPartType(partType: string): string {
 
 export default function SpreadsheetDemoPage() {
 	const [input, setInput] = useState("");
+	const [gridKey, setGridKey] = useState(0);
 	const [documentText, setDocumentText] = useState("");
 	const [warnings, setWarnings] = useState<string[]>([]);
 
@@ -63,7 +82,7 @@ export default function SpreadsheetDemoPage() {
 					className={`rounded-lg border p-3 ${
 						message.role === "user"
 							? "border-slate-700 bg-slate-900/80"
-						: "border-cyan-500/40 bg-cyan-500/10"
+							: "border-cyan-500/40 bg-cyan-500/10"
 					}`}
 				>
 					<p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
@@ -121,32 +140,57 @@ export default function SpreadsheetDemoPage() {
 		[documentText, input, isBusy, sendMessage],
 	);
 
+	const handlePromptSelect = (prompt: string) => {
+		setInput(prompt);
+	};
+
+	const handleClear = () => {
+		setGridKey((key) => key + 1);
+	};
+
 	return (
 		<main className="min-h-screen p-6 text-slate-100 sm:p-10">
-			<div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-300">
-				<a
-					href="/"
-					className="rounded-md border border-slate-600 px-2 py-1 transition hover:border-slate-400"
-				>
-					Back to home
-				</a>
-				<span>agent: {status}</span>
-			</div>
-
-			<section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-				<div className="rounded-2xl border border-slate-700 bg-slate-950/90 p-4">
-					<div className="mb-4">
+			<div className="mb-4">
+				<div className="flex items-center justify-between gap-3">
+					<a
+						href="/"
+						className="rounded-md border border-slate-600 px-2 py-1 transition hover:border-slate-400"
+					>
+						Back to home
+					</a>
+					<div className="text-center">
 						<p className="text-xs uppercase tracking-[0.18em] text-cyan-300/80">
 							Sandbox Agent Spreadsheet
 						</p>
 						<h1 className="mt-2 text-xl font-semibold">Spreadsheet Demo</h1>
 						<p className="mt-2 text-sm text-slate-300/90">
-							The agent snapshots the grid, writes code in the sandbox, and fills
-							cells with results.
+							The agent snapshots the grid, writes code in the sandbox, and
+							fills cells with results.
 						</p>
 					</div>
+					<div className="flex items-center gap-2">
+						<span className="rounded-full border border-slate-600 px-2.5 py-1 text-[11px] text-slate-300">
+							agent: {status}
+						</span>
+						<button
+							type="button"
+							onClick={handleClear}
+							className="rounded-md border border-slate-600 px-2 py-1 text-sm text-slate-200 transition hover:border-rose-400 hover:text-rose-200"
+						>
+							Clear
+						</button>
+					</div>
+				</div>
+			</div>
 
-					<SpreadsheetGrid rows={10} columns={6} />
+			<section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+				<div className="rounded-2xl border border-slate-700 bg-slate-950/90 p-4">
+					<SpreadsheetGrid
+						key={gridKey}
+						rows={10}
+						columns={6}
+						isBusy={isBusy}
+					/>
 				</div>
 
 				<div className="space-y-4">
@@ -156,6 +200,18 @@ export default function SpreadsheetDemoPage() {
 								Spreadsheet Chat
 							</p>
 							<p className="text-[11px] text-slate-400">status: {status}</p>
+						</div>
+						<div className="mb-3 flex flex-wrap gap-2">
+							{SUGGESTED_PROMPTS.map((prompt) => (
+								<button
+									key={prompt.label}
+									type="button"
+									onClick={() => handlePromptSelect(prompt.prompt)}
+									className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition cursor-pointer hover:border-slate-500 hover:text-slate-200"
+								>
+									{prompt.label}
+								</button>
+							))}
 						</div>
 
 						<label className="mb-3 block">

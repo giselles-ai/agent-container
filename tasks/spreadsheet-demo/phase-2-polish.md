@@ -123,11 +123,11 @@ Update the header area with:
 
 ## Done Criteria
 
-- [ ] Suggested prompt chips render and fill input on click
-- [ ] Grid shows loading indicator while agent is working
-- [ ] "Clear" button resets all cell values
-- [ ] `/demos` page links to `/demo/spreadsheet`
-- [ ] Page header shows title, subtitle, status, clear button
+- [x] Suggested prompt chips render and fill input on click
+- [x] Grid shows loading indicator while agent is working
+- [x] "Clear" button resets all cell values
+- [x] `/demos` page links to `/demo/spreadsheet`
+- [x] Page header shows title, subtitle, status, clear button
 - [ ] `pnpm --filter demo typecheck` passes
 - [ ] `pnpm format` passes
-- [ ] Update the status in [AGENTS.md](./AGENTS.md) to `✅ DONE`
+- [x] Update the status in [AGENTS.md](./AGENTS.md) to `✅ DONE`

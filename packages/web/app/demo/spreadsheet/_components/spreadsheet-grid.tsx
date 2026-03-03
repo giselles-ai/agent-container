@@ -5,6 +5,7 @@ import { useState } from "react";
 type SpreadsheetGridProps = {
 	rows?: number;
 	columns?: number;
+	isBusy?: boolean;
 };
 
 function getColumnLabel(index: number): string {
@@ -22,6 +23,7 @@ function getColumnLabel(index: number): string {
 export function SpreadsheetGrid({
 	rows = 10,
 	columns = 6,
+	isBusy = false,
 }: SpreadsheetGridProps) {
 	const [cells, setCells] = useState<Record<string, string>>({});
 
@@ -30,7 +32,16 @@ export function SpreadsheetGrid({
 	};
 
 	return (
-		<div className="overflow-x-auto">
+		<div
+			className={`relative overflow-x-auto rounded-lg border p-2 transition-all ${
+				isBusy ? "border-cyan-500/30 animate-pulse" : "border-slate-700/50"
+			}`}
+		>
+			{isBusy ? (
+				<div className="absolute right-2 top-2 z-10 rounded-full border border-cyan-400/80 bg-slate-950/90 px-2 py-1 text-[11px] font-medium text-cyan-200">
+					Agent working…
+				</div>
+			) : null}
 			<table className="w-full min-w-max border-collapse">
 				<thead>
 					<tr>
@@ -63,7 +74,12 @@ export function SpreadsheetGrid({
 				</thead>
 				<tbody>
 					{Array.from({ length: rows }).map((_, rowIndex) => (
-						<tr key={`row-${rowIndex}`}>
+						<tr
+							key={`row-${
+								// biome-ignore lint/suspicious/noArrayIndexKey: fixed grid size, rows never reorder
+								rowIndex
+							}`}
+						>
 							<td className="border border-slate-700/50 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-500">
 								{rowIndex + 1}
 							</td>
