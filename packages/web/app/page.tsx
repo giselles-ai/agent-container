@@ -1,3 +1,4 @@
+import { CodeDiffTabs } from "./_components/code-diff-tabs";
 import { HeroDemoMockup } from "./_components/hero-demo";
 import { HeroSequence } from "./_components/hero-sequence";
 
@@ -54,32 +55,8 @@ export default function MarketingPage() {
 						automation as a single AI SDK model. Your tooling stays the same.
 					</p>
 
-					<div className="mt-8 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 font-mono text-sm leading-relaxed whitespace-pre">
-						<div className="border-b border-slate-800/60 px-6 py-2.5">
-							<span className="text-xs text-slate-500">api/chat/route.ts</span>
-						</div>
-						<div className="overflow-x-auto py-4">
-							<div className="bg-emerald-500/10 px-6 text-emerald-400">
-								{'+import { giselle } from "@giselles-ai/giselle-provider";'}
-							</div>
-							<div className="px-6 text-slate-500">
-								{' import { streamText } from "ai";'}
-							</div>
-							<div className="px-6 text-slate-500"> </div>
-							<div className="px-6 text-slate-500">
-								{" const result = streamText({"}
-							</div>
-							<div className="bg-red-500/10 px-6 text-red-400/70">
-								{'-   model: openai("gpt-5.2-codex"),'}
-							</div>
-							<div className="bg-emerald-500/10 px-6 text-emerald-400">
-								{'+   model: giselle({ agent: "codex-cli" }),'}
-							</div>
-							<div className="px-6 text-slate-500">{"    messages,"}</div>
+					<CodeDiffTabs />
 
-							<div className="px-6 text-slate-500">{" });"}</div>
-						</div>
-					</div>
 					<div className="mt-6">
 						<a
 							href="https://github.com/giselles-ai/agent-container#readme"
