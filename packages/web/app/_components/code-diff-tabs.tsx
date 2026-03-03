@@ -16,7 +16,10 @@ const tabs: Tab[] = [
 	{
 		filename: "api/chat/route.ts",
 		lines: [
-			{ type: "added", text: '+import { giselle } from "@giselles-ai/giselle-provider";' },
+			{
+				type: "added",
+				text: '+import { giselle } from "@giselles-ai/giselle-provider";',
+			},
 			{ type: "context", text: ' import { streamText } from "ai";' },
 			{ type: "context", text: " " },
 			{ type: "context", text: " const result = streamText({" },
@@ -29,12 +32,21 @@ const tabs: Tab[] = [
 	{
 		filename: "app/page.tsx",
 		lines: [
-			{ type: "added", text: '+import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";' },
+			{
+				type: "added",
+				text: '+import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";',
+			},
 			{ type: "context", text: ' import { useChat } from "@ai-sdk/react";' },
 			{ type: "context", text: " " },
 			{ type: "added", text: "+ const browserTool = useBrowserToolHandler();" },
-			{ type: "context", text: "  const { addToolOutput, ...chat } = useChat({" },
-			{ type: "removed", text: "-   onToolCall: async ({ toolCall }) => { /* 80 lines */ }," },
+			{
+				type: "context",
+				text: "  const { addToolOutput, ...chat } = useChat({",
+			},
+			{
+				type: "removed",
+				text: "-   onToolCall: async ({ toolCall }) => { /* 80 lines */ },",
+			},
 			{ type: "added", text: "+   ...browserTool," },
 			{ type: "context", text: "  });" },
 			{ type: "added", text: "+ browserTool.connect(addToolOutput);" },
