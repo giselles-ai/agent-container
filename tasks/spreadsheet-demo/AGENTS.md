@@ -83,7 +83,7 @@ All phases are sequential — each builds on the previous.
 | Phase | Task File | Status | Description |
 |---|---|---|---|
 | 0 | [phase-0-spreadsheet-grid.md](./phase-0-spreadsheet-grid.md) | ✅ DONE | Grid component with `<input>` cells + `data-browser-tool-id` |
-| 1 | [phase-1-demo-page.md](./phase-1-demo-page.md) | 🔲 TODO | Page layout, `useChat` + `useBrowserToolHandler`, side-by-side UI |
+| 1 | [phase-1-demo-page.md](./phase-1-demo-page.md) | ✅ DONE | Page layout, `useChat` + `useBrowserToolHandler`, side-by-side UI |
 | 2 | [phase-2-polish.md](./phase-2-polish.md) | 🔲 TODO | Suggested prompts, loading indicator, clear button, demo link |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
