@@ -1,50 +1,13 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import type {
-	BrowserToolAction,
-	SnapshotField,
-} from "@giselles-ai/browser-tool";
-import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
+import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
 import {
 	DefaultChatTransport,
 	isToolUIPart,
 	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return Boolean(value) && typeof value === "object";
-}
-
-function toStringError(error: unknown): string {
-	return error instanceof Error ? error.message : "Tool execution failed.";
-}
-
-function dedupeStringArray(values: string[]): string[] {
-	return Array.from(new Set(values));
-}
-
-function parseExecuteInput(value: unknown): {
-	actions: BrowserToolAction[];
-	fields: SnapshotField[];
-} {
-	if (!isRecord(value)) {
-		return {
-			actions: [],
-			fields: [],
-		};
-	}
-
-	return {
-		actions: Array.isArray(value.actions)
-			? (value.actions as BrowserToolAction[])
-			: [],
-		fields: Array.isArray(value.fields)
-			? (value.fields as SnapshotField[])
-			: [],
-	};
-}
 
 function textFromMessageParts(
 	parts: Array<{ type: string; text?: string }>,
@@ -168,66 +131,23 @@ export default function GeminiBrowserToolPage() {
 	const [documentText, setDocumentText] = useState("");
 	const [warnings, setWarnings] = useState<string[]>([]);
 
-	const addWarnings = useCallback((next: string[]) => {
-		if (next.length === 0) {
-			return;
-		}
-
-		setWarnings((current) => dedupeStringArray([...current, ...next]));
-	}, []);
+	const browserTool = useBrowserToolHandler({
+		onWarnings: (next) =>
+			setWarnings((current) => [...new Set([...current, ...next])]),
+	});
 
 	const { status, messages, error, sendMessage, addToolOutput } = useChat({
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
 		}),
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-		onToolCall: async ({ toolCall }) => {
-			if (toolCall.dynamic) {
-				return;
-			}
-
-			try {
-				if (toolCall.toolName === "getFormSnapshot") {
-					const fields = snapshot();
-					addToolOutput({
-						tool: "getFormSnapshot",
-						toolCallId: toolCall.toolCallId,
-						output: { fields },
-					});
-					return;
-				}
-
-				if (toolCall.toolName === "executeFormActions") {
-					const { actions, fields } = parseExecuteInput(toolCall.input);
-					const report = execute(actions, fields);
-					addWarnings(report.warnings);
-					addToolOutput({
-						tool: "executeFormActions",
-						toolCallId: toolCall.toolCallId,
-						output: { report },
-					});
-					return;
-				}
-
-				addToolOutput({
-					state: "output-error",
-					tool: toolCall.toolName,
-					toolCallId: toolCall.toolCallId,
-					errorText: `Unknown tool: ${toolCall.toolName}`,
-				});
-			} catch (toolError) {
-				addToolOutput({
-					state: "output-error",
-					tool: toolCall.toolName,
-					toolCallId: toolCall.toolCallId,
-					errorText: toStringError(toolError),
-				});
-			}
-		},
+		...browserTool,
 		onError: (chatError) => {
 			console.error("Chat error", chatError);
 		},
 	});
+
+	browserTool.connect(addToolOutput);
 
 	const isBusy = status === "submitted" || status === "streaming";
 

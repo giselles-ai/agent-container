@@ -1,148 +1,143 @@
+import { HeroDemoMockup } from "./_components/hero-demo";
+import { HeroSequence } from "./_components/hero-sequence";
+
 export default function MarketingPage() {
 	return (
 		<main className="min-h-screen text-slate-100">
-			{/* Act 1: Reader's World (Before) */}
+			{/* Header */}
+			<header className="px-6 pt-8 sm:px-10">
+				<div className="mx-auto max-w-6xl">
+					<p
+						className="text-lg font-semibold tracking-wide text-slate-200"
+						style={{ fontFamily: "var(--font-tomorrow)" }}
+					>
+						Sandbox Agent
+					</p>
+				</div>
+			</header>
+			{/* Hero */}
+			<section className="px-6 pt-20 pb-16 sm:px-10 sm:pt-28 sm:pb-20">
+				<div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 lg:grid-cols-2">
+					<div>
+						<h1 className="text-4xl leading-[1.15] font-normal tracking-tight">
+							Give your app an agent.
+							<br />
+							<span className="text-slate-400">It fills in the form.</span>
+						</h1>
+						<div className="mt-6 space-y-1">
+							<p className="text-base leading-relaxed text-slate-500 sm:text-lg">
+								Wrap Gemini CLI or Codex as{" "}
+								<code className="text-slate-400">LanguageModelV3</code>.
+							</p>
+							<p className="text-base leading-relaxed text-slate-500 sm:text-lg">
+								Your app talks to it like any other model.
+							</p>
+						</div>
+						<div className="mt-8 inline-flex items-center rounded-md border border-slate-800 bg-slate-950 px-5 py-3 font-mono text-sm">
+							<span className="mr-3 text-slate-600">$</span>
+							<span className="text-slate-300">
+								npm i @giselles-ai/giselle-provider
+							</span>
+						</div>
+					</div>
+					<HeroDemoMockup />
+				</div>
+			</section>
+			{/* AI SDK integration (cf. Turborepo "Scale your workflows") */}
+			<section className="px-6 py-20 sm:px-10">
+				<div className="mx-auto max-w-6xl">
+					<h2 className="text-2xl font-normal tracking-tight sm:text-3xl">
+						More capability. Same SDK.
+					</h2>
+					<p className="mt-4 text-base text-slate-500 sm:text-lg">
+						Our provider wraps CLI agents, sandboxed runtimes, and browser
+						automation as a single AI SDK model. Your tooling stays the same.
+					</p>
+
+					<div className="mt-8 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 font-mono text-sm leading-relaxed whitespace-pre">
+						<div className="border-b border-slate-800/60 px-6 py-2.5">
+							<span className="text-xs text-slate-500">api/chat/route.ts</span>
+						</div>
+						<div className="overflow-x-auto py-4">
+							<div className="bg-emerald-500/10 px-6 text-emerald-400">
+								{'+import { giselle } from "@giselles-ai/giselle-provider";'}
+							</div>
+							<div className="px-6 text-slate-500">
+								{' import { streamText } from "ai";'}
+							</div>
+							<div className="px-6 text-slate-500"> </div>
+							<div className="px-6 text-slate-500">
+								{" const result = streamText({"}
+							</div>
+							<div className="bg-red-500/10 px-6 text-red-400/70">
+								{'-   model: openai("gpt-5.2-codex"),'}
+							</div>
+							<div className="bg-emerald-500/10 px-6 text-emerald-400">
+								{'+   model: giselle({ agent: "codex-cli" }),'}
+							</div>
+							<div className="px-6 text-slate-500">{"    messages,"}</div>
+
+							<div className="px-6 text-slate-500">{" });"}</div>
+						</div>
+					</div>
+					<div className="mt-6">
+						<a
+							href="https://github.com/giselles-ai/agent-container#readme"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-sm font-medium text-slate-400 transition hover:text-slate-200"
+						>
+							Read the docs →
+						</a>
+					</div>
+
+					<HeroSequence />
+
+					<div className="mt-12 grid gap-6 sm:grid-cols-3">
+						<div className="rounded-lg border border-slate-800 p-6">
+							<p className="text-sm font-medium text-cyan-400">
+								LanguageModelV3
+							</p>
+							<p className="mt-3 text-sm leading-relaxed text-slate-400">
+								<code className="text-slate-300">streamText()</code>,{" "}
+								<code className="text-slate-300">useChat()</code>,{" "}
+								<code className="text-slate-300">generateText()</code> — every
+								AI SDK pattern you know, unchanged.
+							</p>
+						</div>
+						<div className="rounded-lg border border-slate-800 p-6">
+							<p className="text-sm font-medium text-emerald-400">
+								Browser as a tool
+							</p>
+							<p className="mt-3 text-sm leading-relaxed text-slate-400">
+								Agents snapshot the DOM, fill inputs, click buttons. Your UI
+								becomes their interface.
+							</p>
+						</div>
+						<div className="rounded-lg border border-slate-800 p-6">
+							<p className="text-sm font-medium text-emerald-400">
+								Sandboxed agents
+							</p>
+							<p className="mt-3 text-sm leading-relaxed text-slate-400">
+								Gemini CLI or Codex in an isolated Vercel Sandbox. Stateful.
+								Disposable.
+							</p>
+						</div>
+					</div>
+				</div>
+			</section>
 			<section className="px-6 py-32 sm:px-10">
-				<div className="mx-auto max-w-3xl">
-					<h1 className="text-5xl leading-tight font-semibold sm:text-6xl">
-						Your AI knows exactly what to fill in.
-						<br />
-						<span className="text-slate-400">
-							It just&hellip; doesn&apos;t.
-						</span>
-					</h1>
-					<div className="mt-10 space-y-6 text-lg leading-relaxed text-slate-300">
-						<p>
-							<code className="rounded bg-slate-800 px-1.5 py-0.5 text-cyan-400">
-								streamText()
-							</code>{" "}
-							and{" "}
-							<code className="rounded bg-slate-800 px-1.5 py-0.5 text-cyan-400">
-								useChat()
-							</code>{" "}
-							&mdash; you can build a conversation UI in hours.
-						</p>
-						<p>
-							Your user pastes an invoice into the chat. The AI reads it
-							perfectly &mdash; date, amount, invoice number. It writes back a
-							beautiful summary.
-						</p>
-						<p>
-							Then your user looks at the expense form sitting right there on
-							the same page. Still empty.
-						</p>
-						<p className="text-slate-400">
-							The AI that understands everything. The form that stays blank. The
-							gap between knowing and doing.
-						</p>
-					</div>
-				</div>
-			</section>
-
-			{/* Act 2: Perspective Shift (During) */}
-			<section className="px-6 py-24 sm:px-10">
-				<div className="mx-auto max-w-3xl">
-					<h2 className="text-3xl font-semibold text-cyan-400 sm:text-4xl">
-						What if a CLI agent came through the{" "}
-						<span className="text-cyan-200">LanguageModelV3</span> interface?
+				<div className="mx-auto max-w-6xl">
+					<h2 className="text-2xl font-normal tracking-tight sm:text-3xl">
+						See it fill in a form.
 					</h2>
-					<p className="mt-6 text-lg leading-relaxed text-slate-300">
-						Not a new framework. Not a new SDK. Just a{" "}
-						<code className="rounded bg-slate-800 px-1.5 py-0.5 text-cyan-400">
-							LanguageModelV3
-						</code>{" "}
-						that happens to have hands.
+					<p className="mt-4 text-base text-slate-500">
+						Paste a receipt. Watch the expense report write itself.
 					</p>
-					<div className="mt-10 overflow-x-auto rounded-lg border border-slate-700 bg-slate-950 p-6">
-						<pre className="text-sm leading-relaxed text-slate-200">
-							<code>
-								{[
-									'import { giselle } from "@giselles-ai/giselle-provider";',
-									'import { streamText, tool } from "ai";',
-									"",
-									"const result = streamText({",
-									"  model: giselle({",
-									'    cloudApiUrl: "https://studio.giselles.ai",',
-									"    agent,",
-									"  }),",
-									"  messages: await convertToModelMessages(messages),",
-									"  tools,",
-									"});",
-								].join("\n")}
-							</code>
-						</pre>
-					</div>
-					<p className="mt-6 text-base leading-relaxed text-slate-400">
-						That&apos;s the actual route handler. The same{" "}
-						<code className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">
-							streamText()
-						</code>{" "}
-						you already use &mdash; but now the model can see your DOM and fill
-						in forms.
-					</p>
-				</div>
-			</section>
-
-			{/* Act 3: Transformed World (After) */}
-			<section className="px-6 py-24 sm:px-10">
-				<div className="mx-auto max-w-3xl">
-					<h2 className="text-3xl font-semibold sm:text-4xl">
-						Here&apos;s what happens behind those 20 lines.
-					</h2>
-					<p className="mt-6 text-lg leading-relaxed text-slate-300">
-						Three packages, each doing one thing:
-					</p>
-					<div className="mt-10 grid gap-6 sm:grid-cols-3">
-						<div className="rounded-lg border border-slate-700 bg-slate-900/50 p-6">
-							<p className="text-sm font-semibold text-cyan-400">
-								@giselles-ai/giselle-provider
-							</p>
-							<p className="mt-3 text-sm leading-relaxed text-slate-300">
-								Wraps a CLI agent as a{" "}
-								<code className="text-slate-200">LanguageModelV3</code>. Your
-								app talks to it like any other model.
-							</p>
-						</div>
-						<div className="rounded-lg border border-slate-700 bg-slate-900/50 p-6">
-							<p className="text-sm font-semibold text-emerald-400">
-								@giselles-ai/browser-tool
-							</p>
-							<p className="mt-3 text-sm leading-relaxed text-slate-300">
-								Snapshots the DOM. Executes fill, click, and select actions. The
-								bridge between the agent and your UI.
-							</p>
-						</div>
-						<div className="rounded-lg border border-slate-700 bg-slate-900/50 p-6">
-							<p className="text-sm font-semibold text-emerald-400">
-								@giselles-ai/sandbox-agent
-							</p>
-							<p className="mt-3 text-sm leading-relaxed text-slate-300">
-								Runs a CLI agent (Gemini, Codex) inside a Vercel Sandbox.
-								Isolated. Stateful. Ready when you are.
-							</p>
-						</div>
-					</div>
-					<div className="mt-16 space-y-4 text-lg leading-relaxed text-slate-300">
-						<p>Form autofill is just the first use case.</p>
-						<p className="text-slate-400">
-							Any operation your product has &mdash; any form, any workflow, any
-							multi-step process &mdash; can be delegated to an agent.
-						</p>
-					</div>
-				</div>
-			</section>
-
-			{/* CTA */}
-			<section className="px-6 py-24 sm:px-10">
-				<div className="mx-auto max-w-3xl text-center">
-					<h2 className="text-3xl font-semibold sm:text-4xl">See it work.</h2>
-					<p className="mt-4 text-lg text-slate-400">
-						An expense report. A receipt. An AI that fills in the form for you.
-					</p>
-					<div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+					<div className="mt-10 flex flex-wrap items-center gap-4">
 						<a
 							href="/demo"
-							className="inline-flex rounded-md border border-cyan-400 bg-cyan-400/10 px-6 py-3 text-base font-medium text-cyan-200 transition hover:bg-cyan-400/20"
+							className="inline-flex rounded-md border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-500"
 						>
 							Try the Demo
 						</a>
@@ -150,21 +145,20 @@ export default function MarketingPage() {
 							href="https://github.com/giselles-ai/agent-container"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex rounded-md border border-slate-600 px-6 py-3 text-base font-medium text-slate-300 transition hover:border-slate-400"
+							className="inline-flex rounded-md border border-slate-800 px-5 py-2.5 text-sm font-medium text-slate-400 transition hover:border-slate-600"
 						>
 							View on GitHub
 						</a>
-						<a
-							href="https://github.com/giselles-ai/agent-container#readme"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-flex rounded-md border border-slate-600 px-6 py-3 text-base font-medium text-slate-300 transition hover:border-slate-400"
-						>
-							Read the Docs
-						</a>
+					</div>
+					<div className="mt-10 inline-flex items-center rounded-md border border-slate-800 bg-slate-950 px-5 py-3 font-mono text-sm">
+						<span className="mr-3 text-slate-600">$</span>
+						<span className="text-slate-300">
+							npm i @giselles-ai/giselle-provider
+						</span>
 					</div>
 				</div>
 			</section>
+			;
 		</main>
 	);
 }
