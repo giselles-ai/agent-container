@@ -1,5 +1,7 @@
 @import "tailwindcss";
+@import "streamdown/styles.css";
 @source "../../../packages/browser-tool/src/**/*.{ts,tsx}";
+@source "../node_modules/streamdown/dist/*.js";
 
 :root {
 	color-scheme: dark;

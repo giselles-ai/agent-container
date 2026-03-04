@@ -11,6 +11,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Streamdown } from "streamdown";
 
 function toolNameFromPartType(partType: string): string {
 	return partType.startsWith("tool-") ? partType.slice(5) : partType;
@@ -20,6 +21,11 @@ export interface ChatPanelHandle {
 	setInput: (value: string) => void;
 }
 
+interface SuggestedPrompt {
+	label: string;
+	prompt: string;
+}
+
 interface ChatPanelProps {
 	messages: UIMessage[];
 	status: string;
@@ -27,10 +33,11 @@ interface ChatPanelProps {
 	isBusy: boolean;
 	onSendMessage: (params: { text: string }) => Promise<void>;
 	warnings: string[];
+	suggestedPrompts?: readonly SuggestedPrompt[];
 }
 
 export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
-	function ChatPanel({ messages, status, error, isBusy, onSendMessage, warnings }, ref) {
+	function ChatPanel({ messages, status, error, isBusy, onSendMessage, warnings, suggestedPrompts }, ref) {
 	const [input, setInput] = useState("");
 	const [documentText, setDocumentText] = useState("");
 	const [devToolOpen, setDevToolOpen] = useState(false);
@@ -92,48 +99,64 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
 							Send a prompt to get started
 						</p>
 					) : (
-						messages.map((message) => (
-							<div
-								key={message.id}
-								className={`rounded-lg px-3 py-2 text-[13px] leading-relaxed ${
-									message.role === "user"
-										? "bg-slate-800/60 text-slate-200"
-										: "bg-cyan-500/8 text-slate-300"
-								}`}
-							>
-								<p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
-									{message.role}
-								</p>
-								{message.parts.map((part, index) => {
-									if (part.type === "text") {
-										return (
-											<p
-												key={`${message.id}-${index}`}
-												className="whitespace-pre-wrap"
-											>
-												{part.text}
-											</p>
-										);
-									}
-									if (isToolUIPart(part)) {
-										return (
-											<div
-												key={`${message.id}-${part.toolCallId}`}
-												className="my-1.5 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1.5 text-[11px]"
-											>
-												<span className="font-medium text-cyan-400/80">
-													🔧 {toolNameFromPartType(part.type)}
-												</span>
-												<span className="ml-2 text-slate-500">
-													{part.state}
-												</span>
-											</div>
-										);
-									}
-									return null;
-								})}
-							</div>
-						))
+						messages.map((message) =>
+							message.role === "user" ? (
+								<div
+									key={message.id}
+									className="flex justify-end"
+								>
+									<div className="max-w-[85%] rounded-lg bg-slate-800/60 px-3 py-2 text-[13px] leading-relaxed text-slate-200">
+										{message.parts.map((part, index) => {
+											if (part.type === "text") {
+												return (
+													<p
+														key={`${message.id}-${index}`}
+														className="whitespace-pre-wrap"
+													>
+														{part.text}
+													</p>
+												);
+											}
+											return null;
+										})}
+									</div>
+								</div>
+							) : (
+								<div
+									key={message.id}
+									className="text-[13px] leading-relaxed text-slate-300"
+								>
+									{message.parts.map((part, index) => {
+										if (part.type === "text") {
+											return (
+												<Streamdown
+													key={`${message.id}-${index}`}
+													isAnimating={status === "streaming"}
+												>
+													{part.text}
+												</Streamdown>
+											);
+										}
+										if (isToolUIPart(part)) {
+											return (
+												<div
+													key={`${message.id}-${part.toolCallId}`}
+													className="my-1.5 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1.5 text-[11px]"
+												>
+													<span className="font-medium text-cyan-400/80">
+														🔧 {toolNameFromPartType(part.type)}
+													</span>
+													<span className="ml-2 text-slate-500">
+														{part.state}
+													</span>
+												</div>
+											);
+										}
+										return null;
+									})}
+								</div>
+							),
+						)
 					)}
 					<div ref={messagesEndRef} />
 				</div>
@@ -153,6 +176,24 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
 						placeholder="Paste source document here"
 						className="w-full rounded border border-slate-700/60 bg-slate-900/60 px-2 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-500/50"
 					/>
+				</div>
+			)}
+
+			{/* Suggested prompts — shown when no messages yet */}
+			{suggestedPrompts && suggestedPrompts.length > 0 && messages.length === 0 && !input.trim() && (
+				<div className="shrink-0 border-t border-slate-800/60 px-3 py-2">
+					<div className="flex flex-wrap gap-2">
+						{suggestedPrompts.map((sp) => (
+							<button
+								key={sp.label}
+								type="button"
+								onClick={() => setInput(sp.prompt)}
+								className="rounded-full border border-slate-700/60 px-3 py-1.5 text-xs text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+							>
+								{sp.label}
+							</button>
+						))}
+					</div>
 				</div>
 			)}
 

@@ -10,15 +10,16 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
+		"@ai-sdk/react": "3.0.70",
 		"@giselles-ai/browser-tool": "workspace:*",
 		"@giselles-ai/giselle-provider": "workspace:*",
 		"@giselles-ai/sandbox-agent": "workspace:*",
-		"@ai-sdk/react": "3.0.70",
 		"@vercel/sandbox": "1.4.1",
 		"ai": "6.0.68",
 		"next": "16.1.6",
 		"react": "19.2.4",
-		"react-dom": "19.2.4"
+		"react-dom": "19.2.4",
+		"streamdown": "^2.3.0"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "4.1.18",

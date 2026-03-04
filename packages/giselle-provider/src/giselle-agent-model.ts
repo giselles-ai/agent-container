@@ -372,15 +372,34 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 			// `useChat` always sends a chat `id`. Treating every request that includes
 			// an id as a resume causes false-positive resume attempts on first turns.
-			// We only resume when tool results are present in the prompt.
-			const hasToolResults =
-				this.extractToolResults(input.options.prompt).length > 0;
-			if (input.isResume && hasToolResults) {
+			// We only resume when the *last* message contains tool results — i.e. this
+			// request is a direct continuation of a paused tool call. Checking all
+			// messages would false-positive on follow-up user messages in conversations
+			// that previously used tools (the old session is already deleted by then).
+			const lastMessage =
+				input.options.prompt[input.options.prompt.length - 1];
+			const lastMessageHasToolResults =
+				lastMessage?.role === "tool" &&
+				lastMessage.content.some((part) => part.type === "tool-result");
+
+			console.log(
+				"[giselle-provider] runStream: providerSessionId=%s, isResume=%s, lastRole=%s, hasToolResults=%s, promptLength=%d",
+				input.providerSessionId,
+				input.isResume,
+				lastMessage?.role,
+				lastMessageHasToolResults,
+				input.options.prompt.length,
+			);
+
+			if (input.isResume && lastMessageHasToolResults) {
 				await this.resumeStream(input);
 				return;
 			}
 
-			await this.startNewSessionStream(input);
+			await this.startNewSessionStream({
+				...input,
+				isFollowUp: input.isResume,
+			});
 		} catch (error) {
 			try {
 				input.controller.enqueue({
@@ -401,15 +420,41 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	private async startNewSessionStream(input: {
 		options: LanguageModelV3CallOptions;
 		providerSessionId: string;
+		isFollowUp?: boolean;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 	}): Promise<void> {
+		let resumeData: { sessionId?: string; sandboxId?: string } | undefined;
+
+		if (input.isFollowUp) {
+			const existing = await loadSession(input.providerSessionId);
+			console.log(
+				"[giselle-provider] follow-up: existing session =",
+				JSON.stringify(existing),
+			);
+			if (existing) {
+				resumeData = {
+					sessionId: existing.geminiSessionId,
+					sandboxId: existing.sandboxId,
+				};
+			}
+		}
+
+		console.log(
+			"[giselle-provider] startNewSessionStream: isFollowUp=%s, resumeData=%s",
+			!!input.isFollowUp,
+			JSON.stringify(resumeData),
+		);
+
 		await createSession({
 			providerSessionId: input.providerSessionId,
 			createdAt: Date.now(),
 		});
 
 		try {
-			const connection = await this.connectCloudApi(input.options);
+			const connection = await this.connectCloudApi(
+				input.options,
+				resumeData,
+			);
 			await this.consumeNdjsonStream({
 				providerSessionId: input.providerSessionId,
 				controller: input.controller,
@@ -625,7 +670,11 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 			await input.connection.relaySubscription?.close().catch(() => undefined);
 			input.connection.relaySubscription = null;
-			await deleteSession(input.providerSessionId);
+
+			console.log(
+				"[giselle-provider] stream finished, keeping session for follow-ups: %s",
+				input.providerSessionId,
+			);
 
 			input.controller.close();
 		} catch (error) {

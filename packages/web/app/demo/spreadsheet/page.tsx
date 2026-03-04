@@ -61,10 +61,6 @@ export default function SpreadsheetDemoPage() {
 
 	const isBusy = status === "submitted" || status === "streaming";
 
-	const handlePromptSelect = (prompt: string) => {
-		chatRef.current?.setInput(prompt);
-	};
-
 	const handleClear = () => {
 		setGridKey((key) => key + 1);
 	};
@@ -110,24 +106,6 @@ export default function SpreadsheetDemoPage() {
 							isBusy={isBusy}
 						/>
 					</div>
-
-					{/* Suggested prompts — shown when no messages yet */}
-					{messages.length === 0 && (
-						<div className="shrink-0 border-t border-slate-800/60 px-4 py-3">
-							<div className="flex flex-wrap gap-2">
-								{SUGGESTED_PROMPTS.map((prompt) => (
-									<button
-										key={prompt.label}
-										type="button"
-										onClick={() => handlePromptSelect(prompt.prompt)}
-										className="rounded-full border border-slate-700/60 px-3 py-1.5 text-xs text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-									>
-										{prompt.label}
-									</button>
-								))}
-							</div>
-						</div>
-					)}
 				</main>
 
 				{/* ── Right Panel: Chat ── */}
@@ -139,6 +117,7 @@ export default function SpreadsheetDemoPage() {
 					isBusy={isBusy}
 					onSendMessage={sendMessage}
 					warnings={warnings}
+					suggestedPrompts={SUGGESTED_PROMPTS}
 				/>
 			</div>
 		</div>
