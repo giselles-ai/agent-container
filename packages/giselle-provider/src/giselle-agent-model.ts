@@ -82,6 +82,11 @@ function createDefaultRelaySubscription(params: {
 	const redis = new Redis(resolveRedisUrl(), {
 		maxRetriesPerRequest: 2,
 	});
+	redis.on("error", (error: unknown) => {
+		console.error(
+			`[giselle-provider] relay redis error: ${toStringError(error)}`,
+		);
+	});
 	const subscriber = redis.duplicate(RELAY_SUBSCRIBER_REDIS_OPTIONS);
 	const queue: Record<string, unknown>[] = [];
 	const waiters: Array<{

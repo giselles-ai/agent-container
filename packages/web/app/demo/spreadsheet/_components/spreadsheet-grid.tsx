@@ -32,20 +32,11 @@ export function SpreadsheetGrid({
 	};
 
 	return (
-		<div
-			className={`relative overflow-x-auto rounded-lg border p-2 transition-all ${
-				isBusy ? "border-cyan-500/30 animate-pulse" : "border-slate-700/50"
-			}`}
-		>
-			{isBusy ? (
-				<div className="absolute right-2 top-2 z-10 rounded-full border border-cyan-400/80 bg-slate-950/90 px-2 py-1 text-[11px] font-medium text-cyan-200">
-					Agent working…
-				</div>
-			) : null}
-			<table className="w-full min-w-max border-collapse">
+		<div className="overflow-x-auto">
+			<table className="w-full border-collapse">
 				<thead>
 					<tr>
-						<th className="border border-slate-700/50 bg-slate-900/40 px-2 py-1.5 text-center text-xs text-slate-500">
+						<th className="w-px border border-slate-700/50 bg-slate-900/40 px-2 py-1.5 text-center text-xs text-slate-500">
 							<span className="sr-only">Row</span>
 						</th>
 						{Array.from({ length: columns }).map((_, colIndex) => {
@@ -63,7 +54,7 @@ export function SpreadsheetGrid({
 										onChange={(event) =>
 											handleChange(headerId, event.target.value)
 										}
-										placeholder={`Column ${getColumnLabel(colIndex)}`}
+										placeholder={getColumnLabel(colIndex)}
 										aria-label={`Header column ${colIndex}`}
 										className="block w-full border-none px-2 py-1.5 bg-slate-900/80 text-xs font-medium text-slate-200 outline-none focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
 									/>
@@ -80,8 +71,28 @@ export function SpreadsheetGrid({
 								rowIndex
 							}`}
 						>
-							<td className="border border-slate-700/50 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-500">
-								{rowIndex + 1}
+							<td className="w-px whitespace-nowrap border border-slate-700/50 bg-slate-900/40">
+								{(() => {
+									const rowHeaderId = `row-header-${rowIndex}`;
+									const val = cells[rowHeaderId] ?? "";
+									const placeholder = `${rowIndex + 1}`;
+									const displayLen = val.length || placeholder.length;
+
+									return (
+										<input
+											type="text"
+											size={Math.max(displayLen, 1)}
+											data-browser-tool-id={rowHeaderId}
+											value={val}
+											onChange={(event) =>
+												handleChange(rowHeaderId, event.target.value)
+											}
+											placeholder={placeholder}
+											aria-label={`Row ${rowIndex} header`}
+											className="block border-none bg-transparent px-2 py-1.5 text-xs text-slate-500 outline-none focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+										/>
+									);
+								})()}
 							</td>
 							{Array.from({ length: columns }).map((_, colIndex) => {
 								const cellId = `cell-${rowIndex}-${colIndex}`;
