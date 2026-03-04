@@ -208,6 +208,9 @@ function buildCloudEndpoint(cloudApiUrl: string): string {
 function createDefaultDeps(): GiselleProviderDeps {
 	return {
 		connectCloudApi: async (params) => {
+			console.log(
+				`[giselle-provider] connectCloudApi: snapshot_id=${params.snapshotId}, agent_type=${params.agentType}, session_id=${params.sessionId ?? "(new)"}`,
+			);
 			const response = await fetch(params.endpoint, {
 				method: "POST",
 				headers: {

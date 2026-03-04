@@ -61,6 +61,7 @@ export class Agent {
 
 	setAgentMd(content: string | Buffer): this {
 		const buffer = typeof content === "string" ? Buffer.from(content) : content;
+		console.log(`[agent] setAgentMd called, content length=${buffer.length}`);
 		return this.addFiles([
 			{ path: "/home/vercel-sandbox/AGENTS.md", content: buffer },
 		]);
@@ -79,6 +80,9 @@ export class Agent {
 	}
 
 	async prepare(): Promise<void> {
+		console.log(
+			`[agent] prepare called, dirty=${this.dirty}, pendingOps=${this._pendingOps.length}`,
+		);
 		if (!this.dirty) {
 			return;
 		}
@@ -104,6 +108,7 @@ export class Agent {
 		}
 
 		const snapshot = await sandbox.snapshot();
+		console.log(`[agent] prepare done, new snapshotId=${snapshot.snapshotId}`);
 		this._snapshotId = snapshot.snapshotId;
 		this._pendingOps = [];
 	}
