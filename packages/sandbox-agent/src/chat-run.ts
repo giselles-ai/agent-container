@@ -6,6 +6,7 @@ export type BaseChatRequest = {
 	message: string;
 	session_id?: string;
 	sandbox_id?: string;
+	snapshot_id?: string;
 };
 
 export type ChatCommand = {
@@ -111,7 +112,8 @@ export function runChat<TRequest extends BaseChatRequest>(
 					const sandbox = parsed.sandbox_id
 						? await Sandbox.get({ sandboxId: parsed.sandbox_id })
 						: await (async () => {
-								const snapshotId = input.agent.snapshotId?.trim();
+								const snapshotId =
+									parsed.snapshot_id?.trim() || input.agent.snapshotId?.trim();
 								if (!snapshotId) {
 									throw new Error(
 										"Agent must provide snapshotId when sandbox_id is not provided.",

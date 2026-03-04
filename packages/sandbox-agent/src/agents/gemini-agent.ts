@@ -14,6 +14,7 @@ const geminiRequestSchema = z.object({
 	message: z.string().min(1),
 	session_id: z.string().min(1).optional(),
 	sandbox_id: z.string().min(1).optional(),
+	snapshot_id: z.string().min(1).optional(),
 	relay_session_id: z.string().min(1).optional(),
 	relay_token: z.string().min(1).optional(),
 });
