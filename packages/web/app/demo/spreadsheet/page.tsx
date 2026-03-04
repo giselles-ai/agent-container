@@ -11,21 +11,38 @@ import { useRef, useState } from "react";
 import { ChatPanel, type ChatPanelHandle } from "./_components/chat-panel";
 import { SpreadsheetGrid } from "./_components/spreadsheet-grid";
 
+const SPREADSHEET_AGENT_PROMPT = `You are a spreadsheet assistant. You fill a web-based spreadsheet form using browser tools.
+
+## Form Layout
+- The form has a header row (top) and data rows below.
+- Header fields are for column names (e.g., package names, language names).
+- Row fields are for data values corresponding to each column.
+
+## How to Work
+1. When the user asks you to fill data, first call getFormSnapshot to see the current form fields.
+2. Decide how to organize the data into columns and rows based on the user's request.
+3. Use executeFormActions to fill the header fields with column names and row fields with data.
+4. If the user asks for data you need to look up (e.g., npm downloads, GitHub stats), research it first, then fill the form.
+
+## Important
+- Keep column headers short and clear.
+- The user will give casual requests. Infer the best spreadsheet layout from context.
+- Always fill the form — don't just describe what you would do.`;
+
 const SUGGESTED_PROMPTS = [
 	{
 		label: "GitHub repo comparison",
 		prompt:
-			"Fill the form fields with a comparison of vercel/next.js, facebook/react, and sveltejs/svelte. Use the header fields for repo names and the row fields for metrics: commits, PRs merged, contributors, and releases over the past year. Also check which coding agents (AGENTS.md, .cursor, .codex) each repo uses.",
+			"next.js, react, svelte のGitHubリポジトリを比較して。コミット数、PR、コントリビューター数など。",
 	},
 	{
 		label: "npm download trends",
-		prompt:
-			"Fill the form fields with npm download data. Use the header fields for package names (zod, yup, joi) and the row fields for monthly download counts over the last 6 months.",
+		prompt: "直近12ヶ月のzod, yup, joiのnpmダウンロード数をまとめて",
 	},
 	{
 		label: "Language comparison",
 		prompt:
-			"Fill the form fields with a comparison of Python, JavaScript, and Rust. Use the header fields for language names and the row fields for: typing system, package manager, typical use cases, GitHub stars of main repo.",
+			"Python, JavaScript, Rust を比較して。型システム、パッケージマネージャー、主な用途など。",
 	},
 ] as const;
 
@@ -45,7 +62,7 @@ export default function SpreadsheetDemoPage() {
 			body: {
 				providerOptions: {
 					giselle: {
-						agent: { type: "codex" },
+						agent: { type: "codex", prompt: SPREADSHEET_AGENT_PROMPT },
 					},
 				},
 			},

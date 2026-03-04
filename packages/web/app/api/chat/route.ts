@@ -129,9 +129,16 @@ function resolveAgent(body: ChatRequestBody): Agent {
 		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID) ??
 		requiredEnv("SANDBOX_SNAPSHOT_ID");
 
-	return Agent.create(type ?? "gemini", {
+	const agent = Agent.create(type ?? "gemini", {
 		snapshotId,
 	});
+
+	const prompt = asNonEmptyString(agentOptions?.prompt);
+	if (prompt) {
+		agent.setAgentMd(prompt);
+	}
+
+	return agent;
 }
 
 async function parseChatRequestBody(
