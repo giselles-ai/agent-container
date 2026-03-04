@@ -29,14 +29,6 @@ const SUGGESTED_PROMPTS = [
 	},
 ] as const;
 
-function textFromMessageParts(
-	parts: Array<{ type: string; text?: string }>,
-): string {
-	return parts
-		.map((part) => (part.type === "text" ? (part.text ?? "") : ""))
-		.join("");
-}
-
 function toolNameFromPartType(partType: string): string {
 	return partType.startsWith("tool-") ? partType.slice(5) : partType;
 }
@@ -222,9 +214,34 @@ export default function SpreadsheetDemoPage() {
 										<p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
 											{message.role}
 										</p>
-										<p className="whitespace-pre-wrap">
-											{textFromMessageParts(message.parts)}
-										</p>
+										{message.parts.map((part, index) => {
+											if (part.type === "text") {
+												return (
+													<p
+														key={`${message.id}-${index}`}
+														className="whitespace-pre-wrap"
+													>
+														{part.text}
+													</p>
+												);
+											}
+											if (isToolUIPart(part)) {
+												return (
+													<div
+														key={`${message.id}-${part.toolCallId}`}
+														className="my-1.5 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1.5 text-[11px]"
+													>
+														<span className="font-medium text-cyan-400/80">
+															🔧 {toolNameFromPartType(part.type)}
+														</span>
+														<span className="ml-2 text-slate-500">
+															{part.state}
+														</span>
+													</div>
+												);
+											}
+											return null;
+										})}
 									</div>
 								))
 							)}
