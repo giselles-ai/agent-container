@@ -80,7 +80,7 @@ flowchart TD
 |---|---|---|---|
 | 0 | [phase-0-set-agent-md.md](./phase-0-set-agent-md.md) | ✅ DONE | Add `setAgentMd()` method to `Agent` class + unit tests |
 | 1 | [phase-1-integration.md](./phase-1-integration.md) | ✅ DONE | Wire up route handler + spreadsheet demo with custom prompt |
-| 2 | [phase-2-verification.md](./phase-2-verification.md) | 🔲 TODO | End-to-end verification and prompt tuning |
+| 2 | [phase-2-verification.md](./phase-2-verification.md) | ✅ DONE | End-to-end verification and prompt tuning |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
