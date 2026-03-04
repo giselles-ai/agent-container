@@ -47,7 +47,6 @@ export default function SpreadsheetDemoPage() {
 	const [documentText, setDocumentText] = useState("");
 	const [warnings, setWarnings] = useState<string[]>([]);
 	const [devToolOpen, setDevToolOpen] = useState(false);
-	const [forceShimmer, setForceShimmer] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	const browserTool = useBrowserToolHandler({
@@ -150,17 +149,6 @@ export default function SpreadsheetDemoPage() {
 				<div className="flex items-center gap-2">
 					<button
 						type="button"
-						onClick={() => setForceShimmer((v) => !v)}
-						className={`rounded px-2 py-1 text-[11px] transition ${
-							forceShimmer
-								? "bg-cyan-700 text-cyan-100"
-								: "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
-						}`}
-					>
-						shimmer
-					</button>
-					<button
-						type="button"
 						onClick={handleClear}
 						className="rounded px-2 py-1 text-[11px] text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
 					>
@@ -189,7 +177,7 @@ export default function SpreadsheetDemoPage() {
 							key={gridKey}
 							rows={10}
 							columns={6}
-							isBusy={isBusy || forceShimmer}
+							isBusy={isBusy}
 						/>
 					</div>
 
