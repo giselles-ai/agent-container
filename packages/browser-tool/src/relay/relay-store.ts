@@ -458,6 +458,15 @@ export async function dispatchRelayRequest(input: {
 	const responseEventChannel = relayResponseChannel(input.sessionId, requestId);
 	const subscriber = createRelaySubscriber();
 
+	const dispatchedAt = Date.now();
+	console.log(
+		"[relay] dispatchRelayRequest: requestId=%s, sessionId=%s, type=%s, ttl=%ds",
+		requestId,
+		input.sessionId,
+		input.request.type,
+		DEFAULT_REQUEST_TTL_SEC,
+	);
+
 	const setPending = await redis.set(
 		requestTypeStateKey,
 		input.request.type,
@@ -488,6 +497,13 @@ export async function dispatchRelayRequest(input: {
 				);
 			},
 		});
+
+		const elapsedMs = Date.now() - dispatchedAt;
+		console.log(
+			"[relay] dispatchRelayRequest resolved: requestId=%s, elapsed=%dms",
+			requestId,
+			elapsedMs,
+		);
 
 		const storedResponse = await redis.get(storedResponseKey);
 		if (!storedResponse) {
@@ -527,7 +543,17 @@ export async function resolveRelayResponse(input: {
 	const redis = getRedisClient();
 	const requestId = input.response.requestId;
 	const requestTypeStateKey = requestTypeKey(input.sessionId, requestId);
-	const expectedRequestTypeRaw = await redis.get(requestTypeStateKey);
+	const [expectedRequestTypeRaw, remainingTtl] = await Promise.all([
+		redis.get(requestTypeStateKey),
+		redis.ttl(requestTypeStateKey),
+	]);
+
+	console.log(
+		"[relay] resolveRelayResponse: requestId=%s, found=%s, remainingTtl=%ds",
+		requestId,
+		!!expectedRequestTypeRaw,
+		remainingTtl,
+	);
 
 	if (!expectedRequestTypeRaw) {
 		throw createRelayError(
