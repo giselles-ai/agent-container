@@ -120,7 +120,6 @@ function resolveAgent(body: ChatRequestBody): Agent {
 
 	const prompt = asNonEmptyString(agentOptions?.prompt);
 	if (prompt) {
-		console.log(`prompt: ${prompt}`);
 		agent.setAgentMd(prompt);
 	}
 
