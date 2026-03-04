@@ -84,10 +84,7 @@ export function CodeDiffTabs() {
 			<div className="overflow-x-auto py-4">
 				{tabs[active].lines.map((line, i) => (
 					<div
-						key={`${tabs[active].filename}-${
-							// biome-ignore lint/suspicious/noArrayIndexKey: static content
-							i
-						}`}
+						key={`${tabs[active].filename}-${i}`}
 						className={lineStyles[line.type]}
 					>
 						{line.text}

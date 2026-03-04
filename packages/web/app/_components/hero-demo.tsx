@@ -6,7 +6,10 @@ export function HeroDemoMockup() {
 				fill="none"
 				className="w-full h-auto"
 				style={{ fontFamily: "inherit" }}
+				role="img"
+				aria-label="Demo mockup"
 			>
+				<title>Demo mockup</title>
 				<defs>
 					<filter id="demo-shadow" x="-10%" y="-5%" width="120%" height="120%">
 						<feDropShadow

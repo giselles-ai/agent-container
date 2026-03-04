@@ -32,7 +32,7 @@ export function SpreadsheetGrid({
 	};
 
 	return (
-		<div className="overflow-x-auto">
+		<div className="overflow-x-auto relative">
 			<table className="w-full border-collapse">
 				<thead>
 					<tr>
@@ -119,6 +119,29 @@ export function SpreadsheetGrid({
 					))}
 				</tbody>
 			</table>
+			{isBusy && (
+				<div
+					style={{
+						backgroundImage: `linear-gradient(
+						105deg,
+						transparent 40%,
+						rgba(6,182,212,0.01) 43%,
+						rgba(6,182,212,0.02) 45%,
+						rgba(6,182,212,0.04) 48%,
+						rgba(6,182,212,0.04) 50%,
+						rgba(6,182,212,0.04) 52%,
+						rgba(6,182,212,0.02) 55%,
+						rgba(6,182,212,0.01) 57%,
+						transparent 60%
+					)`,
+						backgroundSize: "200% 100%",
+						backgroundRepeat: "no-repeat",
+					}}
+					className={
+						"pointer-events-none absolute inset-0 z-10 animate-[shimmer_3.0s_linear_infinite]"
+					}
+				/>
+			)}
 		</div>
 	);
 }

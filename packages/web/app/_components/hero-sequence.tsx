@@ -12,7 +12,10 @@ export function HeroSequence() {
 						fill="none"
 						className="w-full h-auto"
 						style={{ fontFamily: "inherit" }}
+						role="img"
+						aria-label="Without Giselle sequence diagram"
 					>
+						<title>Without Giselle sequence diagram</title>
 						{/* Actors */}
 						<rect
 							x="8"
@@ -299,7 +302,10 @@ export function HeroSequence() {
 						fill="none"
 						className="seq-root w-full h-auto"
 						style={{ fontFamily: "inherit" }}
+						role="img"
+						aria-label="With Giselle sequence diagram"
 					>
+						<title>With Giselle sequence diagram</title>
 						<defs>
 							<filter id="seq-glow">
 								<feGaussianBlur stdDeviation="4" result="blur" />
