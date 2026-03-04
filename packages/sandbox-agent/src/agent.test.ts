@@ -96,7 +96,7 @@ describe("Agent", () => {
 
 			expect(writeFiles).toHaveBeenCalledWith([
 				{
-					path: "/home/vercel-sandbox/AGENTS.md",
+					path: "/home/vercel-sandbox/.codex/AGENTS.md",
 					content: Buffer.from("You are a spreadsheet assistant."),
 				},
 			]);

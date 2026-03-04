@@ -63,7 +63,7 @@ export class Agent {
 		const buffer = typeof content === "string" ? Buffer.from(content) : content;
 		console.log(`[agent] setAgentMd called, content length=${buffer.length}`);
 		return this.addFiles([
-			{ path: "/home/vercel-sandbox/AGENTS.md", content: buffer },
+			{ path: "/home/vercel-sandbox/.codex/AGENTS.md", content: buffer },
 		]);
 	}
 

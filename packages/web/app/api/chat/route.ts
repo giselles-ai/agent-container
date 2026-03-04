@@ -74,19 +74,6 @@ function requiredEnv(name: string): string {
 	return value;
 }
 
-function buildCloudApiHeaders(): Record<string, string> {
-	const headers: Record<string, string> = {
-		authorization: `Bearer ${requiredEnv("EXTERNAL_AGENT_API_BEARER_TOKEN")}`,
-	};
-
-	const bypass = process.env.EXTERNAL_AGENT_API_PROTECTION_BYPASS?.trim();
-	if (bypass) {
-		headers["x-vercel-protection-bypass"] = bypass;
-	}
-
-	return headers;
-}
-
 function asRecord(value: unknown): Record<string, unknown> | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		return undefined;
@@ -227,8 +214,10 @@ export async function POST(request: Request): Promise<Response> {
 
 		const result = streamText({
 			model: giselle({
-				headers: buildCloudApiHeaders(),
 				agent,
+				headers: {
+					authorization: `Bearer ${requiredEnv("EXTERNAL_AGENT_API_BEARER_TOKEN")}`,
+				},
 			}),
 			messages: await convertToModelMessages(messages),
 			tools,
