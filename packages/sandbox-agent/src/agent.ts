@@ -59,6 +59,11 @@ export class Agent {
 		return this;
 	}
 
+	setAgentMd(content: string | Buffer): this {
+		const buffer = typeof content === "string" ? Buffer.from(content) : content;
+		return this.addFiles([{ path: "/home/vercel-sandbox/AGENTS.md", content: buffer }]);
+	}
+
 	runCommands(commands: Array<{ cmd: string; args?: string[] }>): this {
 		for (const command of commands) {
 			this._pendingOps.push({

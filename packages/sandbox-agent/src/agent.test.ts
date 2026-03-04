@@ -61,6 +61,49 @@ describe("Agent", () => {
 		});
 	});
 
+	describe("setAgentMd", () => {
+		it("marks agent as dirty", () => {
+			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
+			agent.setAgentMd("You are a helpful assistant.");
+			expect(agent.dirty).toBe(true);
+		});
+
+		it("is chainable", () => {
+			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
+			const result = agent.setAgentMd("instructions");
+			expect(result).toBe(agent);
+		});
+
+		it("accepts a Buffer", () => {
+			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
+			agent.setAgentMd(Buffer.from("instructions"));
+			expect(agent.dirty).toBe(true);
+		});
+
+		it("writes AGENTS.md to sandbox home during prepare", async () => {
+			const writeFiles = vi.fn(async () => undefined);
+			const snapshot = vi.fn(async () => ({ snapshotId: "snap_new" }));
+			sandboxCreate.mockResolvedValue({
+				writeFiles,
+				runCommand: vi.fn(),
+				snapshot,
+			});
+
+			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
+			agent.setAgentMd("You are a spreadsheet assistant.");
+
+			await agent.prepare();
+
+			expect(writeFiles).toHaveBeenCalledWith([
+				{
+					path: "/home/vercel-sandbox/AGENTS.md",
+					content: Buffer.from("You are a spreadsheet assistant."),
+				},
+			]);
+			expect(agent.snapshotId).toBe("snap_new");
+		});
+	});
+
 	describe("runCommands", () => {
 		it("marks agent as dirty", () => {
 			const agent = Agent.create("codex", { snapshotId: "snap_abc" });
