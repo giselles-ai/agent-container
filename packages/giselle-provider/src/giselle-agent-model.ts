@@ -789,7 +789,9 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		},
 	): Promise<LiveConnection> {
 		const response = await this.deps.connectCloudApi({
-			endpoint: buildCloudEndpoint(this.options.cloudApiUrl),
+			endpoint: buildCloudEndpoint(
+				this.options.cloudApiUrl ?? "https://studio.giselles.ai",
+			),
 			message: this.extractUserMessage(options.prompt),
 			sessionId: resumeData?.sessionId,
 			sandboxId: resumeData?.sandboxId,

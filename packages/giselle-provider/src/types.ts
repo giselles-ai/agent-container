@@ -79,7 +79,7 @@ export type LiveConnection = {
  * Options for creating the Giselle provider.
  */
 export type GiselleProviderOptions = {
-	cloudApiUrl: string;
+	cloudApiUrl?: string;
 	headers?: Record<string, string>;
 	agent: Agent;
 	deps?: Partial<GiselleProviderDeps>;

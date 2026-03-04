@@ -20,8 +20,6 @@ import { z } from "zod";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CLOUD_API_URL = "https://studio.giselles.ai";
-
 type ChatRequestBody = {
 	id?: unknown;
 	messages?: unknown;
@@ -229,7 +227,6 @@ export async function POST(request: Request): Promise<Response> {
 
 		const result = streamText({
 			model: giselle({
-				cloudApiUrl: CLOUD_API_URL,
 				headers: buildCloudApiHeaders(),
 				agent,
 			}),
