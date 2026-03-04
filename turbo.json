@@ -10,7 +10,9 @@
 				"REDIS_URL",
 				"BROWSER_TOOL_*",
 				"VERCEL_*",
-				"GISELLE_*"
+				"GISELLE_*",
+				"BLOB_READ_WRITE_TOKEN",
+				"SANDBOX_SNAPSHOT_ID"
 			]
 		},
 		"dev": {
