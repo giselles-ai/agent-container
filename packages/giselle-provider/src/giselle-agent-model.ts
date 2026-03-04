@@ -478,9 +478,15 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		}
 
 		if (!metadata.pendingRequestId) {
-			throw new Error(
-				`Session ${input.providerSessionId} has no pending request to resume.`,
-			);
+			// No pending tool-call to resume — the previous stream already
+			// finished normally. Fall through to a follow-up session instead
+			// of throwing, because `sendAutomaticallyWhen` may fire an extra
+			// round-trip after the final tool result has already been delivered.
+			await this.startNewSessionStream({
+				...input,
+				isFollowUp: true,
+			});
+			return;
 		}
 
 		if (
@@ -669,6 +675,13 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 			await input.connection.relaySubscription?.close().catch(() => undefined);
 			input.connection.relaySubscription = null;
+
+			// Clear pendingRequestId so that a subsequent automatic send
+			// (triggered by sendAutomaticallyWhen) does not try to relay-respond
+			// to an already-consumed request, which would cause a 404.
+			await updateSession(input.providerSessionId, {
+				pendingRequestId: undefined,
+			});
 
 			console.log(
 				"[giselle-provider] stream finished, keeping session for follow-ups: %s",
