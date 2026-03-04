@@ -376,8 +376,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			// request is a direct continuation of a paused tool call. Checking all
 			// messages would false-positive on follow-up user messages in conversations
 			// that previously used tools (the old session is already deleted by then).
-			const lastMessage =
-				input.options.prompt[input.options.prompt.length - 1];
+			const lastMessage = input.options.prompt[input.options.prompt.length - 1];
 			const lastMessageHasToolResults =
 				lastMessage?.role === "tool" &&
 				lastMessage.content.some((part) => part.type === "tool-result");
@@ -451,10 +450,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		});
 
 		try {
-			const connection = await this.connectCloudApi(
-				input.options,
-				resumeData,
-			);
+			const connection = await this.connectCloudApi(input.options, resumeData);
 			await this.consumeNdjsonStream({
 				providerSessionId: input.providerSessionId,
 				controller: input.controller,

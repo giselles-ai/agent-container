@@ -33,16 +33,17 @@ const SUGGESTED_PROMPTS = [
 	{
 		label: "GitHub repo comparison",
 		prompt:
-			"next.js, react, svelte のGitHubリポジトリを比較して。コミット数、PR、コントリビューター数など。",
+			"Compare the GitHub repos for next.js, react, and svelte. Include commit count, PRs, contributors, etc.",
 	},
 	{
 		label: "npm download trends",
-		prompt: "直近12ヶ月のzod, yup, joiのnpmダウンロード数をまとめて",
+		prompt:
+			"Summarize the npm download numbers for zod, yup, and joi over the last 12 months.",
 	},
 	{
 		label: "Language comparison",
 		prompt:
-			"Python, JavaScript, Rust を比較して。型システム、パッケージマネージャー、主な用途など。",
+			"Compare Python, JavaScript, and Rust. Cover type systems, package managers, primary use cases, etc.",
 	},
 ] as const;
 
@@ -50,6 +51,7 @@ export default function SpreadsheetDemoPage() {
 	const chatRef = useRef<ChatPanelHandle>(null);
 	const [gridKey, setGridKey] = useState(0);
 	const [warnings, setWarnings] = useState<string[]>([]);
+	const [devToolOpen, setDevToolOpen] = useState(false);
 
 	const browserTool = useBrowserToolHandler({
 		onWarnings: (next) =>
@@ -103,6 +105,13 @@ export default function SpreadsheetDemoPage() {
 				<div className="flex items-center gap-2">
 					<button
 						type="button"
+						onClick={() => setDevToolOpen((prev) => !prev)}
+						className={`rounded px-2 py-1 text-[11px] transition hover:bg-slate-800 hover:text-slate-200 ${devToolOpen ? "text-cyan-400" : "text-slate-400"}`}
+					>
+						Dev Tool
+					</button>
+					<button
+						type="button"
 						onClick={handleClear}
 						className="rounded px-2 py-1 text-[11px] text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
 					>
@@ -135,6 +144,7 @@ export default function SpreadsheetDemoPage() {
 					onSendMessage={sendMessage}
 					warnings={warnings}
 					suggestedPrompts={SUGGESTED_PROMPTS}
+					devToolOpen={devToolOpen}
 				/>
 			</div>
 		</div>

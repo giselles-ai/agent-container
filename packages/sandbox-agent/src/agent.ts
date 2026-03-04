@@ -61,7 +61,9 @@ export class Agent {
 
 	setAgentMd(content: string | Buffer): this {
 		const buffer = typeof content === "string" ? Buffer.from(content) : content;
-		return this.addFiles([{ path: "/home/vercel-sandbox/AGENTS.md", content: buffer }]);
+		return this.addFiles([
+			{ path: "/home/vercel-sandbox/AGENTS.md", content: buffer },
+		]);
 	}
 
 	runCommands(commands: Array<{ cmd: string; args?: string[] }>): this {
