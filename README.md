@@ -354,6 +354,22 @@ Codex snapshots include:
 | `pnpm knip` | Check for unused exports/dependencies |
 | `pnpm cli:release` | Release the CLI package |
 
+## Publishing
+
+Packages are published via the **Publish** workflow (`publish.yml`), triggered manually with a version bump choice (`patch`, `minor`, or `major`).
+
+You can trigger it from the command line with the GitHub CLI:
+
+```bash
+gh workflow run publish.yml -f bump=patch
+```
+
+To target a specific branch:
+
+```bash
+gh workflow run publish.yml --ref main -f bump=minor
+```
+
 ## License
 
 [Apache-2.0](LICENSE)
