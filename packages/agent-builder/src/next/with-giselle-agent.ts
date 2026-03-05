@@ -15,9 +15,7 @@ export function withGiselleAgent(
 ): () => Promise<NextConfig> {
 	return async () => {
 		const apiUrl = trimTrailingSlash(
-			options?.apiUrl ??
-				process.env.GISELLE_API_URL ??
-				"https://studio.giselles.ai",
+			options?.apiUrl ?? "https://studio.giselles.ai/agent-api/build-api",
 		);
 		const token = options?.token ?? process.env.SANDBOX_AGENT_API_KEY;
 		const baseSnapshotId =

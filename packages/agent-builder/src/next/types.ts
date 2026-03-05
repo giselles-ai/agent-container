@@ -1,7 +1,7 @@
 export type GiselleAgentPluginOptions = {
-	/** External API URL. Default: process.env.GISELLE_API_URL ?? "https://studio.giselles.ai" */
+	/** External API URL. Default: "https://studio.giselles.ai/agent-api/build-api" */
 	apiUrl?: string;
-	/** Bearer token. Default: process.env.EXTERNAL_AGENT_API_BEARER_TOKEN */
+	/** Bearer token. Default: process.env.SANDBOX_AGENT_API_KEY */
 	token?: string;
 	/** Base snapshot ID. Default: process.env.SANDBOX_SNAPSHOT_ID */
 	baseSnapshotId?: string;
