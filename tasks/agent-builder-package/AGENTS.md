@@ -117,8 +117,8 @@ flowchart TD
 | 2 | [phase-2-build-handler.md](./phase-2-build-handler.md) | ✅ DONE | `createBuildHandler` — Sandbox 操作 + hash キャッシュ |
 | 3 | [phase-3-next-plugin.md](./phase-3-next-plugin.md) | ✅ DONE | `withGiselleAgent` — build 時 fetch + env 注入 |
 | 4 | [phase-4-web-integration.md](./phase-4-web-integration.md) | ✅ DONE | web パッケージの統合: `lib/agent.ts`, `next.config.ts`, `route.ts` |
-| 5 | [phase-5-decouple-provider.md](./phase-5-decouple-provider.md) | 🔲 TODO | `giselle-provider` から `sandbox-agent` / `Agent.prepare()` を除去 |
-| 6 | [phase-6-cleanup.md](./phase-6-cleanup.md) | 🔲 TODO | web から `@vercel/sandbox` と `@giselles-ai/sandbox-agent` 依存を除去 |
+| 5 | [phase-5-decouple-provider.md](./phase-5-decouple-provider.md) | ✅ DONE | `giselle-provider` から `sandbox-agent` / `Agent.prepare()` を除去 |
+| 6 | [phase-6-cleanup.md](./phase-6-cleanup.md) | ✅ DONE | web から `@vercel/sandbox` と `@giselles-ai/sandbox-agent` 依存を除去 |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies

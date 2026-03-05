@@ -1,5 +1,3 @@
-import type { Agent } from "@giselles-ai/sandbox-agent";
-
 /**
  * Parameters for connecting to the Giselle Cloud API.
  */
@@ -76,11 +74,20 @@ export type LiveConnection = {
 };
 
 /**
+ * Minimal agent reference for the provider.
+ */
+export type AgentRef = {
+	readonly type?: string;
+	readonly agentType?: string;
+	readonly snapshotId: string;
+};
+
+/**
  * Options for creating the Giselle provider.
  */
 export type GiselleProviderOptions = {
 	cloudApiUrl?: string;
 	headers?: Record<string, string>;
-	agent: Agent;
+	agent: AgentRef;
 	deps?: Partial<GiselleProviderDeps>;
 };

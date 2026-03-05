@@ -175,9 +175,7 @@ export async function POST(request: Request): Promise<Response> {
 
 		const result = streamText({
 			model: giselle({
-				// Temporary cast: giselle() still expects sandbox Agent here; this is
-				// compatible with runtime in phase 4 and removed in phase 5.
-				agent: agent as any,
+				agent,
 				headers: {
 					authorization: `Bearer ${requiredEnv("EXTERNAL_AGENT_API_BEARER_TOKEN")}`,
 				},

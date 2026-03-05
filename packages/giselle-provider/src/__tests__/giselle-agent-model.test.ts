@@ -3,7 +3,6 @@ import type {
 	LanguageModelV3Prompt,
 	LanguageModelV3StreamPart,
 } from "@ai-sdk/provider";
-import { Agent } from "@giselles-ai/sandbox-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
 import type { LiveConnection, SessionMetadata } from "../types";
@@ -161,8 +160,11 @@ async function readAllParts(
 function createAgent(
 	type: "gemini" | "codex" = "gemini",
 	snapshotId = "snap_default",
-): Agent {
-	return Agent.create(type, { snapshotId });
+): { agentType: "gemini" | "codex"; snapshotId: string } {
+	return {
+		agentType: type,
+		snapshotId,
+	};
 }
 
 describe("GiselleAgentModel", () => {
@@ -309,100 +311,6 @@ describe("GiselleAgentModel", () => {
 		);
 	});
 
-	it("calls agent.prepare() when dirty", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "agent-prepare-1" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
-		]);
-		const callOrder: string[] = [];
-		const connectCloudApi = vi.fn(async () => {
-			callOrder.push("connect");
-			return {
-				reader: cloudReader.reader,
-				response: new Response(null, { status: 200 }),
-			};
-		});
-		const agent = createAgent("gemini", "snap_prepared_1");
-		agent.addFiles([
-			{
-				path: "/app/file.txt",
-				content: Buffer.from("hello"),
-			},
-		]);
-		vi.spyOn(agent, "prepare").mockImplementation(async () => {
-			callOrder.push("prepare");
-		});
-
-		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
-			agent,
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
-		);
-		await readAllParts(result.stream);
-
-		expect(callOrder).toEqual(["prepare", "connect"]);
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
-				agentType: "gemini",
-				snapshotId: "snap_prepared_1",
-			}),
-		);
-	});
-
-	it("does not call agent.prepare() when clean", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "snapshot-id-2" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-		const agent = createAgent("gemini", "snap_clean_1");
-		const prepare = vi.spyOn(agent, "prepare");
-
-		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
-			agent,
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
-		);
-		await readAllParts(result.stream);
-
-		expect(prepare).not.toHaveBeenCalled();
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
-				agentType: "gemini",
-				snapshotId: "snap_clean_1",
-			}),
-		);
-	});
-
 	it("passes both agent type and snapshot ID to cloud API", async () => {
 		const cloudReader = createNdjsonReader([
 			{ type: "init", session_id: "snapshot-id-3" },
@@ -437,6 +345,47 @@ describe("GiselleAgentModel", () => {
 			expect.objectContaining({
 				agentType: "gemini",
 				snapshotId: "snap_combo_1",
+			}),
+		);
+	});
+
+	it("maps legacy agent.type to agentType for cloud API payload", async () => {
+		const cloudReader = createNdjsonReader([
+			{ type: "init", session_id: "snapshot-id-4" },
+			{ type: "message", role: "assistant", content: "Done", delta: false },
+		]);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: cloudReader.reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			cloudApiUrl: "https://studio.giselles.ai",
+			agent: {
+				type: "codex",
+				snapshotId: "snap_legacy_type_1",
+			},
+			deps: {
+				connectCloudApi,
+				sendRelayResponse: vi.fn(async () => undefined),
+				createRelaySubscription: vi.fn(() => ({
+					nextRequest: async () => ({}),
+					close: async () => {},
+				})),
+			},
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				prompt: createPromptWithUser("hello"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(connectCloudApi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentType: "codex",
+				snapshotId: "snap_legacy_type_1",
 			}),
 		);
 	});
