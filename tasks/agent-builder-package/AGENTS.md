@@ -114,7 +114,7 @@ flowchart TD
 |---|---|---|---|
 | 0 | [phase-0-package-setup.md](./phase-0-package-setup.md) | ✅ DONE | Create `packages/agent-builder` with multi-export structure |
 | 1 | [phase-1-define-agent.md](./phase-1-define-agent.md) | ✅ DONE | `defineAgent` function and `AgentConfig` type |
-| 2 | [phase-2-build-handler.md](./phase-2-build-handler.md) | 🔲 TODO | `createBuildHandler` — Sandbox 操作 + hash キャッシュ |
+| 2 | [phase-2-build-handler.md](./phase-2-build-handler.md) | ✅ DONE | `createBuildHandler` — Sandbox 操作 + hash キャッシュ |
 | 3 | [phase-3-next-plugin.md](./phase-3-next-plugin.md) | 🔲 TODO | `withGiselleAgent` — build 時 fetch + env 注入 |
 | 4 | [phase-4-web-integration.md](./phase-4-web-integration.md) | 🔲 TODO | web パッケージの統合: `lib/agent.ts`, `next.config.ts`, `route.ts` |
 | 5 | [phase-5-decouple-provider.md](./phase-5-decouple-provider.md) | 🔲 TODO | `giselle-provider` から `sandbox-agent` / `Agent.prepare()` を除去 |

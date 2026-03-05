@@ -36,7 +36,9 @@
 		"test": "pnpm exec vitest run",
 		"format": "pnpm exec biome check --write ."
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@vercel/sandbox": "1.6.0"
+	},
 	"devDependencies": {
 		"@types/node": "25.3.0",
 		"tsup": "8.5.1",

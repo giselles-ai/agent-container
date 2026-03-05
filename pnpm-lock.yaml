@@ -29,6 +29,9 @@ importers:
 
   packages/agent-builder:
     dependencies:
+      '@vercel/sandbox':
+        specifier: 1.6.0
+        version: 1.6.0
       next:
         specifier: '>=15.0.0'
         version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
