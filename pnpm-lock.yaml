@@ -144,6 +144,9 @@ importers:
       '@ai-sdk/react':
         specifier: 3.0.70
         version: 3.0.70(react@19.2.4)(zod@4.3.6)
+      '@giselles-ai/agent-builder':
+        specifier: workspace:*
+        version: link:../agent-builder
       '@giselles-ai/browser-tool':
         specifier: workspace:*
         version: link:../browser-tool

@@ -4,7 +4,6 @@ import {
 	snapshotFieldSchema,
 } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
-import { Agent } from "@giselles-ai/sandbox-agent";
 import {
 	consumeStream,
 	convertToModelMessages,
@@ -15,6 +14,7 @@ import {
 	type UIMessage,
 	validateUIMessages,
 } from "ai";
+import { agent } from "../../../lib/agent";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -87,43 +87,6 @@ function asNonEmptyString(value: unknown): string | undefined {
 	}
 	const trimmed = value.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function resolveAgentType(value: unknown): "gemini" | "codex" | undefined {
-	const normalized = asNonEmptyString(value)?.toLowerCase();
-	if (normalized === "gemini" || normalized === "codex") {
-		return normalized;
-	}
-	return undefined;
-}
-
-function resolveAgentSnapshotId(value: unknown): string | undefined {
-	return asNonEmptyString(value);
-}
-
-function resolveAgent(body: ChatRequestBody): Agent {
-	const providerOptions = asRecord(body.providerOptions);
-	const giselleOptions = asRecord(providerOptions?.giselle);
-	const agentOptions = asRecord(giselleOptions?.agent);
-
-	const type =
-		resolveAgentType(agentOptions?.type) ??
-		resolveAgentType(process.env.AGENT_TYPE);
-	const snapshotId =
-		resolveAgentSnapshotId(agentOptions?.snapshotId) ??
-		resolveAgentSnapshotId(process.env.SANDBOX_SNAPSHOT_ID) ??
-		requiredEnv("SANDBOX_SNAPSHOT_ID");
-
-	const agent = Agent.create(type ?? "gemini", {
-		snapshotId,
-	});
-
-	const prompt = asNonEmptyString(agentOptions?.prompt);
-	if (prompt) {
-		agent.setAgentMd(prompt);
-	}
-
-	return agent;
 }
 
 async function parseChatRequestBody(
@@ -209,11 +172,12 @@ export async function POST(request: Request): Promise<Response> {
 		const messages = await parseChatMessages(body);
 		const sessionId = resolveSessionId(body);
 		const providerOptions = mergeProviderOptions(body, sessionId);
-		const agent = resolveAgent(body);
 
 		const result = streamText({
 			model: giselle({
-				agent,
+				// Temporary cast: giselle() still expects sandbox Agent here; this is
+				// compatible with runtime in phase 4 and removed in phase 5.
+				agent: agent as any,
 				headers: {
 					authorization: `Bearer ${requiredEnv("EXTERNAL_AGENT_API_BEARER_TOKEN")}`,
 				},
