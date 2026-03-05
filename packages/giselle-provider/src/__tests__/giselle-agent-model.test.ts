@@ -185,7 +185,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_default_1"),
 			deps: {
 				connectCloudApi,
@@ -246,7 +246,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("codex", "snap_codex_1"),
 			deps: {
 				connectCloudApi,
@@ -284,7 +284,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("codex", "snap_custom_123"),
 			deps: {
 				connectCloudApi,
@@ -322,7 +322,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_combo_1"),
 			deps: {
 				connectCloudApi,
@@ -360,7 +360,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: {
 				type: "codex",
 				snapshotId: "snap_legacy_type_1",
@@ -412,7 +412,7 @@ describe("GiselleAgentModel", () => {
 		}));
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_default_tool"),
 			deps: {
 				connectCloudApi,
@@ -474,7 +474,7 @@ describe("GiselleAgentModel", () => {
 		const sendRelayResponse = vi.fn(async () => undefined);
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_default_hot"),
 			deps: {
 				connectCloudApi,
@@ -572,7 +572,7 @@ describe("GiselleAgentModel", () => {
 		const sendRelayResponse = vi.fn(async () => undefined);
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_default_cold"),
 			deps: {
 				connectCloudApi,
@@ -660,7 +660,7 @@ describe("GiselleAgentModel", () => {
 		const sendRelayResponse = vi.fn(async () => undefined);
 
 		const model = new GiselleAgentModel({
-			cloudApiUrl: "https://studio.giselles.ai",
+			baseUrl: "https://studio.giselles.ai",
 			agent: createAgent("gemini", "snap_default_error"),
 			deps: {
 				connectCloudApi,

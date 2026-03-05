@@ -66,14 +66,6 @@ const tools = {
 
 type ChatUIMessage = UIMessage<never, UIDataTypes, InferUITools<typeof tools>>;
 
-function requiredEnv(name: string): string {
-	const value = process.env[name]?.trim();
-	if (!value) {
-		throw new Error(`Missing required environment variable: ${name}`);
-	}
-	return value;
-}
-
 function asRecord(value: unknown): Record<string, unknown> | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		return undefined;
@@ -113,24 +105,6 @@ function resolveSessionId(body: ChatRequestBody): string {
 		crypto.randomUUID()
 	);
 }
-
-function mergeProviderOptions(
-	body: ChatRequestBody,
-	sessionId: string,
-	// biome-ignore lint/suspicious/noExplicitAny: wip
-): Record<string, any> {
-	const providerOptions = asRecord(body.providerOptions) ?? {};
-	const giselleOptions = asRecord(providerOptions.giselle) ?? {};
-
-	return {
-		...providerOptions,
-		giselle: {
-			...giselleOptions,
-			sessionId,
-		},
-	};
-}
-
 async function parseChatMessages(
 	body: ChatRequestBody,
 ): Promise<ChatUIMessage[]> {
@@ -171,18 +145,24 @@ export async function POST(request: Request): Promise<Response> {
 		const body = await parseChatRequestBody(request);
 		const messages = await parseChatMessages(body);
 		const sessionId = resolveSessionId(body);
-		const providerOptions = mergeProviderOptions(body, sessionId);
 
 		const result = streamText({
 			model: giselle({
 				agent,
+				baseUrl: process.env.SANDBOX_AGENT_BASE_URL,
+				apiKey: process.env.SANDBOX_AGENT_API_KEY,
 				headers: {
-					authorization: `Bearer ${requiredEnv("EXTERNAL_AGENT_API_BEARER_TOKEN")}`,
+					"x-vercel-protection-bypass":
+						process.env.EXTERNAL_AGENT_API_PROTECTION_BYPASS,
 				},
 			}),
 			messages: await convertToModelMessages(messages),
 			tools,
-			providerOptions,
+			providerOptions: {
+				giselle: {
+					sessionId,
+				},
+			},
 			abortSignal: request.signal,
 		});
 

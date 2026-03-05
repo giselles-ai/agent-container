@@ -86,8 +86,9 @@ export type AgentRef = {
  * Options for creating the Giselle provider.
  */
 export type GiselleProviderOptions = {
-	cloudApiUrl?: string;
-	headers?: Record<string, string>;
+	baseUrl?: string;
+	apiKey?: string;
+	headers?: Record<string, string | undefined>;
 	agent: AgentRef;
 	deps?: Partial<GiselleProviderDeps>;
 };

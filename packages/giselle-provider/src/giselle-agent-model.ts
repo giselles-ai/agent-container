@@ -201,15 +201,15 @@ function toStringError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-function buildCloudEndpoint(cloudApiUrl: string): string {
-	return `${trimTrailingSlash(cloudApiUrl)}/agent-api/run`;
+function buildCloudEndpoint(baseUrl: string): string {
+	return trimTrailingSlash(baseUrl);
 }
 
 function createDefaultDeps(): GiselleProviderDeps {
 	return {
 		connectCloudApi: async (params) => {
 			console.log(
-				`[giselle-provider] connectCloudApi: snapshot_id=${params.snapshotId}, agent_type=${params.agentType}, session_id=${params.sessionId ?? "(new)"}`,
+				`[giselle-provider] connectCloudApi: endpoint=${params.endpoint}, snapshot_id=${params.snapshotId}, agent_type=${params.agentType}, session_id=${params.sessionId ?? "(new)"}, headers=${JSON.stringify(params.headers ?? {})}`,
 			);
 			const response = await fetch(params.endpoint, {
 				method: "POST",
@@ -789,7 +789,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	): Promise<LiveConnection> {
 		const response = await this.deps.connectCloudApi({
 			endpoint: buildCloudEndpoint(
-				this.options.cloudApiUrl ?? "https://studio.giselles.ai",
+				this.options.baseUrl ?? "https://studio.giselles.ai/agent-api/run",
 			),
 			message: this.extractUserMessage(options.prompt),
 			sessionId: resumeData?.sessionId,
@@ -811,14 +811,24 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	private mergeCloudHeaders(
 		callHeaders: LanguageModelV3CallOptions["headers"],
 	): Record<string, string> {
-		const headers: Record<string, string> = {
-			...(this.options.headers ?? {}),
-		};
+		const apiKey =
+			this.options.apiKey ?? process.env.SANDBOX_AGENT_API_KEY?.trim();
+		const headers: Record<string, string> = {};
+
+		for (const [name, value] of Object.entries(this.options.headers ?? {})) {
+			if (typeof value === "string") {
+				headers[name] = value;
+			}
+		}
 
 		for (const [name, value] of Object.entries(callHeaders ?? {})) {
 			if (typeof value === "string") {
 				headers[name] = value;
 			}
+		}
+
+		if (apiKey) {
+			headers.authorization = `Bearer ${apiKey}`;
 		}
 
 		return headers;

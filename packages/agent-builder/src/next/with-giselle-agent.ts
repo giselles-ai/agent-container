@@ -4,8 +4,6 @@ import { computeConfigHash } from "../hash";
 import type { AgentConfig } from "../types";
 import type { GiselleAgentPluginOptions } from "./types";
 
-const SNAPSHOT_ENV_KEY = "GISELLE_SNAPSHOT_ID";
-
 function trimTrailingSlash(url: string): string {
 	return url.replace(/\/+$/, "");
 }
@@ -21,7 +19,7 @@ export function withGiselleAgent(
 				process.env.GISELLE_API_URL ??
 				"https://studio.giselles.ai",
 		);
-		const token = options?.token ?? process.env.EXTERNAL_AGENT_API_BEARER_TOKEN;
+		const token = options?.token ?? process.env.SANDBOX_AGENT_API_KEY;
 		const baseSnapshotId =
 			options?.baseSnapshotId ?? process.env.SANDBOX_SNAPSHOT_ID;
 
@@ -38,24 +36,43 @@ export function withGiselleAgent(
 			...(agent.files ?? []),
 		];
 		if (agent.agentMd !== undefined) {
-			files.push({
-				path: "/home/vercel-sandbox/.codex/AGENTS.md",
-				content: agent.agentMd,
-			});
+			files.push(
+				{
+					path: "/home/vercel-sandbox/.codex/AGENTS.md",
+					content: agent.agentMd,
+				},
+				{
+					path: "/home/vercel-sandbox/.gemini/GEMINI.md",
+					content: agent.agentMd,
+				},
+			);
 		}
 
-		const response = await fetch(`${apiUrl}/agent-api/build`, {
+		const requestBody = {
+			base_snapshot_id: baseSnapshotId,
+			config_hash: configHash,
+			agent_type: agent.agentType ?? "gemini",
+			files,
+		};
+		const requestHeaders = {
+			"content-type": "application/json",
+			authorization: `Bearer ${token}`,
+			...options?.headers,
+		};
+		console.debug("[withGiselleAgent] POST %s", apiUrl);
+		console.debug(
+			"[withGiselleAgent] headers:",
+			JSON.stringify(requestHeaders, null, 2),
+		);
+		console.debug(
+			"[withGiselleAgent] body:",
+			JSON.stringify(requestBody, null, 2),
+		);
+
+		const response = await fetch(apiUrl, {
 			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				authorization: `Bearer ${token}`,
-			},
-			body: JSON.stringify({
-				base_snapshot_id: baseSnapshotId,
-				config_hash: configHash,
-				agent_type: agent.agentType ?? "gemini",
-				files,
-			}),
+			headers: requestHeaders,
+			body: JSON.stringify(requestBody),
 		});
 
 		if (!response.ok) {
@@ -69,12 +86,16 @@ export function withGiselleAgent(
 			snapshot_id: string;
 			cached: boolean;
 		};
+		console.debug(
+			"[withGiselleAgent] result:",
+			JSON.stringify(result, null, 2),
+		);
 
 		return {
 			...nextConfig,
 			env: {
 				...nextConfig.env,
-				[SNAPSHOT_ENV_KEY]: result.snapshot_id,
+				GISELLE_SANDBOX_AGENT_SNAPSHOT_ID: result.snapshot_id,
 			},
 		};
 	};

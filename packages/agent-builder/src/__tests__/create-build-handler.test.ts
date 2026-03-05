@@ -30,11 +30,11 @@ function makeRequest(
 	});
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: mock object doesn't need full Sandbox type
 function createMockSandbox(overrides?: {
 	snapshotId?: string;
 	writeSpy?: ReturnType<typeof vi.fn>;
 	snapshotSpy?: ReturnType<typeof vi.fn>;
+	// biome-ignore lint/suspicious/noExplicitAny: mock object doesn't need full Sandbox type
 }): any {
 	return {
 		sandboxId: "sb_123",

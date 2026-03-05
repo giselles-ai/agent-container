@@ -5,4 +5,6 @@ export type GiselleAgentPluginOptions = {
 	token?: string;
 	/** Base snapshot ID. Default: process.env.SANDBOX_SNAPSHOT_ID */
 	baseSnapshotId?: string;
+	/** Additional headers to include in the build API request */
+	headers?: Record<string, string | undefined>;
 };
