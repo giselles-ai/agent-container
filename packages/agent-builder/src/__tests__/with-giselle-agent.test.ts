@@ -90,7 +90,11 @@ describe("withGiselleAgent", () => {
 			),
 		);
 
-		const factory = withGiselleAgent({}, {}, { apiUrl: "https://custom-api.example.com/" });
+		const factory = withGiselleAgent(
+			{},
+			{},
+			{ apiUrl: "https://custom-api.example.com/" },
+		);
 		await factory();
 
 		const [url] = fetchSpy.mock.calls[0];
@@ -167,7 +171,10 @@ describe("withGiselleAgent", () => {
 		);
 
 		const factory = withGiselleAgent(
-			{ env: { NEXT_PUBLIC_FEATURE: "on" }, compiler: { removeConsole: false } },
+			{
+				env: { NEXT_PUBLIC_FEATURE: "on" },
+				compiler: { removeConsole: false },
+			},
 			{ agentType: "gemini" },
 		);
 		const config = await factory();

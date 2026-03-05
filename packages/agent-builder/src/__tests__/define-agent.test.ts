@@ -27,9 +27,7 @@ describe("defineAgent", () => {
 
 	it("throws when snapshotId is accessed without env", () => {
 		const agent = defineAgent({});
-		expect(() => agent.snapshotId).toThrow(
-			"GISELLE_SNAPSHOT_ID is not set",
-		);
+		expect(() => agent.snapshotId).toThrow("GISELLE_SNAPSHOT_ID is not set");
 	});
 
 	it("returns snapshotId from env", () => {

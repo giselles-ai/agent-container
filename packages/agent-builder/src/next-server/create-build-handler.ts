@@ -1,6 +1,6 @@
 import { Sandbox } from "@vercel/sandbox";
-import type { BuildHandlerConfig, BuildRequest, BuildResponse } from "./types";
 import { getCachedSnapshotId, setCachedSnapshotId } from "./snapshot-cache";
+import type { BuildHandlerConfig, BuildRequest, BuildResponse } from "./types";
 
 function extractBearerToken(request: Request): string | undefined {
 	const header = request.headers.get("authorization");
@@ -78,7 +78,7 @@ export function createBuildHandler(config?: BuildHandlerConfig) {
 			const token = extractBearerToken(request);
 			if (!token) {
 				return errorResponse("Missing authorization token.", 401);
-		}
+			}
 
 			const valid = await config.verifyToken(token);
 			if (!valid) {

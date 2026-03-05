@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@vercel/sandbox", () => ({
 	Sandbox: {
@@ -41,7 +41,9 @@ function createMockSandbox(overrides?: {
 		writeFiles: overrides?.writeSpy ?? vi.fn().mockResolvedValue(undefined),
 		snapshot:
 			overrides?.snapshotSpy ??
-			vi.fn().mockResolvedValue({ snapshotId: overrides?.snapshotId ?? "snap_new" }),
+			vi
+				.fn()
+				.mockResolvedValue({ snapshotId: overrides?.snapshotId ?? "snap_new" }),
 	};
 }
 
@@ -57,7 +59,10 @@ describe("createBuildHandler", () => {
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body).toEqual(
-			expect.objectContaining({ ok: false, message: "Missing authorization token." }),
+			expect.objectContaining({
+				ok: false,
+				message: "Missing authorization token.",
+			}),
 		);
 		expect(mockCreate).not.toHaveBeenCalled();
 	});
@@ -71,7 +76,10 @@ describe("createBuildHandler", () => {
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body).toEqual(
-			expect.objectContaining({ ok: false, message: "Invalid authorization token." }),
+			expect.objectContaining({
+				ok: false,
+				message: "Invalid authorization token.",
+			}),
 		);
 		expect(mockCreate).not.toHaveBeenCalled();
 	});
@@ -93,9 +101,7 @@ describe("createBuildHandler", () => {
 		];
 
 		for (const body of malformed) {
-			const res = await handler(
-				makeRequest(body),
-			);
+			const res = await handler(makeRequest(body));
 			expect(res.status).toBe(400);
 		}
 
@@ -194,7 +200,10 @@ describe("createBuildHandler", () => {
 
 		await handler(makeRequest(body));
 		const res = await handler(makeRequest(body));
-		const result = (await res.json()) as { snapshot_id: string; cached: boolean };
+		const result = (await res.json()) as {
+			snapshot_id: string;
+			cached: boolean;
+		};
 
 		expect(result.cached).toBe(true);
 		expect(result.snapshot_id).toBe("snap_cached");

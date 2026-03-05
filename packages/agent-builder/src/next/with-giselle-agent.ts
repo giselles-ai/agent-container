@@ -34,7 +34,9 @@ export function withGiselleAgent(
 
 		const configHash = computeConfigHash(agent, baseSnapshotId);
 
-		const files: Array<{ path: string; content: string }> = [...(agent.files ?? [])];
+		const files: Array<{ path: string; content: string }> = [
+			...(agent.files ?? []),
+		];
 		if (agent.agentMd !== undefined) {
 			files.push({
 				path: "/home/vercel-sandbox/.codex/AGENTS.md",
