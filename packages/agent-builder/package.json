@@ -1,0 +1,53 @@
+{
+	"name": "@giselles-ai/agent-builder",
+	"version": "0.1.0",
+	"type": "module",
+	"sideEffects": false,
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/giselles-ai/agent-container.git",
+		"directory": "packages/agent-builder"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./next": {
+			"types": "./dist/next/index.d.ts",
+			"import": "./dist/next/index.js",
+			"default": "./dist/next/index.js"
+		},
+		"./next-server": {
+			"types": "./dist/next-server/index.d.ts",
+			"import": "./dist/next-server/index.js",
+			"default": "./dist/next-server/index.js"
+		}
+	},
+	"scripts": {
+		"build": "pnpm clean && tsup --config tsup.ts",
+		"clean": "rm -rf dist *.tsbuildinfo",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "pnpm exec vitest run",
+		"format": "pnpm exec biome check --write ."
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@types/node": "25.3.0",
+		"tsup": "8.5.1",
+		"typescript": "5.9.3"
+	},
+	"peerDependencies": {
+		"next": ">=15.0.0"
+	},
+	"peerDependenciesMeta": {
+		"next": {
+			"optional": true
+		}
+	}
+}
