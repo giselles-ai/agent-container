@@ -7,11 +7,11 @@ import type {
 } from "@giselles-ai/browser-tool";
 import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
 import {
-	DefaultChatTransport,
 	isToolUIPart,
 	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { createGiselleChatTransport } from "../_lib/giselle-chat-transport";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
@@ -177,7 +177,7 @@ export default function ExternalAgentPage() {
 	}, []);
 
 	const { status, messages, error, sendMessage, addToolOutput } = useChat({
-		transport: new DefaultChatTransport({
+		transport: createGiselleChatTransport({
 			api: "/api/chat",
 		}),
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,

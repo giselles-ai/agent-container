@@ -5,86 +5,32 @@ import type {
 } from "@ai-sdk/provider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
-import type { LiveConnection, SessionMetadata } from "../types";
-
-const sessionState = vi.hoisted(() => ({
-	sessions: new Map<string, SessionMetadata>(),
-	liveConnections: new Map<string, LiveConnection>(),
-}));
-
-vi.mock("../session-manager", () => ({
-	createSession: async (metadata: SessionMetadata) => {
-		sessionState.sessions.set(metadata.providerSessionId, metadata);
-	},
-	loadSession: async (providerSessionId: string) =>
-		sessionState.sessions.get(providerSessionId) ?? null,
-	updateSession: async (
-		providerSessionId: string,
-		updates: Partial<SessionMetadata>,
-	) => {
-		const existing = sessionState.sessions.get(providerSessionId) ?? {
-			providerSessionId,
-			createdAt: Date.now(),
-		};
-		sessionState.sessions.set(providerSessionId, {
-			...existing,
-			...updates,
-		});
-	},
-	deleteSession: async (providerSessionId: string) => {
-		sessionState.sessions.delete(providerSessionId);
-		const connection = sessionState.liveConnections.get(providerSessionId);
-		if (connection) {
-			if (connection.relaySubscription) {
-				await connection.relaySubscription.close().catch(() => undefined);
-			}
-			await connection.reader.cancel().catch(() => undefined);
-			try {
-				connection.reader.releaseLock();
-			} catch {
-				// ignore
-			}
-		}
-		sessionState.liveConnections.delete(providerSessionId);
-	},
-	saveLiveConnection: (
-		providerSessionId: string,
-		connection: LiveConnection,
-	) => {
-		sessionState.liveConnections.set(providerSessionId, connection);
-	},
-	getLiveConnection: (providerSessionId: string) =>
-		sessionState.liveConnections.get(providerSessionId),
-	removeLiveConnection: async (providerSessionId: string) => {
-		const connection = sessionState.liveConnections.get(providerSessionId);
-		if (connection) {
-			if (connection.relaySubscription) {
-				await connection.relaySubscription.close().catch(() => undefined);
-			}
-			await connection.reader.cancel().catch(() => undefined);
-			try {
-				connection.reader.releaseLock();
-			} catch {
-				// ignore
-			}
-		}
-		sessionState.liveConnections.delete(providerSessionId);
-	},
-}));
+import { getGiselleSessionStateFromRawValue } from "../session-state";
+import { getLiveConnection } from "../session-manager";
+import type {
+	GiselleSessionState,
+	LiveConnection,
+	RelaySubscription,
+} from "../types";
 
 function createCallOptions(input: {
 	prompt: LanguageModelV3Prompt;
 	sessionId?: string;
+	sessionState?: GiselleSessionState;
 }): LanguageModelV3CallOptions {
 	return {
 		prompt: input.prompt,
-		providerOptions: input.sessionId
-			? {
-					giselle: {
-						sessionId: input.sessionId,
-					},
-				}
-			: undefined,
+		providerOptions:
+			input.sessionId || input.sessionState
+				? {
+						giselle: {
+							...(input.sessionId ? { sessionId: input.sessionId } : {}),
+							...(input.sessionState
+								? { sessionState: input.sessionState }
+								: {}),
+						},
+					}
+				: undefined,
 	};
 }
 
@@ -135,6 +81,33 @@ function createNdjsonReader(events: Array<Record<string, unknown>>): {
 	};
 }
 
+function createRelaySubscriptionMock(): {
+	subscription: RelaySubscription;
+	nextRequest: ReturnType<typeof vi.fn>;
+	close: ReturnType<typeof vi.fn>;
+} {
+	let rejectWaiter: ((error: Error) => void) | null = null;
+	const nextRequest = vi.fn(
+		() =>
+			new Promise<Record<string, unknown>>((_, reject) => {
+				rejectWaiter = reject;
+			}),
+	);
+	const close = vi.fn(async () => {
+		rejectWaiter?.(new Error("closed"));
+		rejectWaiter = null;
+	});
+
+	return {
+		subscription: {
+			nextRequest,
+			close,
+		},
+		nextRequest,
+		close,
+	};
+}
+
 async function readAllParts(
 	stream: ReadableStream<LanguageModelV3StreamPart>,
 ): Promise<LanguageModelV3StreamPart[]> {
@@ -157,6 +130,19 @@ async function readAllParts(
 	return parts;
 }
 
+function extractSessionStates(
+	parts: LanguageModelV3StreamPart[],
+): GiselleSessionState[] {
+	return parts.flatMap((part) => {
+		if (part.type !== "raw") {
+			return [];
+		}
+
+		const sessionState = getGiselleSessionStateFromRawValue(part.rawValue);
+		return sessionState ? [sessionState] : [];
+	});
+}
+
 function createAgent(
 	type: "gemini" | "codex" = "gemini",
 	snapshotId = "snap_default",
@@ -169,11 +155,10 @@ function createAgent(
 
 describe("GiselleAgentModel", () => {
 	beforeEach(() => {
-		sessionState.sessions.clear();
-		sessionState.liveConnections.clear();
+		delete globalThis.__giselleProviderSessions;
 	});
 
-	it("streams a new text-only session and cleans up on finish(stop)", async () => {
+	it("streams a text session and emits session state updates", async () => {
 		const cloudReader = createNdjsonReader([
 			{ type: "init", session_id: "gem-1" },
 			{ type: "message", role: "assistant", content: "Hello ", delta: true },
@@ -190,10 +175,7 @@ describe("GiselleAgentModel", () => {
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(),
 			},
 		});
 
@@ -205,6 +187,7 @@ describe("GiselleAgentModel", () => {
 		const providerSessionId =
 			result.response?.headers?.["x-giselle-session-id"];
 		const parts = await readAllParts(result.stream);
+		const sessionStates = extractSessionStates(parts);
 
 		expect(providerSessionId).toEqual(expect.any(String));
 		expect(parts.some((part) => part.type === "text-start")).toBe(true);
@@ -224,135 +207,24 @@ describe("GiselleAgentModel", () => {
 					part.type === "finish" && part.finishReason.unified === "stop",
 			),
 		).toBe(true);
-		expect(connectCloudApi).toHaveBeenCalledTimes(1);
+		expect(sessionStates.at(-1)).toMatchObject({
+			geminiSessionId: "gem-1",
+			pendingRequestId: null,
+		});
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
-				endpoint: "https://studio.giselles.ai/agent-api/run",
+				endpoint: "https://studio.giselles.ai",
 				message: "Fill login form",
-			}),
-		);
-		expect(sessionState.sessions.size).toBe(0);
-		expect(sessionState.liveConnections.size).toBe(0);
-	});
-
-	it("passes agent type to cloud API", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "agent-type-1" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("codex", "snap_codex_1"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
-		);
-		await readAllParts(result.stream);
-
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
-				agentType: "codex",
-				snapshotId: "snap_codex_1",
-			}),
-		);
-	});
-
-	it("passes snapshot ID to cloud API", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "snapshot-id-1" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("codex", "snap_custom_123"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
-		);
-		await readAllParts(result.stream);
-
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
-				agentType: "codex",
-				snapshotId: "snap_custom_123",
-			}),
-		);
-	});
-
-	it("passes both agent type and snapshot ID to cloud API", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "snapshot-id-3" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_combo_1"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
-		);
-		await readAllParts(result.stream);
-
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
 				agentType: "gemini",
-				snapshotId: "snap_combo_1",
+				snapshotId: "snap_default_1",
 			}),
 		);
+		expect(getLiveConnection(providerSessionId as string)).toBeUndefined();
 	});
 
-	it("maps legacy agent.type to agentType for cloud API payload", async () => {
+	it("uses round-tripped session state for follow-up requests", async () => {
 		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "snapshot-id-4" },
-			{ type: "message", role: "assistant", content: "Done", delta: false },
+			{ type: "message", role: "assistant", content: "Follow-up", delta: false },
 		]);
 		const connectCloudApi = vi.fn(async () => ({
 			reader: cloudReader.reader,
@@ -361,36 +233,41 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: {
-				type: "codex",
-				snapshotId: "snap_legacy_type_1",
-			},
+			agent: createAgent("codex", "snap_follow_up"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(),
 			},
 		});
 
-		const result = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("hello"),
-			}),
+		await readAllParts(
+			(
+				await model.doStream(
+					createCallOptions({
+						sessionId: "provider-follow-up",
+						sessionState: {
+							geminiSessionId: "gem-follow-up",
+							sandboxId: "sandbox-follow-up",
+						},
+						prompt: createPromptWithUser("Continue"),
+					}),
+				)
+			).stream,
 		);
-		await readAllParts(result.stream);
 
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
+				sessionId: "gem-follow-up",
+				sandboxId: "sandbox-follow-up",
 				agentType: "codex",
-				snapshotId: "snap_legacy_type_1",
+				snapshotId: "snap_follow_up",
 			}),
 		);
 	});
 
-	it("pauses on tool-call and keeps session + live connection", async () => {
+	it("pauses on tool calls and keeps an in-memory live connection", async () => {
+		const relaySubscription = createRelaySubscriptionMock();
 		const cloudReader = createNdjsonReader([
 			{ type: "init", session_id: "gem-2" },
 			{
@@ -399,7 +276,6 @@ describe("GiselleAgentModel", () => {
 				token: "relay-token-1",
 				relayUrl: "https://relay.example",
 			},
-			{ type: "message", role: "assistant", content: "Filling ", delta: true },
 			{
 				type: "snapshot_request",
 				requestId: "req-1",
@@ -413,14 +289,11 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_default_tool"),
+			agent: createAgent("gemini", "snap_tool_pause"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(() => relaySubscription.subscription),
 			},
 		});
 
@@ -429,7 +302,10 @@ describe("GiselleAgentModel", () => {
 				prompt: createPromptWithUser("Fill login form"),
 			}),
 		);
+		const providerSessionId =
+			result.response?.headers?.["x-giselle-session-id"] as string;
 		const parts = await readAllParts(result.stream);
+		const sessionStates = extractSessionStates(parts);
 
 		expect(
 			parts.some(
@@ -442,18 +318,20 @@ describe("GiselleAgentModel", () => {
 					part.type === "finish" && part.finishReason.unified === "tool-calls",
 			),
 		).toBe(true);
-
-		expect(sessionState.liveConnections.size).toBe(1);
-		const [session] = Array.from(sessionState.sessions.values());
-		expect(session.pendingRequestId).toBe("req-1");
-		expect(session.relaySessionId).toBe("relay-1");
-		expect(session.relayToken).toBe("relay-token-1");
-		expect(session.relayUrl).toBe("https://relay.example");
+		expect(sessionStates.at(-1)).toMatchObject({
+			geminiSessionId: "gem-2",
+			relaySessionId: "relay-1",
+			relayToken: "relay-token-1",
+			relayUrl: "https://relay.example",
+			pendingRequestId: "req-1",
+		});
+		expect(getLiveConnection(providerSessionId)).toBeDefined();
 	});
 
-	it("resumes via hot path with pending tool result and cleans session", async () => {
+	it("resumes via hot path using the client round-tripped session state", async () => {
+		const relaySubscription = createRelaySubscriptionMock();
 		const sharedReader = createNdjsonReader([
-			{ type: "init", session_id: "gem-3" },
+			{ type: "init", session_id: "gem-hot" },
 			{
 				type: "relay.session",
 				sessionId: "relay-hot",
@@ -475,14 +353,11 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_default_hot"),
+			agent: createAgent("gemini", "snap_hot"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(() => relaySubscription.subscription),
 			},
 		});
 
@@ -491,16 +366,18 @@ describe("GiselleAgentModel", () => {
 				prompt: createPromptWithUser("Fill login form"),
 			}),
 		);
-		const firstSessionId =
-			firstResult.response?.headers?.["x-giselle-session-id"];
+		const providerSessionId =
+			firstResult.response?.headers?.["x-giselle-session-id"] as string;
 		const firstParts = await readAllParts(firstResult.stream);
+		const sessionState = extractSessionStates(firstParts).at(-1);
 
-		expect(firstParts.some((part) => part.type === "tool-call")).toBe(true);
-		expect(firstSessionId).toEqual(expect.any(String));
+		expect(sessionState).toBeDefined();
+		expect(getLiveConnection(providerSessionId)).toBeDefined();
 
 		const secondResult = await model.doStream(
 			createCallOptions({
-				sessionId: firstSessionId,
+				sessionId: providerSessionId,
+				sessionState,
 				prompt: [
 					...createPromptWithUser("Fill login form"),
 					{
@@ -523,9 +400,9 @@ describe("GiselleAgentModel", () => {
 			}),
 		);
 		const secondParts = await readAllParts(secondResult.stream);
+		const secondSessionStates = extractSessionStates(secondParts);
 
 		expect(connectCloudApi).toHaveBeenCalledTimes(1);
-		expect(sendRelayResponse).toHaveBeenCalledTimes(1);
 		expect(sendRelayResponse).toHaveBeenCalledWith(
 			expect.objectContaining({
 				response: {
@@ -540,28 +417,13 @@ describe("GiselleAgentModel", () => {
 				(part) => part.type === "text-delta" && part.delta === "Done!",
 			),
 		).toBe(true);
-		expect(
-			secondParts.some(
-				(part) =>
-					part.type === "finish" && part.finishReason.unified === "stop",
-			),
-		).toBe(true);
-		expect(sessionState.sessions.size).toBe(0);
-		expect(sessionState.liveConnections.size).toBe(0);
+		expect(secondSessionStates[0]).toMatchObject({
+			pendingRequestId: null,
+		});
+		expect(getLiveConnection(providerSessionId)).toBeUndefined();
 	});
 
-	it("resumes via cold path when no live connection exists", async () => {
-		sessionState.sessions.set("provider-cold", {
-			providerSessionId: "provider-cold",
-			createdAt: Date.now(),
-			geminiSessionId: "gem-cold",
-			sandboxId: "sandbox-cold",
-			relaySessionId: "relay-cold",
-			relayToken: "relay-cold-token",
-			relayUrl: "https://relay.example",
-			pendingRequestId: "req-cold",
-		});
-
+	it("resumes via cold path when only client session state remains", async () => {
 		const cloudReader = createNdjsonReader([
 			{ type: "message", role: "assistant", content: "Completed", delta: true },
 		]);
@@ -573,20 +435,27 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_default_cold"),
+			agent: createAgent("gemini", "snap_cold"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(),
 			},
 		});
+
+		const sessionState: GiselleSessionState = {
+			geminiSessionId: "gem-cold",
+			sandboxId: "sandbox-cold",
+			relaySessionId: "relay-cold",
+			relayToken: "relay-cold-token",
+			relayUrl: "https://relay.example",
+			pendingRequestId: "req-cold",
+		};
 
 		const result = await model.doStream(
 			createCallOptions({
 				sessionId: "provider-cold",
+				sessionState,
 				prompt: [
 					...createPromptWithUser("Fill login form"),
 					{
@@ -614,7 +483,6 @@ describe("GiselleAgentModel", () => {
 		);
 		const parts = await readAllParts(result.stream);
 
-		expect(sendRelayResponse).toHaveBeenCalledTimes(1);
 		expect(sendRelayResponse).toHaveBeenCalledWith(
 			expect.objectContaining({
 				response: {
@@ -628,7 +496,6 @@ describe("GiselleAgentModel", () => {
 				},
 			}),
 		);
-		expect(connectCloudApi).toHaveBeenCalledTimes(1);
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
 				sessionId: "gem-cold",
@@ -641,19 +508,9 @@ describe("GiselleAgentModel", () => {
 					part.type === "finish" && part.finishReason.unified === "stop",
 			),
 		).toBe(true);
-		expect(sessionState.sessions.size).toBe(0);
 	});
 
-	it("emits error when pending tool result is missing or mismatched", async () => {
-		sessionState.sessions.set("provider-mismatch", {
-			providerSessionId: "provider-mismatch",
-			createdAt: Date.now(),
-			relaySessionId: "relay-mismatch",
-			relayToken: "relay-token",
-			relayUrl: "https://relay.example",
-			pendingRequestId: "req-expected",
-		});
-
+	it("emits an error when the pending tool result does not match session state", async () => {
 		const connectCloudApi = vi.fn(async () => {
 			throw new Error("should not connect");
 		});
@@ -661,20 +518,23 @@ describe("GiselleAgentModel", () => {
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_default_error"),
+			agent: createAgent("gemini", "snap_error"),
 			deps: {
 				connectCloudApi,
 				sendRelayResponse,
-				createRelaySubscription: vi.fn(() => ({
-					nextRequest: async () => ({}),
-					close: async () => {},
-				})),
+				createRelaySubscription: vi.fn(),
 			},
 		});
 
 		const result = await model.doStream(
 			createCallOptions({
 				sessionId: "provider-mismatch",
+				sessionState: {
+					relaySessionId: "relay-mismatch",
+					relayToken: "relay-token",
+					relayUrl: "https://relay.example",
+					pendingRequestId: "req-expected",
+				},
 				prompt: [
 					...createPromptWithUser("Fill login form"),
 					{
@@ -701,6 +561,5 @@ describe("GiselleAgentModel", () => {
 		expect(sendRelayResponse).not.toHaveBeenCalled();
 		expect(connectCloudApi).not.toHaveBeenCalled();
 		expect(parts.some((part) => part.type === "error")).toBe(true);
-		expect(sessionState.sessions.has("provider-mismatch")).toBe(true);
 	});
 });

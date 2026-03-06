@@ -3,11 +3,11 @@
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
 import {
-	DefaultChatTransport,
 	isToolUIPart,
 	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { createGiselleChatTransport } from "../_lib/giselle-chat-transport";
 
 function textFromMessageParts(
 	parts: Array<{ type: string; text?: string }>,
@@ -137,7 +137,7 @@ export default function GeminiBrowserToolPage() {
 	});
 
 	const { status, messages, error, sendMessage, addToolOutput } = useChat({
-		transport: new DefaultChatTransport({
+		transport: createGiselleChatTransport({
 			api: "/api/chat",
 		}),
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,

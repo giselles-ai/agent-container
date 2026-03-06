@@ -7,7 +7,6 @@ import type {
 	LanguageModelV3ToolResultOutput,
 } from "@ai-sdk/provider";
 import { UnsupportedFunctionalityError } from "@ai-sdk/provider";
-import Redis from "ioredis";
 import {
 	createMapperContext,
 	extractJsonObjects,
@@ -15,19 +14,25 @@ import {
 	mapNdjsonEvent,
 } from "./ndjson-mapper";
 import {
-	createSession,
-	deleteSession,
+	createHttpRelaySubscription,
+	postRelayResponse,
+} from "./relay-http";
+import {
+	createGiselleSessionStateRawValue,
+	getGiselleSessionIdFromProviderOptions,
+	getGiselleSessionStateFromProviderOptions,
+	mergeGiselleSessionStates,
+} from "./session-state";
+import {
 	getLiveConnection,
-	loadSession,
 	removeLiveConnection,
 	saveLiveConnection,
-	updateSession,
 } from "./session-manager";
 import type {
 	GiselleProviderDeps,
 	GiselleProviderOptions,
+	GiselleSessionState,
 	LiveConnection,
-	RelaySubscription,
 } from "./types";
 
 type ExtractedToolResult = {
@@ -35,163 +40,6 @@ type ExtractedToolResult = {
 	toolCallId: string;
 	output: unknown;
 };
-
-const REDIS_URL_ENV_CANDIDATES = [
-	"REDIS_URL",
-	"REDIS_TLS_URL",
-	"KV_URL",
-	"UPSTASH_REDIS_TLS_URL",
-	"UPSTASH_REDIS_URL",
-] as const;
-const RELAY_SUBSCRIBER_REDIS_OPTIONS = {
-	enableReadyCheck: false,
-	autoResubscribe: false,
-	autoResendUnfulfilledCommands: false,
-	maxRetriesPerRequest: 2,
-} as const;
-const RELAY_BROWSER_PRESENCE_TTL_SEC = 90;
-const RELAY_BROWSER_KEEPALIVE_INTERVAL_MS = 20 * 1000;
-
-function resolveRedisUrl(): string {
-	for (const name of REDIS_URL_ENV_CANDIDATES) {
-		const value = process.env[name]?.trim();
-		if (value) {
-			return value;
-		}
-	}
-
-	throw new Error(
-		`Missing Redis URL. Set one of: ${REDIS_URL_ENV_CANDIDATES.join(", ")}`,
-	);
-}
-
-function relayRequestChannel(sessionId: string): string {
-	return `relay:${sessionId}:request`;
-}
-
-function browserPresenceKey(sessionId: string): string {
-	return `relay:browser:${sessionId}`;
-}
-
-function createDefaultRelaySubscription(params: {
-	sessionId: string;
-	token: string;
-	relayUrl: string;
-}): RelaySubscription {
-	const channel = relayRequestChannel(params.sessionId);
-	const redis = new Redis(resolveRedisUrl(), {
-		maxRetriesPerRequest: 2,
-	});
-	redis.on("error", (error: unknown) => {
-		console.error(
-			`[giselle-provider] relay redis error: ${toStringError(error)}`,
-		);
-	});
-	const subscriber = redis.duplicate(RELAY_SUBSCRIBER_REDIS_OPTIONS);
-	const queue: Record<string, unknown>[] = [];
-	const waiters: Array<{
-		resolve: (request: Record<string, unknown>) => void;
-		reject: (error: Error) => void;
-	}> = [];
-	let keepaliveId: ReturnType<typeof setInterval> | null = null;
-	let closed = false;
-
-	const resolveNext = (request: Record<string, unknown>): void => {
-		const waiter = waiters.shift();
-		if (waiter) {
-			waiter.resolve(request);
-			return;
-		}
-		queue.push(request);
-	};
-
-	const rejectAll = (error: Error): void => {
-		while (waiters.length > 0) {
-			waiters.shift()?.reject(error);
-		}
-	};
-
-	const touchBrowserPresence = async (): Promise<void> => {
-		await redis.set(
-			browserPresenceKey(params.sessionId),
-			"1",
-			"EX",
-			RELAY_BROWSER_PRESENCE_TTL_SEC,
-		);
-	};
-
-	subscriber.on("message", (receivedChannel: string, message: string) => {
-		if (closed || receivedChannel !== channel) {
-			return;
-		}
-
-		try {
-			const parsed = JSON.parse(message);
-			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-				return;
-			}
-
-			resolveNext(parsed as Record<string, unknown>);
-		} catch {
-			// Ignore malformed relay payloads.
-		}
-	});
-
-	subscriber.on("error", (error: unknown) => {
-		if (closed) {
-			return;
-		}
-		rejectAll(new Error(`Relay subscriber failed: ${toStringError(error)}`));
-	});
-
-	void touchBrowserPresence().catch(() => undefined);
-
-	const ready = (async () => {
-		await subscriber.subscribe(channel);
-		await touchBrowserPresence();
-		keepaliveId = setInterval(() => {
-			void touchBrowserPresence().catch(() => undefined);
-		}, RELAY_BROWSER_KEEPALIVE_INTERVAL_MS);
-	})();
-
-	return {
-		nextRequest: async () => {
-			await ready;
-
-			if (queue.length > 0) {
-				return queue.shift() as Record<string, unknown>;
-			}
-
-			if (closed) {
-				throw new Error("Relay subscription is closed.");
-			}
-
-			return await new Promise<Record<string, unknown>>((resolve, reject) => {
-				waiters.push({ resolve, reject });
-			});
-		},
-		close: async () => {
-			if (closed) {
-				return;
-			}
-
-			closed = true;
-			if (keepaliveId) {
-				clearInterval(keepaliveId);
-			}
-
-			rejectAll(new Error("Relay subscription closed."));
-
-			await subscriber.unsubscribe(channel).catch(() => undefined);
-			await subscriber.quit().catch(() => {
-				subscriber.disconnect();
-			});
-			await redis.quit().catch(() => {
-				redis.disconnect();
-			});
-		},
-	};
-}
 
 function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
@@ -241,28 +89,8 @@ function createDefaultDeps(): GiselleProviderDeps {
 				response,
 			};
 		},
-		createRelaySubscription: (params) => createDefaultRelaySubscription(params),
-		sendRelayResponse: async (params) => {
-			const response = await fetch(params.relayUrl, {
-				method: "POST",
-				headers: {
-					"content-type": "application/json",
-				},
-				body: JSON.stringify({
-					type: "relay.respond",
-					sessionId: params.sessionId,
-					token: params.token,
-					response: params.response,
-				}),
-			});
-
-			if (!response.ok) {
-				const body = await response.text().catch(() => "");
-				throw new Error(
-					`Relay response failed (${response.status}): ${body || response.statusText}`,
-				);
-			}
-		},
+		createRelaySubscription: (params) => createHttpRelaySubscription(params),
+		sendRelayResponse: (params) => postRelayResponse(params),
 	};
 }
 
@@ -309,11 +137,15 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		const requestedProviderSessionId = this.extractProviderSessionId(
 			options.providerOptions,
 		);
+		const requestedSessionState = this.extractProviderSessionState(
+			options.providerOptions,
+		);
 		const providerSessionId = requestedProviderSessionId ?? crypto.randomUUID();
 		const stream = this.createStream(
 			options,
 			providerSessionId,
 			requestedProviderSessionId !== undefined,
+			requestedSessionState,
 		);
 
 		return {
@@ -331,6 +163,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		options: LanguageModelV3CallOptions,
 		providerSessionId: string,
 		isResume: boolean,
+		sessionState: GiselleSessionState | undefined,
 	): ReadableStream<LanguageModelV3StreamPart> {
 		return new ReadableStream<LanguageModelV3StreamPart>({
 			start: (controller) => {
@@ -338,6 +171,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 					options,
 					providerSessionId,
 					isResume,
+					sessionState,
 					controller,
 				});
 			},
@@ -351,6 +185,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		options: LanguageModelV3CallOptions;
 		providerSessionId: string;
 		isResume: boolean;
+		sessionState?: GiselleSessionState;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 	}): Promise<void> {
 		try {
@@ -409,22 +244,20 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		options: LanguageModelV3CallOptions;
 		providerSessionId: string;
 		isFollowUp?: boolean;
+		sessionState?: GiselleSessionState;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 	}): Promise<void> {
 		let resumeData: { sessionId?: string; sandboxId?: string } | undefined;
 
-		if (input.isFollowUp) {
-			const existing = await loadSession(input.providerSessionId);
+		if (input.isFollowUp && input.sessionState) {
 			console.log(
 				"[giselle-provider] follow-up: existing session =",
-				JSON.stringify(existing),
+				JSON.stringify(input.sessionState),
 			);
-			if (existing) {
-				resumeData = {
-					sessionId: existing.geminiSessionId,
-					sandboxId: existing.sandboxId,
-				};
-			}
+			resumeData = {
+				sessionId: input.sessionState.geminiSessionId,
+				sandboxId: input.sessionState.sandboxId,
+			};
 		}
 
 		console.log(
@@ -433,20 +266,16 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			JSON.stringify(resumeData),
 		);
 
-		await createSession({
-			providerSessionId: input.providerSessionId,
-			createdAt: Date.now(),
-		});
-
 		try {
 			const connection = await this.connectCloudApi(input.options, resumeData);
 			await this.consumeNdjsonStream({
 				providerSessionId: input.providerSessionId,
 				controller: input.controller,
 				connection,
+				sessionState: input.sessionState,
 			});
 		} catch (error) {
-			await deleteSession(input.providerSessionId).catch(() => undefined);
+			await removeLiveConnection(input.providerSessionId).catch(() => undefined);
 			throw error;
 		}
 	}
@@ -454,16 +283,12 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	private async resumeStream(input: {
 		options: LanguageModelV3CallOptions;
 		providerSessionId: string;
+		sessionState?: GiselleSessionState;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 	}): Promise<void> {
-		const metadata = await loadSession(input.providerSessionId);
-		if (!metadata) {
-			throw new Error(
-				`Provider session not found or expired: ${input.providerSessionId}`,
-			);
-		}
+		const sessionState = input.sessionState;
 
-		if (!metadata.pendingRequestId) {
+		if (!sessionState?.pendingRequestId) {
 			// No pending tool-call to resume — the previous stream already
 			// finished normally. Fall through to a follow-up session instead
 			// of throwing, because `sendAutomaticallyWhen` may fire an extra
@@ -476,9 +301,9 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		}
 
 		if (
-			!metadata.relaySessionId ||
-			!metadata.relayToken ||
-			!metadata.relayUrl
+			!sessionState.relaySessionId ||
+			!sessionState.relayToken ||
+			!sessionState.relayUrl
 		) {
 			throw new Error(
 				`Session ${input.providerSessionId} is missing relay credentials.`,
@@ -487,18 +312,18 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 		const pendingResult = this.findPendingToolResult(
 			input.options.prompt,
-			metadata.pendingRequestId,
+			sessionState.pendingRequestId,
 		);
 		if (!pendingResult) {
 			throw new Error(
-				`Missing tool result for pending request: ${metadata.pendingRequestId}`,
+				`Missing tool result for pending request: ${sessionState.pendingRequestId}`,
 			);
 		}
 
 		await this.deps.sendRelayResponse({
-			relayUrl: metadata.relayUrl,
-			sessionId: metadata.relaySessionId,
-			token: metadata.relayToken,
+			relayUrl: sessionState.relayUrl,
+			sessionId: sessionState.relaySessionId,
+			token: sessionState.relayToken,
 			response: this.toolResultToRelayResponse(
 				pendingResult.toolName,
 				pendingResult.toolCallId,
@@ -506,9 +331,15 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			),
 		});
 
-		await updateSession(input.providerSessionId, {
-			pendingRequestId: undefined,
+		const resumedSessionState = mergeGiselleSessionStates(sessionState, {
+			pendingRequestId: null,
 		});
+		if (resumedSessionState) {
+			input.controller.enqueue({
+				type: "raw",
+				rawValue: createGiselleSessionStateRawValue(resumedSessionState),
+			});
+		}
 
 		const hotConnection = getLiveConnection(input.providerSessionId);
 		if (hotConnection) {
@@ -516,25 +347,20 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				providerSessionId: input.providerSessionId,
 				controller: input.controller,
 				connection: hotConnection,
+				sessionState: resumedSessionState,
 			});
-
-			const refreshedSession = await loadSession(input.providerSessionId);
-			if (!refreshedSession || !refreshedSession.pendingRequestId) {
-				await removeLiveConnection(input.providerSessionId).catch(
-					() => undefined,
-				);
-			}
 			return;
 		}
 
 		const coldConnection = await this.connectCloudApi(input.options, {
-			sessionId: metadata.geminiSessionId,
-			sandboxId: metadata.sandboxId,
+			sessionId: sessionState.geminiSessionId,
+			sandboxId: sessionState.sandboxId,
 		});
 		await this.consumeNdjsonStream({
 			providerSessionId: input.providerSessionId,
 			controller: input.controller,
 			connection: coldConnection,
+			sessionState: resumedSessionState,
 		});
 	}
 
@@ -542,9 +368,13 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		providerSessionId: string;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 		connection: LiveConnection;
+		sessionState?: GiselleSessionState;
 	}): Promise<void> {
 		const context = createMapperContext();
 		context.textBlockOpen = input.connection.textBlockOpen;
+		const sessionStateRef: { current?: GiselleSessionState } = {
+			current: input.sessionState,
+		};
 
 		const decoder = new TextDecoder();
 		let pausedForTool = false;
@@ -572,6 +402,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 						connection: input.connection,
 						context,
 						event: relayEvent,
+						sessionStateRef,
 					});
 					if (!paused) {
 						continue;
@@ -620,6 +451,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 						connection: input.connection,
 						context,
 						objectText,
+						sessionStateRef,
 					});
 					startRelayWatcher();
 					if (relayWatcherError) {
@@ -644,6 +476,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 					connection: input.connection,
 					context,
 					objectText: trailingBuffer,
+					sessionStateRef,
 				});
 				if (paused) {
 					pausedForTool = true;
@@ -662,12 +495,23 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			await input.connection.relaySubscription?.close().catch(() => undefined);
 			input.connection.relaySubscription = null;
 
-			// Clear pendingRequestId so that a subsequent automatic send
-			// (triggered by sendAutomaticallyWhen) does not try to relay-respond
-			// to an already-consumed request, which would cause a 404.
-			await updateSession(input.providerSessionId, {
-				pendingRequestId: undefined,
-			});
+			const clearedSessionState = mergeGiselleSessionStates(
+				sessionStateRef.current,
+				{
+					pendingRequestId: null,
+				},
+			);
+			if (
+				clearedSessionState &&
+				sessionStateRef.current?.pendingRequestId !==
+					clearedSessionState.pendingRequestId
+			) {
+				sessionStateRef.current = clearedSessionState;
+				input.controller.enqueue({
+					type: "raw",
+					rawValue: createGiselleSessionStateRawValue(clearedSessionState),
+				});
+			}
 
 			console.log(
 				"[giselle-provider] stream finished, keeping session for follow-ups: %s",
@@ -713,6 +557,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		connection: LiveConnection;
 		context: ReturnType<typeof createMapperContext>;
 		objectText: string;
+		sessionStateRef: { current?: GiselleSessionState };
 	}): Promise<boolean> {
 		let event: Record<string, unknown>;
 		try {
@@ -725,7 +570,18 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 		const mapped = mapNdjsonEvent(event, input.context);
 		if (mapped.sessionUpdate) {
-			await updateSession(input.providerSessionId, mapped.sessionUpdate);
+			input.sessionStateRef.current = mergeGiselleSessionStates(
+				input.sessionStateRef.current,
+				mapped.sessionUpdate,
+			);
+			if (input.sessionStateRef.current) {
+				input.controller.enqueue({
+					type: "raw",
+					rawValue: createGiselleSessionStateRawValue(
+						input.sessionStateRef.current,
+					),
+				});
+			}
 
 			if (
 				!input.connection.relaySubscription &&
@@ -761,10 +617,22 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		connection: LiveConnection;
 		context: ReturnType<typeof createMapperContext>;
 		event: Record<string, unknown>;
+		sessionStateRef: { current?: GiselleSessionState };
 	}): Promise<boolean> {
 		const mapped = mapNdjsonEvent(input.event, input.context);
 		if (mapped.sessionUpdate) {
-			await updateSession(input.providerSessionId, mapped.sessionUpdate);
+			input.sessionStateRef.current = mergeGiselleSessionStates(
+				input.sessionStateRef.current,
+				mapped.sessionUpdate,
+			);
+			if (input.sessionStateRef.current) {
+				input.controller.enqueue({
+					type: "raw",
+					rawValue: createGiselleSessionStateRawValue(
+						input.sessionStateRef.current,
+					),
+				});
+			}
 		}
 
 		for (const part of mapped.parts) {
@@ -837,18 +705,13 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	private extractProviderSessionId(
 		providerOptions: LanguageModelV3CallOptions["providerOptions"],
 	): string | undefined {
-		if (!providerOptions || typeof providerOptions !== "object") {
-			return undefined;
-		}
+		return getGiselleSessionIdFromProviderOptions(providerOptions);
+	}
 
-		const typedProviderOptions = providerOptions as {
-			giselle?: {
-				sessionId?: unknown;
-			};
-		};
-
-		const sessionId = typedProviderOptions.giselle?.sessionId;
-		return typeof sessionId === "string" ? sessionId : undefined;
+	private extractProviderSessionState(
+		providerOptions: LanguageModelV3CallOptions["providerOptions"],
+	): GiselleSessionState | undefined {
+		return getGiselleSessionStateFromProviderOptions(providerOptions);
 	}
 
 	private extractUserMessage(prompt: LanguageModelV3Prompt): string {

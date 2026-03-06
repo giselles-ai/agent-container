@@ -3,11 +3,11 @@
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
 import {
-	DefaultChatTransport,
 	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { useRef, useState } from "react";
 
+import { createGiselleChatTransport } from "../../_lib/giselle-chat-transport";
 import { ChatPanel, type ChatPanelHandle } from "./_components/chat-panel";
 import { SpreadsheetGrid } from "./_components/spreadsheet-grid";
 
@@ -60,7 +60,7 @@ export default function SpreadsheetDemoPage() {
 	});
 
 	const { status, messages, error, sendMessage, addToolOutput } = useChat({
-		transport: new DefaultChatTransport({
+		transport: createGiselleChatTransport({
 			api: "/api/chat",
 			body: {
 				providerOptions: {

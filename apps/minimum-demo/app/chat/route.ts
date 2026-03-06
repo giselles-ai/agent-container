@@ -3,7 +3,13 @@ import {
   executionReportSchema,
   snapshotFieldSchema,
 } from "@giselles-ai/browser-tool";
-import { giselle } from "@giselles-ai/giselle-provider";
+import {
+	createGiselleMessageMetadata,
+	getLatestGiselleSessionStateFromMessages,
+	getGiselleSessionStateFromProviderOptions,
+	getGiselleSessionStateFromRawValue,
+	giselle,
+} from "@giselles-ai/giselle-provider";
 import {
   consumeStream,
   convertToModelMessages,
@@ -147,9 +153,12 @@ function internalErrorResponse(): Response {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const body = await parseChatRequestBody(request);
-    const messages = await parseChatMessages(body);
-    const sessionId = resolveSessionId(body);
+		const body = await parseChatRequestBody(request);
+		const messages = await parseChatMessages(body);
+		const sessionId = resolveSessionId(body);
+		const sessionState =
+			getGiselleSessionStateFromProviderOptions(body.providerOptions) ??
+			getLatestGiselleSessionStateFromMessages(messages);
 
     const result = streamText({
       model: giselle({
@@ -166,6 +175,7 @@ export async function POST(request: Request): Promise<Response> {
       providerOptions: {
         giselle: {
           sessionId,
+          ...(sessionState ? { sessionState } : {}),
         },
       },
       abortSignal: request.signal,
@@ -176,6 +186,18 @@ export async function POST(request: Request): Promise<Response> {
         "x-giselle-session-id": sessionId,
       },
       consumeSseStream: consumeStream,
+      messageMetadata: ({ part }) => {
+        if (part.type !== "raw") {
+          return undefined;
+        }
+
+        const nextSessionState = getGiselleSessionStateFromRawValue(
+          part.rawValue,
+        );
+        return nextSessionState
+          ? createGiselleMessageMetadata(nextSessionState)
+          : undefined;
+      },
     });
   } catch (error) {
     if (error instanceof InvalidChatRequestError) {

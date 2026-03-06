@@ -1,3 +1,6 @@
+import type { GiselleSessionState } from "./session-state";
+export type { GiselleSessionState } from "./session-state";
+
 /**
  * Parameters for connecting to the Giselle Cloud API.
  */
@@ -22,7 +25,7 @@ export type ConnectCloudApiResult = {
 };
 
 /**
- * A live relay subscription that receives relay requests via Redis pub/sub.
+ * A live relay subscription that receives relay requests from the hosted relay.
  */
 export type RelaySubscription = {
 	nextRequest: () => Promise<Record<string, unknown>>;
@@ -50,18 +53,9 @@ export type GiselleProviderDeps = {
 };
 
 /**
- * Session metadata persisted in Redis.
+ * Session state required to resume Giselle provider streams across requests.
  */
-export type SessionMetadata = {
-	providerSessionId: string;
-	geminiSessionId?: string;
-	sandboxId?: string;
-	relaySessionId?: string;
-	relayToken?: string;
-	relayUrl?: string;
-	pendingRequestId?: string;
-	createdAt: number;
-};
+export type SessionMetadata = GiselleSessionState;
 
 /**
  * Live connection state stored in the globalThis Map.
