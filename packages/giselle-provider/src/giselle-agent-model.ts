@@ -13,21 +13,18 @@ import {
 	finishStream,
 	mapNdjsonEvent,
 } from "./ndjson-mapper";
+import { createHttpRelaySubscription, postRelayResponse } from "./relay-http";
 import {
-	createHttpRelaySubscription,
-	postRelayResponse,
-} from "./relay-http";
+	getLiveConnection,
+	removeLiveConnection,
+	saveLiveConnection,
+} from "./session-manager";
 import {
 	createGiselleSessionStateRawValue,
 	getGiselleSessionIdFromProviderOptions,
 	getGiselleSessionStateFromProviderOptions,
 	mergeGiselleSessionStates,
 } from "./session-state";
-import {
-	getLiveConnection,
-	removeLiveConnection,
-	saveLiveConnection,
-} from "./session-manager";
 import type {
 	GiselleProviderDeps,
 	GiselleProviderOptions,
@@ -275,7 +272,9 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				sessionState: input.sessionState,
 			});
 		} catch (error) {
-			await removeLiveConnection(input.providerSessionId).catch(() => undefined);
+			await removeLiveConnection(input.providerSessionId).catch(
+				() => undefined,
+			);
 			throw error;
 		}
 	}

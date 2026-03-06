@@ -5,9 +5,9 @@ import {
 } from "@giselles-ai/browser-tool";
 import {
 	createGiselleMessageMetadata,
-	getLatestGiselleSessionStateFromMessages,
 	getGiselleSessionStateFromProviderOptions,
 	getGiselleSessionStateFromRawValue,
+	getLatestGiselleSessionStateFromMessages,
 	giselle,
 } from "@giselles-ai/giselle-provider";
 import {

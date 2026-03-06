@@ -214,6 +214,9 @@ importers:
 
   packages/agent-runtime:
     dependencies:
+      '@giselles-ai/browser-tool':
+        specifier: workspace:*
+        version: link:../browser-tool
       '@iarna/toml':
         specifier: 3.0.0
         version: 3.0.0

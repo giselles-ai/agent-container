@@ -10,3 +10,16 @@ export {
 	runChat,
 	type StdoutMapper,
 } from "./chat-run";
+export {
+	applyCloudChatPatch,
+	type CloudChatRequest,
+	type CloudChatSessionPatch,
+	type CloudChatSessionState,
+	type CloudChatStateStore,
+	type CloudRelaySession,
+	type CloudToolName,
+	type CloudToolResult,
+	type PendingToolState,
+	reduceCloudChatEvent,
+	toolNameFromRelayRequest,
+} from "./cloud-chat-state";

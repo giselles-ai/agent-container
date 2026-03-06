@@ -5,8 +5,8 @@ import type {
 } from "@ai-sdk/provider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
-import { getGiselleSessionStateFromRawValue } from "../session-state";
 import { getLiveConnection } from "../session-manager";
+import { getGiselleSessionStateFromRawValue } from "../session-state";
 import type {
 	GiselleSessionState,
 	LiveConnection,
@@ -224,7 +224,12 @@ describe("GiselleAgentModel", () => {
 
 	it("uses round-tripped session state for follow-up requests", async () => {
 		const cloudReader = createNdjsonReader([
-			{ type: "message", role: "assistant", content: "Follow-up", delta: false },
+			{
+				type: "message",
+				role: "assistant",
+				content: "Follow-up",
+				delta: false,
+			},
 		]);
 		const connectCloudApi = vi.fn(async () => ({
 			reader: cloudReader.reader,
@@ -302,8 +307,9 @@ describe("GiselleAgentModel", () => {
 				prompt: createPromptWithUser("Fill login form"),
 			}),
 		);
-		const providerSessionId =
-			result.response?.headers?.["x-giselle-session-id"] as string;
+		const providerSessionId = result.response?.headers?.[
+			"x-giselle-session-id"
+		] as string;
 		const parts = await readAllParts(result.stream);
 		const sessionStates = extractSessionStates(parts);
 
@@ -366,8 +372,9 @@ describe("GiselleAgentModel", () => {
 				prompt: createPromptWithUser("Fill login form"),
 			}),
 		);
-		const providerSessionId =
-			firstResult.response?.headers?.["x-giselle-session-id"] as string;
+		const providerSessionId = firstResult.response?.headers?.[
+			"x-giselle-session-id"
+		] as string;
 		const firstParts = await readAllParts(firstResult.stream);
 		const sessionState = extractSessionStates(firstParts).at(-1);
 

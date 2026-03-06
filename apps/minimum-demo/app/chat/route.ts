@@ -4,11 +4,11 @@ import {
   snapshotFieldSchema,
 } from "@giselles-ai/browser-tool";
 import {
-	createGiselleMessageMetadata,
-	getLatestGiselleSessionStateFromMessages,
-	getGiselleSessionStateFromProviderOptions,
-	getGiselleSessionStateFromRawValue,
-	giselle,
+  createGiselleMessageMetadata,
+  getGiselleSessionStateFromProviderOptions,
+  getGiselleSessionStateFromRawValue,
+  getLatestGiselleSessionStateFromMessages,
+  giselle,
 } from "@giselles-ai/giselle-provider";
 import {
   consumeStream,
@@ -153,12 +153,12 @@ function internalErrorResponse(): Response {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-		const body = await parseChatRequestBody(request);
-		const messages = await parseChatMessages(body);
-		const sessionId = resolveSessionId(body);
-		const sessionState =
-			getGiselleSessionStateFromProviderOptions(body.providerOptions) ??
-			getLatestGiselleSessionStateFromMessages(messages);
+    const body = await parseChatRequestBody(request);
+    const messages = await parseChatMessages(body);
+    const sessionId = resolveSessionId(body);
+    const sessionState =
+      getGiselleSessionStateFromProviderOptions(body.providerOptions) ??
+      getLatestGiselleSessionStateFromMessages(messages);
 
     const result = streamText({
       model: giselle({

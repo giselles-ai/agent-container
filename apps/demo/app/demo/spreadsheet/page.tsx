@@ -2,9 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
-import {
-	lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useRef, useState } from "react";
 
 import { createGiselleChatTransport } from "../../_lib/giselle-chat-transport";

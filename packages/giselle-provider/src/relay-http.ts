@@ -182,7 +182,9 @@ export function createHttpRelaySubscription(params: {
 			throw new Error("Relay event stream closed.");
 		}
 	})().catch((error) => {
-		rejectStarted(new Error(`Relay subscription failed: ${toStringError(error)}`));
+		rejectStarted(
+			new Error(`Relay subscription failed: ${toStringError(error)}`),
+		);
 		if (!closed) {
 			rejectAll(
 				new Error(`Relay subscription failed: ${toStringError(error)}`),

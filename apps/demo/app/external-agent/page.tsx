@@ -6,10 +6,7 @@ import type {
 	SnapshotField,
 } from "@giselles-ai/browser-tool";
 import { execute, snapshot } from "@giselles-ai/browser-tool/dom";
-import {
-	isToolUIPart,
-	lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
+import { isToolUIPart, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { createGiselleChatTransport } from "../_lib/giselle-chat-transport";
 

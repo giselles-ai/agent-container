@@ -1,7 +1,9 @@
 import { buildGiselleChatRequestBody } from "@giselles-ai/giselle-provider";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
-export function createGiselleChatTransport<UI_CHAT_MESSAGE extends UIMessage>(input: {
+export function createGiselleChatTransport<
+	UI_CHAT_MESSAGE extends UIMessage,
+>(input: {
 	api: string;
 	body?: Record<string, unknown>;
 }): DefaultChatTransport<UI_CHAT_MESSAGE> {
