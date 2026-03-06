@@ -5,10 +5,14 @@ export type BuildHandlerConfig = {
 	 * If not provided, no auth check is performed.
 	 */
 	verifyToken?: (token: string) => boolean | Promise<boolean>;
+	/**
+	 * Base snapshot ID used when creating sandboxes.
+	 * Falls back to `process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID`.
+	 */
+	baseSnapshotId?: string;
 };
 
 export type BuildRequest = {
-	base_snapshot_id: string;
 	config_hash: string;
 	agent_type: "gemini" | "codex";
 	files: Array<{ path: string; content: string }>;

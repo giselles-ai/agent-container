@@ -2,12 +2,8 @@ import { createHash } from "node:crypto";
 
 import type { AgentConfig } from "./types";
 
-export function computeConfigHash(
-	config: AgentConfig,
-	baseSnapshotId: string,
-): string {
+export function computeConfigHash(config: AgentConfig): string {
 	const payload = JSON.stringify({
-		baseSnapshotId,
 		agentType: config.agentType ?? "gemini",
 		agentMd: config.agentMd ?? null,
 		files: (config.files ?? []).map((f) => ({

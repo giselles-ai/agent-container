@@ -10,6 +10,7 @@ describe("withGiselleAgent", () => {
 
 	beforeEach(() => {
 		fetchSpy.mockReset();
+		process.env = { ...savedEnv };
 	});
 
 	afterEach(() => {
@@ -17,31 +18,18 @@ describe("withGiselleAgent", () => {
 	});
 
 	it("skips snapshot build when token is missing", async () => {
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
-		delete process.env.EXTERNAL_AGENT_API_BEARER_TOKEN;
+		delete process.env.SANDBOX_AGENT_API_KEY;
 
 		const factory = withGiselleAgent({ reactStrictMode: true }, {});
 		const config = await factory();
 
 		expect(fetchSpy).not.toHaveBeenCalled();
 		expect(config).toEqual({ reactStrictMode: true });
-		expect(config.env?.GISELLE_SNAPSHOT_ID).toBeUndefined();
+		expect(config.env?.GISELLE_SANDBOX_AGENT_SNAPSHOT_ID).toBeUndefined();
 	});
 
-	it("skips snapshot build when baseSnapshotId is missing", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		delete process.env.SANDBOX_SNAPSHOT_ID;
-
-		const factory = withGiselleAgent({}, {});
-		const config = await factory();
-
-		expect(fetchSpy).not.toHaveBeenCalled();
-		expect(config.env?.GISELLE_SNAPSHOT_ID).toBeUndefined();
-	});
-
-	it("calls build API with defaults and sets env", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+	it("calls build API without baseSnapshotId and sets env", async () => {
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response(
@@ -61,27 +49,25 @@ describe("withGiselleAgent", () => {
 		const headers = new Headers(init?.headers);
 		const body = JSON.parse(init?.body as string);
 
-		expect(url).toBe("https://studio.giselles.ai/agent-api/build");
+		expect(url).toBe("https://studio.giselles.ai/agent-api/build-api");
 		expect(init?.method).toBe("POST");
 		expect(headers.get("content-type")).toBe("application/json");
 		expect(headers.get("authorization")).toBe("Bearer test-token");
 		expect(config.reactStrictMode).toBe(true);
-		expect(config.env?.GISELLE_SNAPSHOT_ID).toBe("snap_built");
+		expect(config.env?.GISELLE_SANDBOX_AGENT_SNAPSHOT_ID).toBe("snap_built");
 		expect(config.env?.PRESET).toBe("value");
 		expect(body).toEqual({
-			base_snapshot_id: "snap_base",
-			config_hash: computeConfigHash(
-				{ agentType: "gemini", files: [{ path: "/x", content: "y" }] },
-				"snap_base",
-			),
+			config_hash: computeConfigHash({
+				agentType: "gemini",
+				files: [{ path: "/x", content: "y" }],
+			}),
 			agent_type: "gemini",
 			files: [{ path: "/x", content: "y" }],
 		});
 	});
 
 	it("trims trailing slash in custom apiUrl", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response(
@@ -98,12 +84,11 @@ describe("withGiselleAgent", () => {
 		await factory();
 
 		const [url] = fetchSpy.mock.calls[0];
-		expect(url).toBe("https://custom-api.example.com/agent-api/build");
+		expect(url).toBe("https://custom-api.example.com");
 	});
 
 	it('uses default agentType "gemini"', async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response(
@@ -120,9 +105,8 @@ describe("withGiselleAgent", () => {
 		expect(body.agent_type).toBe("gemini");
 	});
 
-	it("includes AGENTS.md file when agentMd is provided", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+	it("includes AGENTS.md and GEMINI.md files when agentMd is provided", async () => {
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response(
@@ -142,12 +126,15 @@ describe("withGiselleAgent", () => {
 		expect(body.files).toEqual([
 			{ path: "/a.txt", content: "A" },
 			{ path: "/home/vercel-sandbox/.codex/AGENTS.md", content: "test prompt" },
+			{
+				path: "/home/vercel-sandbox/.gemini/GEMINI.md",
+				content: "test prompt",
+			},
 		]);
 	});
 
 	it("throws on build API failure", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response("Internal Server Error", {
@@ -160,8 +147,7 @@ describe("withGiselleAgent", () => {
 	});
 
 	it("preserves nextConfig and merges env", async () => {
-		process.env.EXTERNAL_AGENT_API_BEARER_TOKEN = "test-token";
-		process.env.SANDBOX_SNAPSHOT_ID = "snap_base";
+		process.env.SANDBOX_AGENT_API_KEY = "test-token";
 
 		fetchSpy.mockResolvedValue(
 			new Response(
@@ -182,7 +168,7 @@ describe("withGiselleAgent", () => {
 		expect(config.compiler).toEqual({ removeConsole: false });
 		expect(config.env).toEqual({
 			NEXT_PUBLIC_FEATURE: "on",
-			GISELLE_SNAPSHOT_ID: "snap_merged",
+			GISELLE_SANDBOX_AGENT_SNAPSHOT_ID: "snap_merged",
 		});
 	});
 });

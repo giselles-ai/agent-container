@@ -18,17 +18,13 @@ export function withGiselleAgent(
 			options?.apiUrl ?? "https://studio.giselles.ai/agent-api/build-api",
 		);
 		const token = options?.token ?? process.env.SANDBOX_AGENT_API_KEY;
-		const baseSnapshotId =
-			options?.baseSnapshotId ?? process.env.SANDBOX_SNAPSHOT_ID;
 
-		if (!token || !baseSnapshotId) {
-			console.warn(
-				"[withGiselleAgent] Skipped snapshot build: missing token or baseSnapshotId.",
-			);
+		if (!token) {
+			console.warn("[withGiselleAgent] Skipped snapshot build: missing token.");
 			return nextConfig;
 		}
 
-		const configHash = computeConfigHash(agent, baseSnapshotId);
+		const configHash = computeConfigHash(agent);
 
 		const files: Array<{ path: string; content: string }> = [
 			...(agent.files ?? []),
@@ -47,7 +43,6 @@ export function withGiselleAgent(
 		}
 
 		const requestBody = {
-			base_snapshot_id: baseSnapshotId,
 			config_hash: configHash,
 			agent_type: agent.agentType ?? "gemini",
 			files,

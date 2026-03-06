@@ -19,20 +19,33 @@ function errorResponse(message: string, status: number): Response {
 	return jsonResponse({ ok: false, message }, status);
 }
 
+function resolveBaseSnapshotId(
+	config?: BuildHandlerConfig,
+): string | undefined {
+	const envBaseSnapshotId =
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID?.trim();
+	if (envBaseSnapshotId) {
+		return envBaseSnapshotId;
+	}
+
+	const configBaseSnapshotId = config?.baseSnapshotId?.trim();
+	return configBaseSnapshotId || undefined;
+}
+
+function createCacheKey(configHash: string, baseSnapshotId: string): string {
+	return `${baseSnapshotId}:${configHash}`;
+}
+
 function parseBuildRequest(body: unknown): BuildRequest | null {
 	if (!body || typeof body !== "object" || Array.isArray(body)) {
 		return null;
 	}
 
 	const record = body as Record<string, unknown>;
-	const baseSnapshotId = record.base_snapshot_id;
 	const configHash = record.config_hash;
 	const agentType = record.agent_type;
 	const files = record.files;
 
-	if (typeof baseSnapshotId !== "string" || !baseSnapshotId.trim()) {
-		return null;
-	}
 	if (typeof configHash !== "string" || !configHash.trim()) {
 		return null;
 	}
@@ -65,7 +78,6 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 	}
 
 	return {
-		base_snapshot_id: baseSnapshotId.trim(),
 		config_hash: configHash.trim(),
 		agent_type: agentType,
 		files: parsedFiles,
@@ -92,10 +104,19 @@ export function createBuildHandler(config?: BuildHandlerConfig) {
 			return errorResponse("Invalid build request.", 400);
 		}
 
-		const cached = getCachedSnapshotId(parsed.config_hash);
+		const baseSnapshotId = resolveBaseSnapshotId(config);
+		if (!baseSnapshotId) {
+			return errorResponse(
+				"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or BuildHandlerConfig.baseSnapshotId.",
+				500,
+			);
+		}
+
+		const cacheKey = createCacheKey(parsed.config_hash, baseSnapshotId);
+		const cached = getCachedSnapshotId(cacheKey);
 		if (cached) {
 			console.log(
-				`[agent-builder] cache hit: hash=${parsed.config_hash} -> snapshot=${cached}`,
+				`[agent-builder] cache hit: hash=${cacheKey} -> snapshot=${cached}`,
 			);
 			const response: BuildResponse = {
 				snapshot_id: cached,
@@ -106,10 +127,10 @@ export function createBuildHandler(config?: BuildHandlerConfig) {
 
 		try {
 			const sandbox = await Sandbox.create({
-				source: { type: "snapshot", snapshotId: parsed.base_snapshot_id },
+				source: { type: "snapshot", snapshotId: baseSnapshotId },
 			});
 			console.log(
-				`[agent-builder] sandbox created: ${sandbox.sandboxId} from ${parsed.base_snapshot_id}`,
+				`[agent-builder] sandbox created: ${sandbox.sandboxId} from ${baseSnapshotId}`,
 			);
 
 			if (parsed.files.length > 0) {
@@ -124,7 +145,7 @@ export function createBuildHandler(config?: BuildHandlerConfig) {
 			const snapshot = await sandbox.snapshot();
 			console.log(`[agent-builder] snapshot created: ${snapshot.snapshotId}`);
 
-			setCachedSnapshotId(parsed.config_hash, snapshot.snapshotId);
+			setCachedSnapshotId(cacheKey, snapshot.snapshotId);
 
 			const response: BuildResponse = {
 				snapshot_id: snapshot.snapshotId,

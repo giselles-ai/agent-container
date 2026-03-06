@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@vercel/sandbox", () => ({
 	Sandbox: {
@@ -48,8 +48,16 @@ function createMockSandbox(overrides?: {
 }
 
 describe("createBuildHandler", () => {
+	const savedEnv = { ...process.env };
+
 	beforeEach(() => {
 		mockCreate.mockReset();
+		process.env = { ...savedEnv };
+		delete process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID;
+	});
+
+	afterEach(() => {
+		process.env = { ...savedEnv };
 	});
 
 	it("returns 401 when auth is required but token is missing", async () => {
@@ -88,9 +96,8 @@ describe("createBuildHandler", () => {
 		const handler = createBuildHandler();
 		const malformed: unknown[] = [
 			{},
-			{ base_snapshot_id: "base", config_hash: "hash", agent_type: "gemini" },
+			{ config_hash: "hash", agent_type: "gemini" },
 			{
-				base_snapshot_id: "base",
 				config_hash: "hash",
 				agent_type: "gemini",
 				files: [{ path: "/x", content: 123 }],
@@ -119,13 +126,13 @@ describe("createBuildHandler", () => {
 	});
 
 	it("creates a snapshot even when no files are provided", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
 		const handler = createBuildHandler();
 		const res = await handler(
 			makeRequest({
-				base_snapshot_id: "snap_base",
 				config_hash: "no_files_hash",
 				agent_type: "gemini",
 				files: [],
@@ -136,6 +143,9 @@ describe("createBuildHandler", () => {
 		const body = (await res.json()) as { snapshot_id: string; cached: boolean };
 		expect(body).toEqual({ snapshot_id: "snap_new", cached: false });
 		expect(mockCreate).toHaveBeenCalledTimes(1);
+		expect(mockCreate).toHaveBeenCalledWith({
+			source: { type: "snapshot", snapshotId: "snap_env" },
+		});
 		expect(mockSandbox.writeFiles).not.toHaveBeenCalled();
 		expect(mockSandbox.snapshot).toHaveBeenCalledTimes(1);
 	});
@@ -144,14 +154,13 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler();
+		const handler = createBuildHandler({ baseSnapshotId: "snap_config" });
 		const files = [
 			{ path: "/test/a.md", content: "hello" },
 			{ path: "/test/b.md", content: "world" },
 		];
 		const res = await handler(
 			makeRequest({
-				base_snapshot_id: "snap_base",
 				config_hash: "buffer_hash",
 				agent_type: "codex",
 				files,
@@ -159,6 +168,9 @@ describe("createBuildHandler", () => {
 		);
 
 		expect(res.status).toBe(200);
+		expect(mockCreate).toHaveBeenCalledWith({
+			source: { type: "snapshot", snapshotId: "snap_config" },
+		});
 		expect(mockSandbox.writeFiles).toHaveBeenCalledWith([
 			{ path: "/test/a.md", content: Buffer.from("hello") },
 			{ path: "/test/b.md", content: Buffer.from("world") },
@@ -166,14 +178,34 @@ describe("createBuildHandler", () => {
 		expect(mockSandbox.snapshot).toHaveBeenCalledTimes(1);
 	});
 
+	it("prefers env baseSnapshotId over config", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const handler = createBuildHandler({ baseSnapshotId: "snap_config" });
+		const res = await handler(
+			makeRequest({
+				config_hash: "env_preferred_hash",
+				agent_type: "gemini",
+				files: [],
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(mockCreate).toHaveBeenCalledWith({
+			source: { type: "snapshot", snapshotId: "snap_env" },
+		});
+	});
+
 	it("returns built snapshot and cached false on miss", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_built" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
 		const handler = createBuildHandler();
 		const res = await handler(
 			makeRequest({
-				base_snapshot_id: "snap_base",
 				config_hash: "build_miss_hash",
 				agent_type: "gemini",
 				files: [{ path: "/x.md", content: "abc" }],
@@ -187,12 +219,12 @@ describe("createBuildHandler", () => {
 	});
 
 	it("returns cached snapshot on second request with same hash", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_cached" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
 		const handler = createBuildHandler();
 		const body = {
-			base_snapshot_id: "snap_base",
 			config_hash: "cache_hash",
 			agent_type: "gemini",
 			files: [{ path: "/x", content: "1" }],
@@ -210,13 +242,59 @@ describe("createBuildHandler", () => {
 		expect(mockCreate).toHaveBeenCalledTimes(1);
 	});
 
+	it("does not reuse cache across different base snapshots", async () => {
+		mockCreate
+			.mockResolvedValueOnce(createMockSandbox({ snapshotId: "snap_a" }))
+			.mockResolvedValueOnce(createMockSandbox({ snapshotId: "snap_b" }));
+
+		const body = {
+			config_hash: "same_hash_different_base",
+			agent_type: "gemini" as const,
+			files: [{ path: "/x", content: "1" }],
+		};
+
+		const handlerA = createBuildHandler({ baseSnapshotId: "snap_a_base" });
+		await handlerA(makeRequest(body));
+
+		const handlerB = createBuildHandler({ baseSnapshotId: "snap_b_base" });
+		const res = await handlerB(makeRequest(body));
+		const result = (await res.json()) as {
+			snapshot_id: string;
+			cached: boolean;
+		};
+
+		expect(result).toEqual({ snapshot_id: "snap_b", cached: false });
+		expect(mockCreate).toHaveBeenCalledTimes(2);
+	});
+
+	it("returns 500 when baseSnapshotId is missing in env and config", async () => {
+		const handler = createBuildHandler();
+		const res = await handler(
+			makeRequest({
+				config_hash: "missing_base_hash",
+				agent_type: "gemini",
+				files: [],
+			}),
+		);
+
+		expect(res.status).toBe(500);
+		expect(await res.json()).toEqual(
+			expect.objectContaining({
+				ok: false,
+				message:
+					"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or BuildHandlerConfig.baseSnapshotId.",
+			}),
+		);
+		expect(mockCreate).not.toHaveBeenCalled();
+	});
+
 	it("returns 500 when sandbox create fails", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		mockCreate.mockRejectedValue(new Error("create failed"));
 
 		const handler = createBuildHandler();
 		const res = await handler(
 			makeRequest({
-				base_snapshot_id: "snap_base",
 				config_hash: "error_hash_create",
 				agent_type: "gemini",
 				files: [{ path: "/x", content: "1" }],
@@ -227,6 +305,7 @@ describe("createBuildHandler", () => {
 	});
 
 	it("returns 500 when snapshot fails", async () => {
+		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({
 			snapshotSpy: vi.fn().mockRejectedValue(new Error("snapshot failed")),
 		});
@@ -235,7 +314,6 @@ describe("createBuildHandler", () => {
 		const handler = createBuildHandler();
 		const res = await handler(
 			makeRequest({
-				base_snapshot_id: "snap_base",
 				config_hash: "error_hash_snapshot",
 				agent_type: "gemini",
 				files: [{ path: "/x", content: "1" }],
