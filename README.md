@@ -60,41 +60,63 @@ Browser (useChat)             Route Handler            Redis              Sandbo
 ```
 agent-container/
 ├── packages/
-│   ├── giselle-provider/          # @giselles-ai/giselle-provider — AI SDK LanguageModelV3 provider
-│   │   └── src/
-│   │       ├── giselle-agent-model.ts  # LanguageModelV3 impl (doStream, relay, resume)
-│   │       ├── ndjson-mapper.ts        # CLI agent NDJSON → AI SDK StreamPart mapper
-│   │       ├── session-manager.ts      # Redis metadata + globalThis live connections
-│   │       ├── types.ts                # GiselleProviderDeps, SessionMetadata, etc.
-│   │       └── index.ts                # giselle() factory + re-exports
-│   ├── sandbox-agent/             # @giselles-ai/sandbox-agent — sandbox orchestrator
-│   │   └── src/
-│   │       ├── agents/            # Agent implementations (ChatAgent interface)
-│   │       │   └── gemini-agent.ts    # Gemini CLI agent
-│   │       ├── chat-run.ts        # runChat() — run CLI agent in Vercel Sandbox
-│   │       └── index.ts
-│   ├── browser-tool/              # @giselles-ai/browser-tool — browser automation
-│   │   └── src/
-│   │       ├── dom/               # Client-side DOM operations
-│   │       │   ├── snapshot.ts    # Scan form fields → SnapshotField[]
-│   │       │   └── executor.ts    # Apply actions → ExecutionReport
-│   │       ├── mcp-server/        # MCP server (runs inside sandbox)
-│   │       ├── react/             # React integration
-│   │       ├── relay/             # Redis-backed relay (server-side)
-│   │       └── types.ts           # Shared Zod schemas & types
-│   └── web/                       # Next.js demo app
-│       └── app/
-│           ├── api/chat/route.ts              # AI SDK route (streamText + giselle())
-│           ├── agent-api/relay/[[...relay]]/   # Relay SSE + dispatch
-│           ├── gemini-browser-tool/            # Self-hosted demo page
-│           └── external-agent/                # Cloud API demo page
-├── sandbox-agent/
-│   ├── web/                       # Agent management platform
-│   └── cli/                       # @giselles-ai/agent-cli
+│   ├── agent-builder/            # @giselles-ai/agent-builder — build-time integration
+│   ├── agent-runtime/            # @giselles-ai/agent-runtime — sandbox runtime primitives
+│   ├── agent-snapshot-kit/       # @giselles-ai/agent-snapshot-kit — snapshot build CLI/library
+│   ├── browser-tool/             # @giselles-ai/browser-tool — browser automation domain package
+│   └── giselle-provider/         # @giselles-ai/giselle-provider — AI SDK provider
 └── scripts/
 ```
 
+`agent-runtime` and `agent-snapshot-kit` are the canonical target names for this package realignment. The current directories and package manifests still use `packages/sandbox-agent` and `packages/sandbox-agent-kit` until the later rename phases land.
+
+`apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
+
 ## Packages
+
+### `@giselles-ai/agent-builder`
+
+Build-time integration package for defining agents and wiring framework-specific build hooks.
+
+| Export Path | Description |
+|---|---|
+| `@giselles-ai/agent-builder` | `defineAgent()`, config hashing, and shared agent definition types |
+| `@giselles-ai/agent-builder/next` | Next.js plugin entry point (`withGiselleAgent`) |
+| `@giselles-ai/agent-builder/next-server` | Server-side build handler APIs (`createBuildHandler`) |
+
+### `@giselles-ai/agent-runtime`
+
+Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers. This is the canonical target package name; the current directory and package manifest still use `sandbox-agent` until the rename phase lands.
+
+| Export | Description |
+|---|---|
+| `ChatAgent` | Interface for pluggable CLI agent implementations |
+| `createGeminiAgent()` | Gemini CLI agent (runs `gemini --output-format stream-json`) |
+| `AGENT_METADATA_PATH` | Path to agent metadata file inside snapshots (`/.agent-metadata.json`) |
+| `readAgentMetadata()` | Read agent metadata from a sandbox snapshot |
+| `runChat()` | Sandbox orchestrator that creates/resumes a sandbox and streams NDJSON |
+
+### `@giselles-ai/agent-snapshot-kit`
+
+Snapshot build CLI/library for preparing sandboxes with agent CLIs and browser-tool assets. This is the canonical target package name; the current package name, directory, and CLI still use `sandbox-agent-kit` until the rename phase lands.
+
+| Export / Command | Description |
+|---|---|
+| `buildSnapshot()` | Build or extend a sandbox snapshot with agent CLIs and browser-tool artifacts |
+| `BuildSnapshotOptions` | Options for local or npm-based snapshot assembly |
+| `agent-snapshot-kit build-snapshot` | Canonical target CLI command name for the later rename phase |
+
+### `@giselles-ai/browser-tool`
+
+Browser automation toolkit covering DOM snapshot/execute operations, the MCP server, and the relay infrastructure. `@giselles-ai/browser-tool` stays a single domain package; subpath exports separate runtimes without splitting the package again.
+
+| Export Path | Runtime | Description |
+|---|---|---|
+| `@giselles-ai/browser-tool` | env-agnostic | Shared types and Zod schemas |
+| `@giselles-ai/browser-tool/dom` | browser | Client-side `snapshot()` and `execute()` functions |
+| `@giselles-ai/browser-tool/react` | React client | React integration components |
+| `@giselles-ai/browser-tool/relay` | Node / server | Server-side relay handlers and sessions |
+| `@giselles-ai/browser-tool/mcp-server` | sandbox / Node process | MCP server entry point |
 
 ### `@giselles-ai/giselle-provider`
 
@@ -108,30 +130,6 @@ Custom AI SDK `LanguageModelV3` provider — the bridge between CLI agents runni
 | `extractJsonObjects()` | NDJSON parser |
 | `mapNdjsonEvent()` | NDJSON event → `LanguageModelV3StreamPart` mapper |
 | `createSession()` / `loadSession()` | Redis session management |
-
-### `@giselles-ai/sandbox-agent`
-
-Core SDK for running CLI agents in Vercel Sandbox containers. Defines the `ChatAgent` interface so new CLI agents can be plugged in.
-
-| Export | Description |
-|---|---|
-| `ChatAgent` | Interface for pluggable CLI agent implementations |
-| `createGeminiAgent()` | Gemini CLI agent (runs `gemini --output-format stream-json`) |
-| `AGENT_METADATA_PATH` | Path to agent metadata file inside snapshots (`/.agent-metadata.json`) |
-| `readAgentMetadata()` | Read agent metadata from a sandbox snapshot |
-| `runChat()` | Sandbox orchestrator — creates/resumes a sandbox and streams NDJSON |
-
-### `@giselles-ai/browser-tool`
-
-Browser automation toolkit — DOM snapshot/execute operations, MCP server for the sandbox, and Redis relay infrastructure.
-
-| Export Path | Description |
-|---|---|
-| `@giselles-ai/browser-tool` | Shared types & Zod schemas (`SnapshotField`, `BrowserToolAction`, etc.) |
-| `@giselles-ai/browser-tool/dom` | Client-side `snapshot()` and `execute()` functions |
-| `@giselles-ai/browser-tool/react` | React integration components |
-| `@giselles-ai/browser-tool/relay` | Server-side `createRelayHandler()`, `createRelaySession()` |
-| `@giselles-ai/browser-tool/mcp-server` | MCP server entry point (runs inside sandbox) |
 
 ## Usage
 
@@ -277,7 +275,7 @@ pnpm install
 ### Run the demo app
 
 ```bash
-cp packages/web/.env.example packages/web/.env.local
+cp apps/demo/.env.example apps/demo/.env.development.local
 # Fill in the required environment variables (see below)
 pnpm dev
 ```
