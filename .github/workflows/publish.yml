@@ -46,6 +46,7 @@ jobs:
               'packages/agent-builder/package.json',
               'packages/browser-tool/package.json',
               'packages/sandbox-agent/package.json',
+              'packages/sandbox-agent-kit/package.json',
             ];
             const bump = '${{ inputs.bump }}';
             let newVersion;
@@ -72,6 +73,7 @@ jobs:
               'packages/agent-builder/package.json',
               'packages/browser-tool/package.json',
               'packages/sandbox-agent/package.json',
+              'packages/sandbox-agent-kit/package.json',
             ];
             const pkgs = paths.map(p => JSON.parse(fs.readFileSync(p, 'utf8')));
             for (let i = 0; i < paths.length; i++) {
@@ -101,6 +103,9 @@ jobs:
         working-directory: packages/sandbox-agent
         run: npm publish --provenance --access public
 
+      - name: Publish @giselles-ai/sandbox-agent-kit
+        working-directory: packages/sandbox-agent-kit
+        run: npm publish --provenance --access public
 
       - name: Capture version
         run: printf 'VERSION=%s\n' "$(node -p 'require("./packages/sandbox-agent/package.json").version')" >> "$GITHUB_ENV"
@@ -113,6 +118,7 @@ jobs:
               'packages/agent-builder/package.json',
               'packages/browser-tool/package.json',
               'packages/sandbox-agent/package.json',
+              'packages/sandbox-agent-kit/package.json',
             ];
             for (const p of paths) {
               const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -132,7 +138,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/agent-builder/package.json packages/browser-tool/package.json packages/sandbox-agent/package.json
+          git add packages/agent-builder/package.json packages/browser-tool/package.json packages/sandbox-agent/package.json packages/sandbox-agent-kit/package.json
           git commit -m "Release v$VERSION"
           git tag "v$VERSION"
           git push origin HEAD
