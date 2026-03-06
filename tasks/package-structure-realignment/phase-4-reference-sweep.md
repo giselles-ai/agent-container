@@ -72,8 +72,8 @@ Run the package-level checks first:
 pnpm --filter @giselles-ai/agent-runtime typecheck
 pnpm --filter @giselles-ai/agent-runtime test
 pnpm --filter @giselles-ai/agent-runtime build
-pnpm --filter @giselles-ai/agent-snapshot-kit typecheck
-pnpm --filter @giselles-ai/agent-snapshot-kit build
+pnpm --filter @giselles-ai/agent-kit typecheck
+pnpm --filter @giselles-ai/agent-kit build
 pnpm --filter @giselles-ai/browser-tool typecheck
 pnpm --filter @giselles-ai/browser-tool build
 pnpm --filter @giselles-ai/agent-builder build
@@ -107,8 +107,8 @@ If `pnpm build` fails only for those reasons, document the blocker and still tre
    pnpm --filter @giselles-ai/agent-runtime typecheck
    pnpm --filter @giselles-ai/agent-runtime test
    pnpm --filter @giselles-ai/agent-runtime build
-   pnpm --filter @giselles-ai/agent-snapshot-kit typecheck
-   pnpm --filter @giselles-ai/agent-snapshot-kit build
+pnpm --filter @giselles-ai/agent-kit typecheck
+pnpm --filter @giselles-ai/agent-kit build
    pnpm --filter @giselles-ai/browser-tool typecheck
    pnpm --filter @giselles-ai/browser-tool build
    pnpm --filter @giselles-ai/agent-builder build

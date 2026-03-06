@@ -14,7 +14,7 @@ This document is the canonical package naming and boundary reference for `packag
 |---|---|
 | `integration` | Framework-specific or build-time integration packages |
 | `runtime` | Primitives for running agents in sandbox or container environments |
-| `tooling` | Operator-facing CLI or build tooling packages |
+| `tooling` | Operator-facing CLI or broader agent tooling packages |
 | `domain` | Product-domain packages, even when they expose multiple runtime-specific entry points |
 
 ## Active Package Inventory
@@ -23,7 +23,7 @@ This document is the canonical package naming and boundary reference for `packag
 |---|---|---|---|---|
 | `agent-builder` | `packages/agent-builder` | `integration` | Node / Next.js build | Keep name |
 | `agent-runtime` | `packages/agent-runtime` | `runtime` | Node / Vercel Sandbox | Renamed from `sandbox-agent` |
-| `agent-snapshot-kit` | `packages/agent-snapshot-kit` | `tooling` | Node CLI / snapshot build | Keep name |
+| `agent-kit` | `packages/agent-kit` | `tooling` | Node CLI / agent tooling | Current canonical name |
 | `browser-tool` | `packages/browser-tool` | `domain` | browser / React client / Node server / sandbox | Keep as one package |
 | `giselle-provider` | `packages/giselle-provider` | `domain` | server / AI SDK provider | Keep name |
 
@@ -32,6 +32,8 @@ This document is the canonical package naming and boundary reference for `packag
 | Current | Canonical Target | Reason |
 |---|---|---|
 | `sandbox-agent` | `agent-runtime` | The package provides sandbox runtime primitives rather than a generic historical "sandbox agent" bucket |
+| `sandbox-agent-kit` | `agent-kit` | The package is growing beyond snapshot assembly, so the canonical name should cover broader agent tooling |
+| `agent-snapshot-kit` | `agent-kit` | The narrower snapshot-focused name no longer matches the intended scope |
 Clearer responsibility-based names win over compatibility in this realignment. Active docs should switch to the new name as soon as each rename lands.
 
 ## Boundary Decision: browser-tool

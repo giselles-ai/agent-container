@@ -1,10 +1,10 @@
 {
-	"name": "@giselles-ai/agent-snapshot-kit",
+	"name": "@giselles-ai/agent-kit",
 	"version": "0.1.0",
 	"private": false,
 	"type": "module",
 	"bin": {
-		"agent-snapshot-kit": "./dist/cli.js"
+		"agent-kit": "./dist/cli.js"
 	},
 	"exports": {
 		".": {
@@ -27,7 +27,7 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/giselles-ai/agent-container.git",
-		"directory": "packages/agent-snapshot-kit"
+		"directory": "packages/agent-kit"
 	},
 	"engines": {
 		"node": ">=20"

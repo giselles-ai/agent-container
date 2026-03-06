@@ -62,13 +62,13 @@ agent-container/
 ├── packages/
 │   ├── agent-builder/            # @giselles-ai/agent-builder — build-time integration
 │   ├── agent-runtime/            # @giselles-ai/agent-runtime — sandbox runtime primitives
-│   ├── agent-snapshot-kit/       # @giselles-ai/agent-snapshot-kit — snapshot build CLI/library
+│   ├── agent-kit/                # @giselles-ai/agent-kit — agent tooling CLI/library
 │   ├── browser-tool/             # @giselles-ai/browser-tool — browser automation domain package
 │   └── giselle-provider/         # @giselles-ai/giselle-provider — AI SDK provider
 └── scripts/
 ```
 
-`agent-runtime` and `agent-snapshot-kit` are the current runtime and snapshot-tooling package names and directories.
+`agent-runtime` and `agent-kit` are the current runtime and agent-tooling package names and directories.
 
 `apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
 
@@ -96,15 +96,15 @@ Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers.
 | `readAgentMetadata()` | Read agent metadata from a sandbox snapshot |
 | `runChat()` | Sandbox orchestrator that creates/resumes a sandbox and streams NDJSON |
 
-### `@giselles-ai/agent-snapshot-kit`
+### `@giselles-ai/agent-kit`
 
-Snapshot build CLI/library for preparing sandboxes with agent CLIs and browser-tool assets.
+Agent tooling CLI/library for preparing sandboxes with agent CLIs and browser-tool assets. Today it ships snapshot build flows, but the broader package name leaves room for additional operator tooling.
 
 | Export / Command | Description |
 |---|---|
 | `buildSnapshot()` | Build or extend a sandbox snapshot with agent CLIs and browser-tool artifacts |
 | `BuildSnapshotOptions` | Options for local or npm-based snapshot assembly |
-| `agent-snapshot-kit build-snapshot` | CLI entry point for building or extending a snapshot |
+| `agent-kit build-snapshot` | CLI entry point for building or extending a snapshot |
 
 ### `@giselles-ai/browser-tool`
 

@@ -4,7 +4,7 @@
 
 ## Goal
 
-`packages/` を「現役の公開・公開候補パッケージだけが並ぶ場所」として再定義し、名前と責務が一致した状態にする。完了後の構成は `agent-builder`, `agent-runtime`, `agent-snapshot-kit`, `browser-tool`, `giselle-provider` の 5 パッケージに揃い、`browser-tool` は意図的な multi-runtime package として明文化され、deprecated な `root/sandbox-agent/` は判断材料から外れる。
+`packages/` を「現役の公開・公開候補パッケージだけが並ぶ場所」として再定義し、名前と責務が一致した状態にする。完了後の構成は `agent-builder`, `agent-runtime`, `agent-kit`, `browser-tool`, `giselle-provider` の 5 パッケージに揃い、`browser-tool` は意図的な multi-runtime package として明文化され、deprecated な `root/sandbox-agent/` は判断材料から外れる。
 
 ## Why
 
@@ -23,7 +23,7 @@ flowchart LR
     Provider["@giselles-ai/giselle-provider<br/>(AI SDK provider)"]
     Browser["@giselles-ai/browser-tool<br/>(browser automation domain)"]
     Runtime["@giselles-ai/agent-runtime<br/>(sandbox runtime primitives)"]
-    Snapshot["@giselles-ai/agent-snapshot-kit<br/>(snapshot build CLI/library)"]
+    Snapshot["@giselles-ai/agent-kit<br/>(agent tooling CLI/library)"]
 
     Demo --> Builder
     Demo --> Provider
@@ -45,7 +45,7 @@ flowchart LR
 packages/
 ├── agent-builder/                ← EXISTING (keep name, clarify role)
 ├── agent-runtime/                ← NEW NAME (rename from sandbox-agent/)
-├── agent-snapshot-kit/           ← NEW NAME (rename from sandbox-agent-kit/)
+├── agent-kit/                    ← NEW NAME (rename from sandbox-agent-kit/)
 ├── browser-tool/                 ← EXISTING (keep as a single domain package)
 └── giselle-provider/             ← EXISTING (keep name)
 
@@ -57,7 +57,7 @@ tasks/
     ├── AGENTS.md                 ← NEW (this epic)
     ├── phase-0-taxonomy-baseline.md
     ├── phase-1-agent-runtime-rename.md
-    ├── phase-2-agent-snapshot-kit-rename.md
+    ├── phase-2-agent-kit-rename.md
     ├── phase-3-browser-tool-boundaries.md
     └── phase-4-reference-sweep.md
 
@@ -96,7 +96,7 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 |---|---|---|---|
 | 0 | [phase-0-taxonomy-baseline.md](./phase-0-taxonomy-baseline.md) | ✅ DONE | 目的別の package taxonomy と README baseline を作る |
 | 1 | [phase-1-agent-runtime-rename.md](./phase-1-agent-runtime-rename.md) | ✅ DONE | `agent-runtime` への rename を完了する |
-| 2 | [phase-2-agent-snapshot-kit-rename.md](./phase-2-agent-snapshot-kit-rename.md) | ✅ DONE | `packages/sandbox-agent-kit` を `agent-snapshot-kit` に rename する |
+| 2 | [phase-2-agent-kit-rename.md](./phase-2-agent-kit-rename.md) | ✅ DONE | `packages/sandbox-agent-kit` を `agent-kit` に rename する |
 | 3 | [phase-3-browser-tool-boundaries.md](./phase-3-browser-tool-boundaries.md) | ✅ DONE | `browser-tool` の multi-runtime 境界を package metadata と docs で固定する |
 | 4 | [phase-4-reference-sweep.md](./phase-4-reference-sweep.md) | ✅ DONE | rename 後の参照 sweep と build/typecheck verification を行う |
 
@@ -128,9 +128,9 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 | `packages/agent-builder/tsup.ts` | multi-entry package の構成例 |
 | `packages/agent-runtime/package.json` | rename 後の runtime package manifest |
 | `packages/agent-runtime/src/agent.ts` | runtime package の本来の責務を示す core 実装 |
-| `packages/sandbox-agent-kit/package.json` | rename 対象 package の manifest / bin 定義 |
-| `packages/sandbox-agent-kit/src/build-snapshot.ts` | browser-tool 依存の補助 tooling としての責務 |
-| `packages/sandbox-agent-kit/src/cli.ts` | CLI name と help text の更新対象 |
+| `packages/agent-kit/package.json` | tooling package の manifest / bin 定義 |
+| `packages/agent-kit/src/build-snapshot.ts` | browser-tool 依存の補助 tooling としての責務 |
+| `packages/agent-kit/src/cli.ts` | CLI name と help text の更新対象 |
 | `README.md` | package structure と public story の現状説明 |
 
 ## Domain-Specific Reference
@@ -141,14 +141,14 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 |---|---|---|
 | Domain package | 1 つのプロダクト概念を表す。runtime が複数でも domain が 1 つなら subpath export で維持してよい | `browser-tool`, `giselle-provider`, `agent-runtime` |
 | Integration package | 特定 framework / build step と結びつく | `agent-builder` |
-| Tooling package | 開発・snapshot 作成などの operator tooling | `agent-snapshot-kit` |
+| Tooling package | 開発・snapshot 作成などの operator tooling | `agent-kit` |
 
 ### Rename Policy
 
 | Current | Target | Reason |
 |---|---|---|
 | `sandbox-agent` | `agent-runtime` | 「sandbox 上で agent を動かすための runtime primitives」を表すため |
-| `sandbox-agent-kit` | `agent-snapshot-kit` | snapshot build tooling であることを package 名から分かるようにするため |
+| `sandbox-agent-kit` | `agent-kit` | snapshot build に閉じない agent tooling 全般を扱える package 名にするため |
 
 ### Non-Goals
 

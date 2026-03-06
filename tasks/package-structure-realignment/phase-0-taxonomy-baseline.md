@@ -47,7 +47,7 @@ Use a structure like:
 |---|---|---|---|
 | `agent-builder` | integration | Node / Next.js build | Keep name |
 | `sandbox-agent` | runtime | Node / Vercel Sandbox | Rename to `agent-runtime` |
-| `sandbox-agent-kit` | tooling | Node CLI | Rename to `agent-snapshot-kit` |
+| `sandbox-agent-kit` | tooling | Node CLI | Rename to `agent-kit` |
 | `browser-tool` | domain | browser / node / sandbox | Keep as one package |
 | `giselle-provider` | domain | server | Keep name |
 ```
@@ -68,7 +68,7 @@ Replace the package tree block with something equivalent to:
 packages/
 ├── agent-builder/          # @giselles-ai/agent-builder — build-time integration
 ├── agent-runtime/          # @giselles-ai/agent-runtime — sandbox runtime primitives
-├── agent-snapshot-kit/     # @giselles-ai/agent-snapshot-kit — snapshot build CLI/library
+├── agent-kit/              # @giselles-ai/agent-kit — agent tooling CLI/library
 ├── browser-tool/           # @giselles-ai/browser-tool — browser automation domain package
 └── giselle-provider/       # @giselles-ai/giselle-provider — AI SDK provider
 ```
