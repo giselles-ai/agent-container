@@ -143,7 +143,7 @@ flowchart TD
 | Phase | Task File | Status | Description |
 |---|---|---|---|
 | 0 | [phase-0-runtime-contract.md](./phase-0-runtime-contract.md) | ✅ DONE | Define chat_id request contract, state schema, and pure reducers in `agent-runtime` |
-| 1 | [phase-1-runtime-session-coordinator.md](./phase-1-runtime-session-coordinator.md) | 🔲 TODO | Add `runCloudChat()` and persist state updates around `runChat()` |
+| 1 | [phase-1-runtime-session-coordinator.md](./phase-1-runtime-session-coordinator.md) | ✅ DONE | Add `runCloudChat()` and persist state updates around `runChat()` |
 | 2 | [phase-2-runtime-relay-resume.md](./phase-2-runtime-relay-resume.md) | 🔲 TODO | Move relay subscription, pending tool state, and tool-result resume into runtime |
 | 3 | [phase-3-cloud-consumer-adoption.md](./phase-3-cloud-consumer-adoption.md) | 🔲 TODO | Wire the hosted `agent-api/run` route to `runCloudChat()` with a Redis adapter |
 | 4 | [phase-4-provider-cleanup.md](./phase-4-provider-cleanup.md) | 🔲 TODO | Remove provider-owned session state and simplify demo transports/routes |

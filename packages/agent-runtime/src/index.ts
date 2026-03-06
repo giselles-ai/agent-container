@@ -11,6 +11,12 @@ export {
 	type StdoutMapper,
 } from "./chat-run";
 export {
+	type CloudChatDeps,
+	type RelaySessionFactoryResult,
+	type RunChatImpl,
+	runCloudChat,
+} from "./cloud-chat";
+export {
 	applyCloudChatPatch,
 	type CloudChatRequest,
 	type CloudChatSessionPatch,
