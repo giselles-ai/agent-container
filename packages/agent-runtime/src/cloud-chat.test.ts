@@ -66,10 +66,13 @@ describe("runCloudChat", () => {
 		const store = createStore();
 		store.load.mockResolvedValueOnce(null);
 
-		const runChatImpl = vi.fn(async ({ input }) =>
+		const runChatImpl = vi.fn(async () =>
 			createNdjsonResponse([
-				JSON.stringify({ type: "message", role: "assistant", content: "hi" }) +
-					"\n",
+				`${JSON.stringify({
+					type: "message",
+					role: "assistant",
+					content: "hi",
+				})}\n`,
 			]),
 		);
 
@@ -147,9 +150,12 @@ describe("runCloudChat", () => {
 
 		const runChatImpl = vi.fn(async () =>
 			createNdjsonResponse([
-				JSON.stringify({ type: "init", session_id: "agent-session" }) + "\n",
-				JSON.stringify({ type: "message", role: "assistant", content: "ok" }) +
-					"\n",
+				`${JSON.stringify({ type: "init", session_id: "agent-session" })}\n`,
+				`${JSON.stringify({
+					type: "message",
+					role: "assistant",
+					content: "ok",
+				})}\n`,
 			]),
 		);
 
@@ -191,15 +197,15 @@ describe("runCloudChat", () => {
 
 		const runChatImpl = vi.fn(async () =>
 			createNdjsonResponse([
-				JSON.stringify({ type: "init", session_id: "agent-1" }) + "\n",
-				JSON.stringify({ type: "sandbox", sandbox_id: "sandbox-1" }) + "\n",
-				JSON.stringify({
+				`${JSON.stringify({ type: "init", session_id: "agent-1" })}\n`,
+				`${JSON.stringify({ type: "sandbox", sandbox_id: "sandbox-1" })}\n`,
+				`${JSON.stringify({
 					type: "relay.session",
 					sessionId: "relay-event-session",
 					token: "relay-event-token",
 					relayUrl: "https://relay.example.com",
 					expiresAt: 1_730_000_500,
-				}) + "\n",
+				})}\n`,
 			]),
 		);
 
@@ -318,7 +324,7 @@ describe("runCloudChat", () => {
 		store.load.mockResolvedValueOnce(null);
 		const runChatImpl = vi.fn(async () =>
 			createNdjsonResponse(
-				[JSON.stringify({ type: "message", content: "done" }) + "\n"],
+				[`${JSON.stringify({ type: "message", content: "done" })}\n`],
 				{
 					status: 201,
 					headers: {
