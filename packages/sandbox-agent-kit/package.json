@@ -1,0 +1,47 @@
+{
+	"name": "@giselles-ai/sandbox-agent-kit",
+	"version": "0.1.0",
+	"private": false,
+	"type": "module",
+	"bin": {
+		"sandbox-agent-kit": "./dist/cli.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "pnpm clean && tsup --config tsup.ts",
+		"clean": "rm -rf dist *.tsbuildinfo",
+		"dev": "tsx src/cli.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"format": "pnpm exec biome check --write ."
+	},
+	"files": [
+		"dist"
+	],
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/giselles-ai/agent-container.git",
+		"directory": "packages/sandbox-agent-kit"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@vercel/sandbox": "1.8.0"
+	},
+	"devDependencies": {
+		"@types/node": "25.3.0",
+		"tsup": "8.5.1",
+		"tsx": "4.21.0",
+		"typescript": "5.9.3"
+	}
+}
