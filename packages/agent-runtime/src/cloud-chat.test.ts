@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
+import type { RelayRequest } from "@giselles-ai/browser-tool";
+import type { RelayRequestSubscription } from "@giselles-ai/browser-tool/relay";
 import { runCloudChat } from "./cloud-chat";
 import { getLiveCloudConnection } from "./cloud-chat-live";
-import type { CloudChatSessionState } from "./cloud-chat-state";
+import type { CloudChatRequest, CloudChatSessionState } from "./cloud-chat-state";
+
+type TestRuntimeInput = CloudChatRequest & {
+	session_id?: string;
+	sandbox_id?: string;
+	relay_session_id?: string;
+	relay_token?: string;
+};
 
 function createStore() {
 	const db = new Map<string, CloudChatSessionState | null>();
@@ -9,14 +18,14 @@ function createStore() {
 	const save = vi.fn(async (state: CloudChatSessionState) => {
 		db.set(state.chatId, { ...state });
 	});
-	const del = vi.fn(async (chatId: string) => {
+	const deleteChat = vi.fn(async (chatId: string) => {
 		db.delete(chatId);
 	});
 
 	return {
 		load,
 		save,
-		del,
+		delete: deleteChat,
 		get: (chatId: string) => db.get(chatId) ?? null,
 	};
 }
@@ -67,19 +76,13 @@ function neverResolveRelayRequest<T>(): Promise<T> {
 }
 
 function createRelaySubscriptionMock(
-	requests: Array<{
-		type: "snapshot_request" | "execute_request";
-		requestId: string;
-		instruction?: string;
-		actions?: unknown[];
-		fields?: unknown[];
-	}> = [],
-) {
+	requests: RelayRequest[] = [],
+): RelayRequestSubscription {
 	let index = 0;
 	return {
-		nextRequest: vi.fn(async () => {
+		nextRequest: vi.fn(async (): Promise<RelayRequest> => {
 			if (index >= requests.length) {
-				return neverResolveRelayRequest();
+				return neverResolveRelayRequest<RelayRequest>();
 			}
 
 			const request = requests[index];
@@ -90,6 +93,17 @@ function createRelaySubscriptionMock(
 	};
 }
 
+function createRelayRequestSubscriptionFactory(
+	subscription: RelayRequestSubscription,
+) {
+	return vi.fn(
+		async (_input: {
+			sessionId: string;
+			token: string;
+		}): Promise<RelayRequestSubscription> => subscription,
+	);
+}
+
 const dummyAgent = {} as never;
 
 describe("runCloudChat", () => {
@@ -97,7 +111,7 @@ describe("runCloudChat", () => {
 		const store = createStore();
 		store.load.mockResolvedValueOnce(null);
 
-		const runChatImpl = vi.fn(async () =>
+		const runChatImpl = vi.fn(async (_input: unknown) =>
 			createNdjsonResponse([
 				`${JSON.stringify({
 					type: "message",
@@ -123,19 +137,22 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
-			},
-		});
+					createRelayRequestSubscription:
+						createRelayRequestSubscriptionFactory(relaySubscription),
+				},
+			});
 
 		expect(runChatImpl).toHaveBeenCalledTimes(1);
-		const runtimeInput = runChatImpl.mock.calls[0][0]?.input;
+		const runtimeInput = (
+			runChatImpl.mock.calls[0]?.[0] as { input: TestRuntimeInput } | undefined
+		)?.input;
 		expect(runtimeInput).toMatchObject({
 			message: "hello",
 			relay_session_id: "relay-1",
 			relay_token: "token-1",
 		});
-		expect(Object.hasOwn(runtimeInput, "session_id")).toBe(false);
-		expect(Object.hasOwn(runtimeInput, "sandbox_id")).toBe(false);
+		expect(Object.hasOwn(runtimeInput ?? {}, "session_id")).toBe(false);
+		expect(Object.hasOwn(runtimeInput ?? {}, "sandbox_id")).toBe(false);
 		expect(store.load).toHaveBeenCalledWith("chat-new");
 	});
 
@@ -147,7 +164,9 @@ describe("runCloudChat", () => {
 			sandboxId: "sandbox-1",
 			updatedAt: 1_000,
 		});
-		const runChatImpl = vi.fn(async () => createNdjsonResponse(["{}\n"]));
+		const runChatImpl = vi.fn(async (_input: unknown) =>
+			createNdjsonResponse(["{}\n"]),
+		);
 		const createRelaySession = createRelaySessionFactory("relay-2", "token-2");
 		const relaySubscription = createRelaySubscriptionMock();
 
@@ -165,11 +184,14 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
-			},
-		});
+					createRelayRequestSubscription:
+						createRelayRequestSubscriptionFactory(relaySubscription),
+				},
+			});
 
-		const runtimeInput = runChatImpl.mock.calls[0][0]?.input;
+		const runtimeInput = (
+			runChatImpl.mock.calls[0]?.[0] as { input: TestRuntimeInput } | undefined
+		)?.input;
 		expect(runtimeInput).toMatchObject({
 			session_id: "session-1",
 			sandbox_id: "sandbox-1",
@@ -208,7 +230,8 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession: createRelaySessionFactory("relay-3", "token-3"),
 				runChatImpl,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 
@@ -260,7 +283,8 @@ describe("runCloudChat", () => {
 				createRelaySession,
 				runChatImpl,
 				now,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 
@@ -317,7 +341,8 @@ describe("runCloudChat", () => {
 					"token-pause",
 				),
 				runChatImpl,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 
@@ -385,7 +410,8 @@ describe("runCloudChat", () => {
 				createRelaySession: createRelaySessionFactory("relay-hot", "token-hot"),
 				runChatImpl,
 				sendRelayResponse,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 
@@ -419,7 +445,8 @@ describe("runCloudChat", () => {
 					throw new Error("hot resume should not re-run chat");
 				}),
 				sendRelayResponse,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 
@@ -505,7 +532,8 @@ describe("runCloudChat", () => {
 				createRelaySession: createRelaySession,
 				runChatImpl,
 				sendRelayResponse,
-				createRelayRequestSubscription: vi.fn(async () => createRelaySub),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(createRelaySub),
 			},
 		});
 
@@ -624,7 +652,8 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession: createRelaySessionFactory("relay-6", "token-6"),
 				runChatImpl,
-				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
 			},
 		});
 

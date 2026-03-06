@@ -80,7 +80,7 @@ export type CloudChatDeps<TRequest extends BaseChatRequest> = {
 };
 
 export async function runCloudChat<
-	TRequest extends BaseChatRequest & {
+	TRequest extends CloudChatRequest & {
 		relay_session_id?: string;
 		relay_token?: string;
 	},
@@ -89,8 +89,7 @@ export async function runCloudChat<
 	request: Omit<
 		TRequest,
 		"session_id" | "sandbox_id" | "relay_session_id" | "relay_token"
-	> &
-		Pick<CloudChatRequest, "tool_results">;
+	>;
 	agent: ChatAgent<TRequest>;
 	signal: AbortSignal;
 	deps: CloudChatDeps<TRequest>;
@@ -157,15 +156,14 @@ export async function runCloudChat<
 	return managed.response;
 }
 
-async function resumeCloudChat<TRequest extends BaseChatRequest>(input: {
+async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 	chatId: string;
 	agent: ChatAgent<TRequest>;
 	signal: AbortSignal;
 	request: Omit<
 		TRequest,
 		"session_id" | "sandbox_id" | "relay_session_id" | "relay_token"
-	> &
-		Pick<CloudChatRequest, "tool_results">;
+	>;
 	store: CloudChatStateStore;
 	relayUrl: string;
 	existing: CloudChatSessionState;
@@ -182,6 +180,9 @@ async function resumeCloudChat<TRequest extends BaseChatRequest>(input: {
 	}) => Promise<void>;
 }): Promise<Response> {
 	const pending = input.existing.pendingTool;
+	if (!pending) {
+		throw new Error(`Chat ${input.chatId} does not have a pending tool.`);
+	}
 	const toolResult = findMatchingToolResult(
 		input.request.tool_results ?? [],
 		pending.requestId,
@@ -232,7 +233,7 @@ async function resumeCloudChat<TRequest extends BaseChatRequest>(input: {
 			: {}),
 		relay_session_id: relaySession.sessionId,
 		relay_token: relaySession.token,
-	} as TRequest;
+	} as unknown as TRequest;
 
 	const response = await (input.deps.runChatImpl ?? runChat)({
 		agent: input.agent,
@@ -416,16 +417,43 @@ function createManagedCloudResponseFromReader(
 						activeReader = input.reader.read();
 					}
 
-					const nextEventPromise =
-						input.relaySubscription !== null
-							? Promise.race([
-									activeReader.then((result) => ({ kind: "reader", result })),
-									input.relaySubscription.nextRequest().then((request) => ({
-										kind: "relay",
-										request,
-									})),
-								])
-							: activeReader.then((result) => ({ kind: "reader", result }));
+						const nextEventPromise =
+							input.relaySubscription !== null
+								? Promise.race([
+										activeReader.then(
+											(
+												result,
+											): {
+												kind: "reader";
+												result: ReadableStreamReadResult<Uint8Array>;
+											} => ({
+												kind: "reader",
+												result,
+											}),
+										),
+										input.relaySubscription.nextRequest().then(
+											(
+												request,
+											): {
+												kind: "relay";
+												request: RelayRequest;
+											} => ({
+												kind: "relay",
+												request,
+											}),
+										),
+									])
+								: activeReader.then(
+										(
+											result,
+										): {
+											kind: "reader";
+											result: ReadableStreamReadResult<Uint8Array>;
+										} => ({
+											kind: "reader",
+											result,
+										}),
+									);
 
 					const outcome = await nextEventPromise;
 

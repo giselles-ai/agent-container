@@ -1,6 +1,12 @@
 import type { RelayRequest, RelayResponse } from "@giselles-ai/browser-tool";
 import type { CloudToolResult, PendingToolState } from "./cloud-chat-state";
 
+type SnapshotRelayResponse = Extract<
+	RelayResponse,
+	{ type: "snapshot_response" }
+>;
+type ExecuteRelayResponse = Extract<RelayResponse, { type: "execute_response" }>;
+
 export function relayRequestToPendingTool(
 	request: RelayRequest,
 ): PendingToolState {
@@ -33,8 +39,8 @@ export function toolResultToRelayResponse(input: {
 				input.result.output !== null &&
 				"fields" in (input.result.output as Record<string, unknown>)
 					? ((input.result.output as Record<string, unknown>)
-							.fields as RelayResponse["fields"])
-					: (input.result.output as RelayResponse["fields"]),
+							.fields as SnapshotRelayResponse["fields"])
+					: (input.result.output as SnapshotRelayResponse["fields"]),
 		};
 	}
 
@@ -46,7 +52,7 @@ export function toolResultToRelayResponse(input: {
 			input.result.output !== null &&
 			"report" in (input.result.output as Record<string, unknown>)
 				? ((input.result.output as Record<string, unknown>)
-						.report as RelayResponse["report"])
-				: (input.result.output as RelayResponse["report"]),
+						.report as ExecuteRelayResponse["report"])
+				: (input.result.output as ExecuteRelayResponse["report"]),
 	};
 }
