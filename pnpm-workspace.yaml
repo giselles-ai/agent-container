@@ -3,4 +3,3 @@ packages:
   - "demo/*"
   - "packages/*"
   - "sandbox-agent/*"
-  - "!sandbox-agent/web"

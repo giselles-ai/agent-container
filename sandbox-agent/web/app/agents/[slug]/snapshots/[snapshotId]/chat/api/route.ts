@@ -1,7 +1,7 @@
 import { Writable } from "node:stream";
+import type { ChatAgent } from "@giselles-ai/agent-runtime";
+import * as sandboxAgentLib from "@giselles-ai/agent-runtime";
 import { createRelaySession } from "@giselles-ai/browser-tool/relay";
-import type { ChatAgent } from "@giselles-ai/sandbox-agent";
-import * as sandboxAgentLib from "@giselles-ai/sandbox-agent";
 import { Sandbox } from "@vercel/sandbox";
 import { NextResponse } from "next/server";
 import { requireApiToken } from "@/lib/agent/auth";
@@ -87,7 +87,7 @@ function createRouteAgent(
 
 		if (!createCodexAgent) {
 			throw new Error(
-				"Missing required export: createCodexAgent from @giselles-ai/sandbox-agent.",
+				"Missing required export: createCodexAgent from @giselles-ai/agent-runtime.",
 			);
 		}
 
