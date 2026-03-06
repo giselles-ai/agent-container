@@ -10,7 +10,7 @@
 	},
 	"dependencies": {
 		"@giselles-ai/browser-tool": "workspace:*",
-		"@giselles-ai/sandbox-agent": "workspace:*",
+		"@giselles-ai/agent-runtime": "workspace:*",
 		"@ai-sdk/react": "3.0.70",
 		"@iarna/toml": "3.0.0",
 		"@vercel/blob": "2.0.1",
