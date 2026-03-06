@@ -1,6 +1,6 @@
 # Package Taxonomy
 
-This document is the canonical package naming and boundary reference for `packages/`. It uses the target package names adopted by the package-structure realignment, even where the current directory names still use pre-rename identifiers.
+This document is the canonical package naming and boundary reference for `packages/`. Active entries use current package names and paths, while not-yet-renamed packages may still appear as transition targets.
 
 ## Scope
 
@@ -22,8 +22,8 @@ This document is the canonical package naming and boundary reference for `packag
 | Canonical Name | Current Path/Name | Category | Primary Runtime(s) | Decision |
 |---|---|---|---|---|
 | `agent-builder` | `packages/agent-builder` | `integration` | Node / Next.js build | Keep name |
-| `agent-runtime` | `packages/sandbox-agent` | `runtime` | Node / Vercel Sandbox | Rename target from `sandbox-agent` |
-| `agent-snapshot-kit` | `packages/sandbox-agent-kit` | `tooling` | Node CLI / snapshot build | Rename target from `sandbox-agent-kit` |
+| `agent-runtime` | `packages/agent-runtime` | `runtime` | Node / Vercel Sandbox | Renamed from `sandbox-agent` |
+| `agent-snapshot-kit` | `sandbox-agent-kit` | `tooling` | Node CLI / snapshot build | Rename target from `sandbox-agent-kit` |
 | `browser-tool` | `packages/browser-tool` | `domain` | browser / React client / Node server / sandbox | Keep as one package |
 | `giselle-provider` | `packages/giselle-provider` | `domain` | server / AI SDK provider | Keep name |
 
@@ -34,7 +34,7 @@ This document is the canonical package naming and boundary reference for `packag
 | `sandbox-agent` | `agent-runtime` | The package provides sandbox runtime primitives rather than a generic historical "sandbox agent" bucket |
 | `sandbox-agent-kit` | `agent-snapshot-kit` | The package is snapshot build tooling, so the name should describe that responsibility directly |
 
-Clearer responsibility-based names win over compatibility in this realignment. We prefer the canonical target names in active docs before the filesystem renames land.
+Clearer responsibility-based names win over compatibility in this realignment. Active docs should switch to the new name as soon as each rename lands.
 
 ## Boundary Decision: browser-tool
 

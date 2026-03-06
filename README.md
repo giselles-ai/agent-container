@@ -68,7 +68,7 @@ agent-container/
 └── scripts/
 ```
 
-`agent-runtime` and `agent-snapshot-kit` are the canonical target names for this package realignment. The current directories and package manifests still use `packages/sandbox-agent` and `packages/sandbox-agent-kit` until the later rename phases land.
+`agent-runtime` is now the current runtime package name and directory. `agent-snapshot-kit` remains the canonical target name for the snapshot tooling package until the later rename phase lands.
 
 `apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
 
@@ -86,7 +86,7 @@ Build-time integration package for defining agents and wiring framework-specific
 
 ### `@giselles-ai/agent-runtime`
 
-Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers. This is the canonical target package name; the current directory and package manifest still use `sandbox-agent` until the rename phase lands.
+Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers.
 
 | Export | Description |
 |---|---|

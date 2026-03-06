@@ -149,7 +149,7 @@ export function runChat<TRequest extends BaseChatRequest>(
 							write(chunk, _encoding, callback) {
 								const text =
 									typeof chunk === "string" ? chunk : chunk.toString("utf8");
-								console.log("[sandbox-agent] raw stdout:", text);
+								console.log("[agent-runtime] raw stdout:", text);
 								if (mapper) {
 									for (const line of mapper.push(text)) {
 										enqueueStdout(line);

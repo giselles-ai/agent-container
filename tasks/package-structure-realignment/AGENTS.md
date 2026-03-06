@@ -95,7 +95,7 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
 | 0 | [phase-0-taxonomy-baseline.md](./phase-0-taxonomy-baseline.md) | 🔲 TODO | 目的別の package taxonomy と README baseline を作る |
-| 1 | [phase-1-agent-runtime-rename.md](./phase-1-agent-runtime-rename.md) | 🔲 TODO | `packages/sandbox-agent` を `agent-runtime` に rename する |
+| 1 | [phase-1-agent-runtime-rename.md](./phase-1-agent-runtime-rename.md) | ✅ DONE | `agent-runtime` への rename を完了する |
 | 2 | [phase-2-agent-snapshot-kit-rename.md](./phase-2-agent-snapshot-kit-rename.md) | 🔲 TODO | `packages/sandbox-agent-kit` を `agent-snapshot-kit` に rename する |
 | 3 | [phase-3-browser-tool-boundaries.md](./phase-3-browser-tool-boundaries.md) | 🔲 TODO | `browser-tool` の multi-runtime 境界を package metadata と docs で固定する |
 | 4 | [phase-4-reference-sweep.md](./phase-4-reference-sweep.md) | 🔲 TODO | rename 後の参照 sweep と build/typecheck verification を行う |
@@ -126,8 +126,8 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 | `packages/giselle-provider/src/types.ts` | `AgentRef` の依存方向を確認する参照 |
 | `packages/agent-builder/package.json` | integration package の export pattern |
 | `packages/agent-builder/tsup.ts` | multi-entry package の構成例 |
-| `packages/sandbox-agent/package.json` | rename 対象 package の manifest |
-| `packages/sandbox-agent/src/agent.ts` | package の本来の責務を示す core 実装 |
+| `packages/agent-runtime/package.json` | rename 後の runtime package manifest |
+| `packages/agent-runtime/src/agent.ts` | runtime package の本来の責務を示す core 実装 |
 | `packages/sandbox-agent-kit/package.json` | rename 対象 package の manifest / bin 定義 |
 | `packages/sandbox-agent-kit/src/build-snapshot.ts` | browser-tool 依存の補助 tooling としての責務 |
 | `packages/sandbox-agent-kit/src/cli.ts` | CLI name と help text の更新対象 |
