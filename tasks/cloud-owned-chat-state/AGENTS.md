@@ -1,109 +1,124 @@
-# Epic: Cloud-Owned Chat State & Tool Resume
+# Epic: Cloud-Owned Chat State in Agent Runtime
 
 > **GitHub Epic:** TBD · **Sub-issues:** TBD (Phases 0–4)
 
 ## Goal
 
-Move chat session ownership out of `@giselles-ai/giselle-provider` and into the Cloud run API. After this epic is complete, the AI SDK `chatId` is the only cross-request identifier the client and provider need to carry. The Cloud API stores and resumes all opaque execution state in Redis, including `session_id`, `sandbox_id`, relay credentials, and the currently pending browser tool call. The provider becomes a stateless NDJSON-to-AI-SDK bridge that forwards `chat_id`, `message`, and client tool results to Cloud.
+Move chat session ownership out of `@giselles-ai/giselle-provider` and into `@giselles-ai/agent-runtime`. After this epic is complete, the only cross-request identifier the browser and provider carry is the AI SDK `chatId`. `agent-runtime` owns the state model, relay resume flow, and same-instance live-connection handling; the hosted Cloud route is a thin adapter that supplies Redis storage, auth, rate limiting, and agent selection.
 
 ## Why
 
-The current design spreads one logical session across three layers: the browser, the provider, and the Cloud API. That creates two failure modes at once: provider-local state can be lost across instances, and client round-tripping can silently drop opaque fields. Moving ownership into Cloud brings the state back to the place that already owns relay infrastructure and tool resume.
+The previous plan pointed implementation at the wrong legacy area and led Codex to add business logic in the wrong place. The real long-term seam is `@giselles-ai/agent-runtime`: that is where the shared session coordinator should live, and where `giselles-ai/giselle` should consume it.
 
-- Cloud already has Redis through `@giselles-ai/browser-tool/relay`, so it is the natural place to persist opaque session state.
-- The provider should not need to understand relay credentials or pending request bookkeeping.
-- The browser should not carry internal runtime state like `relay_token` or `sandbox_id`.
-- Cross-instance resume becomes a Cloud concern instead of a provider concern.
-- The AI SDK `chatId` can become the single stable key across retries, follow-ups, and tool resumes.
-- Hosted `studio.giselles.ai` and the local `sandbox-agent/web` route can converge on the same state model.
+- `@giselles-ai/giselle-provider` should not own relay credentials, pending tool bookkeeping, or cross-request resume state.
+- The browser should not round-trip opaque runtime fields like `sandbox_id` or `relay_token`.
+- `agent-runtime` already owns the sandbox and CLI orchestration boundary, so chat state belongs there.
+- The hosted Cloud route should stay small: validate input, select the agent, provide Redis storage, call runtime.
+- Relay request subscription and tool-result resume are Cloud/runtime concerns because the browser tool is Cloud-owned.
 
 ## Architecture Overview
 
 ```mermaid
 flowchart TD
-    Browser["Browser / useChat<br/>holds AI SDK chatId only"]
-    DemoRoute["App Route<br/>streamText() + giselle()"]
-    Provider["packages/giselle-provider<br/>stateless bridge"]
-    CloudRun["Cloud Run API<br/>chat/api/route.ts"]
-    ChatRedis["Cloud Chat Session Redis<br/>keyed by chatId"]
-    RelayStore["Browser Relay Redis<br/>session + pending request state"]
-    Agent["Agent Runtime / runChat"]
+    Browser["Browser / useChat<br/>keeps chatId only"]
+    AppRoute["App Route<br/>streamText() + giselle()"]
+    Provider["packages/giselle-provider<br/>stateless NDJSON bridge"]
+    CloudRoute["Hosted agent-api/run<br/>thin adapter"]
+    Runtime["packages/agent-runtime<br/>runCloudChat()"]
+    ChatState["Cloud Chat State Store<br/>Redis keyed by chatId"]
+    Relay["browser-tool relay<br/>Redis-backed request/response"]
+    Sandbox["Sandbox + Gemini/Codex CLI"]
 
-    Browser -->|"POST /api/chat<br/>messages + chatId"| DemoRoute
-    DemoRoute -->|"doStream(prompt)"| Provider
-    Provider -->|"POST /agent-api/run<br/>chat_id + message + tool_results"| CloudRun
-    CloudRun -->|"load/save session record"| ChatRedis
-    CloudRun -->|"run/resume chat"| Agent
-    Agent -->|"dispatch / resolve browser requests"| RelayStore
-    Agent -->|"NDJSON stream"| CloudRun
-    CloudRun -->|"forward NDJSON"| Provider
-    Provider -->|"AI SDK stream parts"| DemoRoute
-    DemoRoute -->|"UI message stream"| Browser
+    Browser -->|"messages + chatId"| AppRoute
+    AppRoute -->|"LanguageModelV3 call"| Provider
+    Provider -->|"chat_id + message + tool_results"| CloudRoute
+    CloudRoute -->|"store adapter + agent selection"| Runtime
+    Runtime -->|"load/save state"| ChatState
+    Runtime -->|"create/subscribe/respond"| Relay
+    Runtime -->|"runChat()"| Sandbox
+    Sandbox -->|"NDJSON"| Runtime
+    Runtime -->|"NDJSON"| Provider
+    Provider -->|"AI SDK stream parts"| AppRoute
+    AppRoute -->|"UIMessage stream"| Browser
 
     style Browser fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
-    style DemoRoute fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
+    style AppRoute fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
     style Provider fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
-    style CloudRun fill:#1a1a2e,stroke:#e94560,color:#ffffff
-    style ChatRedis fill:#1a1a2e,stroke:#e94560,color:#ffffff
-    style RelayStore fill:#1a1a2e,stroke:#e94560,color:#ffffff
-    style Agent fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
+    style CloudRoute fill:#1a1a2e,stroke:#e94560,color:#ffffff
+    style Runtime fill:#1a1a2e,stroke:#e94560,color:#ffffff
+    style ChatState fill:#1a1a2e,stroke:#e94560,color:#ffffff
+    style Relay fill:#1a1a2e,stroke:#e94560,color:#ffffff
+    style Sandbox fill:#1a1a2e,stroke:#00d9ff,color:#ffffff
 ```
 
 ## Package / Directory Structure
 
 ```text
 tasks/
-└── cloud-owned-chat-state/                           # NEW epic plan
+└── cloud-owned-chat-state/                          # NEW epic plan
     ├── AGENTS.md
-    ├── phase-0-cloud-session-contract.md
-    ├── phase-1-cloud-session-persistence.md
-    ├── phase-2-cloud-tool-resume.md
-    ├── phase-3-provider-stateless-bridge.md
-    └── phase-4-consumer-cutover-cleanup.md
+    ├── phase-0-runtime-contract.md
+    ├── phase-1-runtime-session-coordinator.md
+    ├── phase-2-runtime-relay-resume.md
+    ├── phase-3-cloud-consumer-adoption.md
+    └── phase-4-provider-cleanup.md
 
-sandbox-agent/web/
-└── app/agents/[slug]/snapshots/[snapshotId]/chat/api/
-    ├── route.ts                                      # EXISTING - local Cloud run route
-    ├── chat-session-state.ts                         # NEW - session record schema + reducers
-    ├── chat-session-store.ts                         # NEW - Redis CRUD keyed by chatId
-    └── relay-tool-resume.ts                          # NEW - tool_result -> relay response mapping
+packages/
+├── agent-runtime/
+│   └── src/
+│       ├── cloud-chat-state.ts                     # NEW - chat_id state types + reducers
+│       ├── cloud-chat.ts                           # NEW - chat coordinator entrypoint
+│       ├── cloud-chat-relay.ts                     # NEW - relay request/response helpers
+│       ├── cloud-chat-live.ts                      # NEW - same-instance live connection cache
+│       ├── chat-run.ts                             # EXISTING - sandbox runner reused by cloud-chat
+│       ├── agents/
+│       │   ├── gemini-agent.ts                     # EXISTING - unchanged agent command factory
+│       │   └── codex-agent.ts                      # EXISTING - unchanged agent command factory
+│       └── index.ts                                # EXISTING - export new Cloud APIs
+├── browser-tool/
+│   └── src/relay/
+│       ├── index.ts                                # EXISTING - widen public server-side relay surface
+│       ├── request-subscription.ts                 # NEW - public relay subscription/response wrapper
+│       └── relay-store.ts                          # EXISTING - Redis primitives reused internally
+└── giselle-provider/
+    └── src/
+        ├── giselle-agent-model.ts                  # EXISTING - simplify to stateless bridge
+        ├── types.ts                                # EXISTING - chat_id + tool_results contract
+        ├── ndjson-mapper.ts                        # EXISTING - keep NDJSON -> AI SDK mapping
+        ├── index.ts                                # EXISTING - remove session-state exports
+        ├── session-state.ts                        # DELETED
+        ├── session-manager.ts                      # DELETED
+        └── relay-http.ts                           # DELETED
 
-packages/browser-tool/src/relay/
-├── index.ts                                          # EXISTING - export resume helpers for Cloud route
-├── relay-store.ts                                    # EXISTING - Redis-backed relay primitives
-└── relay-handler.ts                                  # EXISTING - kept as-is
+apps/
+├── demo/
+│   └── app/
+│       ├── api/chat/route.ts                       # EXISTING - stop reconstructing session state
+│       └── _lib/giselle-chat-transport.ts          # EXISTING - stop injecting sessionState
+└── minimum-demo/
+    └── app/
+        ├── chat/route.ts                           # EXISTING - same cleanup as demo
+        └── _lib/giselle-chat-transport.ts          # EXISTING - same cleanup as demo
 
-packages/giselle-provider/src/
-├── giselle-agent-model.ts                            # EXISTING - simplify to stateless Cloud client
-├── ndjson-mapper.ts                                  # EXISTING - keep event -> stream part mapping
-├── types.ts                                          # EXISTING - Cloud request payload changes
-├── session-state.ts                                  # DELETED - no client round-trip state
-├── session-manager.ts                                # DELETED - no provider-owned session store
-└── relay-http.ts                                     # DELETED - no provider-owned relay transport
-
-apps/demo/app/
-├── api/chat/route.ts                                 # EXISTING - remove metadata/session fallback
-└── _lib/giselle-chat-transport.ts                    # EXISTING - stop injecting sessionState
-
-apps/minimum-demo/app/
-├── chat/route.ts                                     # EXISTING - same cleanup as demo
-└── _lib/giselle-chat-transport.ts                    # EXISTING - same cleanup as demo
-
-opensrc/repos/github.com/giselles-ai/giselle/
+giselles-ai/giselle/                                # UPSTREAM consumer repo, not this workspace
 └── apps/studio.giselles.ai/app/agent-api/
-    ├── run/route.ts                                  # EXISTING REFERENCE - hosted parity target
-    └── relay/[[...relay]]/route.ts                   # EXISTING REFERENCE - keep as-is
+    ├── _lib/chat-state-store.ts                    # NEW - Redis adapter over agent-runtime store interface
+    ├── run/route.ts                                # EXISTING - thin adapter around runCloudChat()
+    └── relay/[[...relay]]/route.ts                 # EXISTING - relay endpoint stays in browser-tool
+
+opensrc/repos/github.com/giselles-ai/giselle/       # READ-ONLY source reference
+└── ...                                             # Use for reading only, never as the implementation target
 ```
 
 ## Task Dependency Graph
 
 ```mermaid
 flowchart TD
-    P0["Phase 0<br/>Cloud Session Contract"]
-    P1["Phase 1<br/>Cloud Session Persistence"]
-    P2["Phase 2<br/>Cloud Tool Resume"]
-    P3["Phase 3<br/>Provider Stateless Bridge"]
-    P4["Phase 4<br/>Consumer Cutover & Cleanup"]
+    P0["Phase 0<br/>Runtime Contract"]
+    P1["Phase 1<br/>Runtime Session Coordinator"]
+    P2["Phase 2<br/>Runtime Relay Resume"]
+    P3["Phase 3<br/>Cloud Consumer Adoption"]
+    P4["Phase 4<br/>Provider Cleanup"]
 
     P0 --> P1
     P1 --> P2
@@ -117,19 +132,21 @@ flowchart TD
     style P4 fill:#1a1a2e,stroke:#e94560,color:#ffffff
 ```
 
-- The work is intentionally sequential because each phase removes assumptions from the previous layer.
-- Phase 0 defines the contract and store shape used by all later phases.
-- Phase 2 is the pivot point where tool resume ownership moves from provider to Cloud.
+- Phase 0 defines the pure types and reducer rules all later phases use.
+- Phase 1 creates the runtime-owned session coordinator, but explicitly stops before tool resume.
+- Phase 2 moves relay subscription and tool-result resume into runtime.
+- Phase 3 is the downstream Cloud consumer patch in `giselles-ai/giselle`.
+- Phase 4 removes the now-obsolete provider and demo-layer state plumbing.
 
 ## Task Status
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-cloud-session-contract.md](./phase-0-cloud-session-contract.md) | 🔲 TODO | Define `chat_id` contract and create Cloud Redis session store primitives |
-| 1 | [phase-1-cloud-session-persistence.md](./phase-1-cloud-session-persistence.md) | 🔲 TODO | Persist session, sandbox, and relay state in Cloud during streamed runs |
-| 2 | [phase-2-cloud-tool-resume.md](./phase-2-cloud-tool-resume.md) | 🔲 TODO | Accept client tool results in Cloud and resolve relay resume internally |
-| 3 | [phase-3-provider-stateless-bridge.md](./phase-3-provider-stateless-bridge.md) | 🔲 TODO | Remove provider-owned session state and send only `chat_id` + tool results |
-| 4 | [phase-4-consumer-cutover-cleanup.md](./phase-4-consumer-cutover-cleanup.md) | 🔲 TODO | Remove client/session metadata plumbing and delete obsolete provider files |
+| 0 | [phase-0-runtime-contract.md](./phase-0-runtime-contract.md) | 🔲 TODO | Define chat_id request contract, state schema, and pure reducers in `agent-runtime` |
+| 1 | [phase-1-runtime-session-coordinator.md](./phase-1-runtime-session-coordinator.md) | 🔲 TODO | Add `runCloudChat()` and persist state updates around `runChat()` |
+| 2 | [phase-2-runtime-relay-resume.md](./phase-2-runtime-relay-resume.md) | 🔲 TODO | Move relay subscription, pending tool state, and tool-result resume into runtime |
+| 3 | [phase-3-cloud-consumer-adoption.md](./phase-3-cloud-consumer-adoption.md) | 🔲 TODO | Wire the hosted `agent-api/run` route to `runCloudChat()` with a Redis adapter |
+| 4 | [phase-4-provider-cleanup.md](./phase-4-provider-cleanup.md) | 🔲 TODO | Remove provider-owned session state and simplify demo transports/routes |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
@@ -138,61 +155,64 @@ flowchart TD
 
 ## Key Conventions
 
-- Monorepo uses `pnpm` workspaces with `turbo` for root builds.
-- `packages/giselle-provider` builds with `tsup` and validates with `tsc -p tsconfig.json --noEmit`.
-- `sandbox-agent/web` is a Next.js 16 app with `moduleResolution: "bundler"` and `strict: true`.
-- `apps/demo` and `apps/minimum-demo` use AI SDK UI (`ai@6.0.68`, `@ai-sdk/react@3.0.70`).
-- `packages/browser-tool/src/relay/relay-store.ts` is the canonical Redis + relay behavior reference.
-- During migration, keep Cloud request bodies backward-compatible long enough for provider cutover, then remove legacy fields in Phase 4.
-- `opensrc/` is a source reference only; local `sandbox-agent/web` is the implementation target in this repo.
+- The monorepo uses `pnpm` workspaces and `turbo`; package-local validation still uses the package scripts directly.
+- `packages/agent-runtime` is the primary implementation target for this epic.
+- `packages/browser-tool/src/relay` remains the source of Redis-backed relay primitives; runtime should consume a public relay surface, not deep-import app-specific code.
+- `packages/giselle-provider` should only translate prompt/tool-result input into Cloud requests and translate NDJSON back to AI SDK parts.
+- `opensrc/` is read-only source reference. Do not implement the feature there.
+- Use generic `agentSessionId` naming in runtime state, not `geminiSessionId`, because the same flow applies to Gemini and Codex.
 
 ## Existing Code Reference
 
 | File | Relevance |
 |---|---|
-| `packages/giselle-provider/src/giselle-agent-model.ts` | Current provider-owned resume logic that will be deleted or simplified |
-| `packages/giselle-provider/src/session-state.ts` | Current client round-trip state payload; replacement target |
-| `packages/giselle-provider/src/relay-http.ts` | Current provider-side hosted relay transport; replacement target |
-| `packages/giselle-provider/src/ndjson-mapper.ts` | Existing NDJSON event mapping that should survive the migration |
-| `packages/browser-tool/src/relay/relay-store.ts` | Redis relay primitives, pending request lifecycle, and authorized session checks |
-| `packages/browser-tool/src/relay/index.ts` | Public relay surface that Cloud route should extend instead of duplicating logic |
-| `sandbox-agent/web/app/agents/[slug]/snapshots/[snapshotId]/chat/api/route.ts` | Local Cloud run route that should become the single owner of session state |
-| `opensrc/repos/github.com/giselles-ai/giselle/apps/studio.giselles.ai/app/agent-api/run/route.ts` | Hosted Cloud route reference that should converge to the same contract |
-| `apps/demo/app/api/chat/route.ts` | Current app route still reconstructing session state from request metadata |
-| `apps/demo/app/_lib/giselle-chat-transport.ts` | Current transport injecting provider session state into outgoing bodies |
+| `README.md` | Confirms `@giselles-ai/agent-runtime` is the current runtime package naming and architecture |
+| `packages/agent-runtime/src/chat-run.ts` | Current sandbox orchestration primitive that `runCloudChat()` should wrap |
+| `packages/agent-runtime/src/agents/gemini-agent.ts` | Shows current request fields and browser relay env injection for Gemini |
+| `packages/agent-runtime/src/agents/codex-agent.ts` | Shows current request fields and browser relay env injection for Codex |
+| `packages/browser-tool/src/relay/index.ts` | Current public relay export surface that needs widening |
+| `packages/browser-tool/src/relay/relay-store.ts` | Canonical Redis relay behavior, pending request lifecycle, and response validation |
+| `packages/browser-tool/src/relay/relay-handler.ts` | Example of how the relay package consumes its own internal primitives |
+| `packages/giselle-provider/src/giselle-agent-model.ts` | Current provider-owned resume logic that will be removed in Phase 4 |
+| `packages/giselle-provider/src/ndjson-mapper.ts` | Existing NDJSON event mapping that should remain intact |
+| `apps/demo/app/api/chat/route.ts` | Current route reconstructing session state from provider metadata |
+| `apps/demo/app/_lib/giselle-chat-transport.ts` | Current client transport injecting provider-owned session state |
+| `opensrc/repos/github.com/giselles-ai/giselle/apps/studio.giselles.ai/app/agent-api/run/route.ts` | Read-only reference for the downstream Cloud consumer route |
 
 ## Domain-Specific Reference
 
-### End-State Ownership Matrix
+### Responsibility Split
 
-| Value | Source | Stored By | Sent By Browser | Used By |
-|---|---|---|---|---|
-| `chatId` | AI SDK `useChat` | Browser + Cloud key | ✅ Yes | Provider and Cloud |
-| `session_id` | Cloud `init` event | Cloud Redis | ❌ No | Cloud only |
-| `sandbox_id` | Cloud `sandbox` event | Cloud Redis | ❌ No | Cloud only |
-| `relay_session_id` | Cloud `relay.session` event | Cloud Redis | ❌ No | Cloud only |
-| `relay_token` | Cloud `relay.session` event | Cloud Redis | ❌ No | Cloud only |
-| `relay_url` | Cloud `relay.session` event | Cloud Redis | ❌ No | Cloud only |
-| `pending_tool_call_id` | Browser-tool request event | Cloud Redis | ❌ No | Cloud only |
-| `pending_tool_name` | Browser-tool request event | Cloud Redis | ❌ No | Cloud only |
-| `tool_results[]` | Browser `addToolOutput()` | Request body only | ✅ Yes | Cloud only |
-
-### Cloud Request Contract Delta
-
-| Contract Area | Current | End State |
+| Layer | Owns | Must Not Own |
 |---|---|---|
-| Session key | `session_id` / `sandbox_id` body fields | `chat_id` only |
-| Resume state storage | Provider memory + client metadata round-trip | Cloud Redis keyed by `chat_id` |
-| Browser tool resume | Provider posts `relay.respond` | Cloud resolves relay response internally |
-| Provider responsibility | Session store + relay transport + NDJSON mapping | NDJSON mapping + Cloud request shaping only |
-| Browser responsibility | Preserve opaque provider state | Preserve `chatId` and tool outputs only |
+| Browser / `useChat` | `chatId`, user messages, tool outputs | `session_id`, `sandbox_id`, relay credentials, pending request bookkeeping |
+| `@giselles-ai/giselle-provider` | Prompt extraction, tool-result extraction, NDJSON -> AI SDK mapping | Redis state, relay subscribe/respond, hot/cold resume |
+| `@giselles-ai/agent-runtime` | Chat state reducer, session coordinator, live connection cache, relay request/response mapping | API auth, rate limiting, Redis client configuration |
+| Hosted `agent-api/run` route | Auth, rate limit, request validation, Redis adapter, agent selection | Chat state machine logic |
+| `@giselles-ai/browser-tool/relay` | Redis-backed relay transport primitives | Chat-level state keyed by `chatId` |
 
-### Pending Tool Event Mapping
+### End-State Stored Session Record
 
-| Incoming Cloud Event | Client Tool Name | Cloud Redis Pending State |
+| Field | Purpose | Owner |
 |---|---|---|
-| `snapshot_request` | `getFormSnapshot` | `pending_tool_name = "getFormSnapshot"` |
-| `execute_request` | `executeFormActions` | `pending_tool_name = "executeFormActions"` |
-| `tool_use` with `tool_name = "getFormSnapshot"` | `getFormSnapshot` | Same as above |
-| `tool_use` with `tool_name = "executeFormActions"` | `executeFormActions` | Same as above |
+| `chatId` | Stable key shared by browser, provider, and Cloud | Browser + runtime |
+| `agentSessionId` | Resume identifier for Gemini/Codex CLI session | Runtime |
+| `sandboxId` | Reuse the existing sandbox across requests | Runtime |
+| `relay.sessionId` | Relay session identifier for browser tool traffic | Runtime |
+| `relay.token` | Relay authorization token | Runtime |
+| `relay.url` | Hosted relay endpoint | Runtime |
+| `relay.expiresAt` | Relay freshness check | Runtime |
+| `pendingTool.requestId` | Match tool results to the paused relay request | Runtime |
+| `pendingTool.requestType` | Distinguish snapshot vs execute response shape | Runtime |
+| `pendingTool.toolName` | Match AI SDK tool result to relay response mapping | Runtime |
+| `updatedAt` | TTL refresh / debugging | Runtime + store adapter |
 
+### Request Contract Delta
+
+| Area | Current Provider-Managed Design | End State |
+|---|---|---|
+| Cross-request key | `providerSessionId` plus provider metadata | `chat_id` only |
+| Follow-up resume | Client round-trips `sessionState` | Runtime loads state from Cloud Redis |
+| Tool resume | Provider subscribes to relay and posts `relay.respond` | Runtime subscribes and responds |
+| Cloud route | Creates relay session and streams `runChat()` directly | Calls `runCloudChat()` and supplies store adapter |
+| Demo transports | Inject hidden metadata into request body | Send plain AI SDK request body keyed by `id` |
