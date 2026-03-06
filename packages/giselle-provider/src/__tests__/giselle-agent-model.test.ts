@@ -7,11 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
 import { getLiveConnection } from "../session-manager";
 import { getGiselleSessionStateFromRawValue } from "../session-state";
-import type {
-	GiselleSessionState,
-	LiveConnection,
-	RelaySubscription,
-} from "../types";
+import type { GiselleSessionState, RelaySubscription } from "../types";
 
 function createCallOptions(input: {
 	prompt: LanguageModelV3Prompt;
