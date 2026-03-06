@@ -1,4 +1,4 @@
-# sandbox-agent-kit
+# agent-snapshot-kit
 
 CLI & library for building Vercel Sandbox snapshots with an agent execution environment (Gemini CLI / Codex CLI + browser-tool MCP server).
 
@@ -6,7 +6,7 @@ CLI & library for building Vercel Sandbox snapshots with an agent execution envi
 
 | File | Role |
 |---|---|
-| `src/cli.ts` | CLI entry point (`sandbox-agent-kit build-snapshot`) |
+| `src/cli.ts` | CLI entry point (`agent-snapshot-kit build-snapshot`) |
 | `src/build-snapshot.ts` | Core snapshot build logic |
 | `src/sandbox-utils.ts` | Sandbox command execution helper |
 | `src/index.ts` | Library exports (`buildSnapshot`, `BuildSnapshotOptions`) |
@@ -35,7 +35,7 @@ pnpm install
 
 ```bash
 # From the monorepo root
-cd packages/sandbox-agent-kit
+cd packages/agent-snapshot-kit
 pnpm dev build-snapshot --local --repo-root ../..
 ```
 

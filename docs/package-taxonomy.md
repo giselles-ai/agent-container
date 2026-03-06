@@ -1,6 +1,6 @@
 # Package Taxonomy
 
-This document is the canonical package naming and boundary reference for `packages/`. Active entries use current package names and paths, while not-yet-renamed packages may still appear as transition targets.
+This document is the canonical package naming and boundary reference for `packages/`. Active entries use current package names and paths only.
 
 ## Scope
 
@@ -23,7 +23,7 @@ This document is the canonical package naming and boundary reference for `packag
 |---|---|---|---|---|
 | `agent-builder` | `packages/agent-builder` | `integration` | Node / Next.js build | Keep name |
 | `agent-runtime` | `packages/agent-runtime` | `runtime` | Node / Vercel Sandbox | Renamed from `sandbox-agent` |
-| `agent-snapshot-kit` | `sandbox-agent-kit` | `tooling` | Node CLI / snapshot build | Rename target from `sandbox-agent-kit` |
+| `agent-snapshot-kit` | `packages/agent-snapshot-kit` | `tooling` | Node CLI / snapshot build | Keep name |
 | `browser-tool` | `packages/browser-tool` | `domain` | browser / React client / Node server / sandbox | Keep as one package |
 | `giselle-provider` | `packages/giselle-provider` | `domain` | server / AI SDK provider | Keep name |
 
@@ -32,8 +32,6 @@ This document is the canonical package naming and boundary reference for `packag
 | Current | Canonical Target | Reason |
 |---|---|---|
 | `sandbox-agent` | `agent-runtime` | The package provides sandbox runtime primitives rather than a generic historical "sandbox agent" bucket |
-| `sandbox-agent-kit` | `agent-snapshot-kit` | The package is snapshot build tooling, so the name should describe that responsibility directly |
-
 Clearer responsibility-based names win over compatibility in this realignment. Active docs should switch to the new name as soon as each rename lands.
 
 ## Boundary Decision: browser-tool

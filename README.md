@@ -68,7 +68,7 @@ agent-container/
 └── scripts/
 ```
 
-`agent-runtime` is now the current runtime package name and directory. `agent-snapshot-kit` remains the canonical target name for the snapshot tooling package until the later rename phase lands.
+`agent-runtime` and `agent-snapshot-kit` are the current runtime and snapshot-tooling package names and directories.
 
 `apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
 
@@ -98,13 +98,13 @@ Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers.
 
 ### `@giselles-ai/agent-snapshot-kit`
 
-Snapshot build CLI/library for preparing sandboxes with agent CLIs and browser-tool assets. This is the canonical target package name; the current package name, directory, and CLI still use `sandbox-agent-kit` until the rename phase lands.
+Snapshot build CLI/library for preparing sandboxes with agent CLIs and browser-tool assets.
 
 | Export / Command | Description |
 |---|---|
 | `buildSnapshot()` | Build or extend a sandbox snapshot with agent CLIs and browser-tool artifacts |
 | `BuildSnapshotOptions` | Options for local or npm-based snapshot assembly |
-| `agent-snapshot-kit build-snapshot` | Canonical target CLI command name for the later rename phase |
+| `agent-snapshot-kit build-snapshot` | CLI entry point for building or extending a snapshot |
 
 ### `@giselles-ai/browser-tool`
 

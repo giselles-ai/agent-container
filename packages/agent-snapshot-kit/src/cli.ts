@@ -5,7 +5,7 @@ import { buildSnapshot } from "./build-snapshot";
 
 function printUsage() {
 	const usage = `Usage:
-  sandbox-agent-kit build-snapshot [options]
+  agent-snapshot-kit build-snapshot [options]
 
 Options:
   --local                  Copy local files instead of npm install (monorepo only)
