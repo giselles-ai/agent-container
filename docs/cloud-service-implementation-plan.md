@@ -1,6 +1,6 @@
 # Cloud Service Implementation Plan
 
-> Note: This document is a historical implementation plan. Current package names in this repository use `@giselles-ai/sandbox-agent` at `packages/sandbox-agent` (renamed from the historical `@giselles-ai/agent-core` / `packages/agent-core` references shown below).
+> Note: This document is a historical implementation plan. Current package names in this repository use `@giselles-ai/agent-runtime` at `packages/agent-runtime` (renamed from the historical `@giselles-ai/agent-core` / `packages/agent-core` references shown below).
 
 ## Overview
 

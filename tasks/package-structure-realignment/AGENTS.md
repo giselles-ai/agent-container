@@ -94,11 +94,11 @@ Phase 1, Phase 2, Phase 3 can run in parallel after Phase 0. Phase 4 depends on 
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-taxonomy-baseline.md](./phase-0-taxonomy-baseline.md) | 🔲 TODO | 目的別の package taxonomy と README baseline を作る |
+| 0 | [phase-0-taxonomy-baseline.md](./phase-0-taxonomy-baseline.md) | ✅ DONE | 目的別の package taxonomy と README baseline を作る |
 | 1 | [phase-1-agent-runtime-rename.md](./phase-1-agent-runtime-rename.md) | ✅ DONE | `agent-runtime` への rename を完了する |
 | 2 | [phase-2-agent-snapshot-kit-rename.md](./phase-2-agent-snapshot-kit-rename.md) | ✅ DONE | `packages/sandbox-agent-kit` を `agent-snapshot-kit` に rename する |
 | 3 | [phase-3-browser-tool-boundaries.md](./phase-3-browser-tool-boundaries.md) | ✅ DONE | `browser-tool` の multi-runtime 境界を package metadata と docs で固定する |
-| 4 | [phase-4-reference-sweep.md](./phase-4-reference-sweep.md) | 🔲 TODO | rename 後の参照 sweep と build/typecheck verification を行う |
+| 4 | [phase-4-reference-sweep.md](./phase-4-reference-sweep.md) | ✅ DONE | rename 後の参照 sweep と build/typecheck verification を行う |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
