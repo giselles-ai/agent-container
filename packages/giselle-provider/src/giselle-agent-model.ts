@@ -13,29 +13,16 @@ import {
 	finishStream,
 	mapNdjsonEvent,
 } from "./ndjson-mapper";
-import { createHttpRelaySubscription, postRelayResponse } from "./relay-http";
-import {
-	getLiveConnection,
-	removeLiveConnection,
-	saveLiveConnection,
-} from "./session-manager";
-import {
-	createGiselleSessionStateRawValue,
-	getGiselleSessionIdFromProviderOptions,
-	getGiselleSessionStateFromProviderOptions,
-	mergeGiselleSessionStates,
-} from "./session-state";
-import type {
-	GiselleProviderDeps,
-	GiselleProviderOptions,
-	GiselleSessionState,
-	LiveConnection,
-} from "./types";
+import type { GiselleProviderDeps, GiselleProviderOptions } from "./types";
 
 type ExtractedToolResult = {
 	toolName: string;
 	toolCallId: string;
 	output: unknown;
+};
+
+type CloudConnection = {
+	reader: ReadableStreamDefaultReader<Uint8Array>;
 };
 
 function trimTrailingSlash(value: string): string {
@@ -46,38 +33,51 @@ function toStringError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-function buildCloudEndpoint(baseUrl: string): string {
-	return trimTrailingSlash(baseUrl);
+function asNonEmptyString(value: unknown): string | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function createDefaultDeps(): GiselleProviderDeps {
 	return {
 		connectCloudApi: async (params) => {
 			console.log(
-				`[giselle-provider] connectCloudApi: endpoint=${params.endpoint}, snapshot_id=${params.snapshotId}, agent_type=${params.agentType}, session_id=${params.sessionId ?? "(new)"}, headers=${JSON.stringify(params.headers ?? {})}`,
+				`[giselle-provider] connectCloudApi: endpoint=${params.endpoint}, snapshot_id=${params.snapshotId}, agent_type=${params.agentType}, chat_id=${params.chatId}, headers=${JSON.stringify(params.headers ?? {})}`,
 			);
+
+			const body: Record<string, unknown> = {
+				type: "agent.run",
+				chat_id: params.chatId,
+				message: params.message,
+				agent_type: params.agentType,
+				snapshot_id: params.snapshotId,
+			};
+
+			if (params.document !== undefined) {
+				body.document = params.document;
+			}
+			if (params.toolResults !== undefined) {
+				body.tool_results = params.toolResults;
+			}
+
 			const response = await fetch(params.endpoint, {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
 					...(params.headers ?? {}),
 				},
-				body: JSON.stringify({
-					type: "agent.run",
-					message: params.message,
-					document: params.document,
-					session_id: params.sessionId,
-					sandbox_id: params.sandboxId,
-					agent_type: params.agentType,
-					snapshot_id: params.snapshotId,
-				}),
+				body: JSON.stringify(body),
 				signal: params.signal,
 			});
 
 			if (!response.ok || !response.body) {
-				const body = await response.text().catch(() => "");
+				const bodyText = await response.text().catch(() => "");
 				throw new Error(
-					`Cloud API request failed (${response.status}): ${body || response.statusText}`,
+					`Cloud API request failed (${response.status}): ${bodyText || response.statusText}`,
 				);
 			}
 
@@ -86,17 +86,11 @@ function createDefaultDeps(): GiselleProviderDeps {
 				response,
 			};
 		},
-		createRelaySubscription: (params) => createHttpRelaySubscription(params),
-		sendRelayResponse: (params) => postRelayResponse(params),
 	};
 }
 
-function pickObjectField(value: unknown, field: string): unknown {
-	if (!value || typeof value !== "object") {
-		return undefined;
-	}
-
-	return (value as Record<string, unknown>)[field];
+function buildCloudEndpoint(baseUrl: string): string {
+	return trimTrailingSlash(baseUrl);
 }
 
 export class GiselleAgentModel implements LanguageModelV3 {
@@ -109,16 +103,11 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	readonly deps: GiselleProviderDeps;
 
 	constructor(options: GiselleProviderOptions) {
-		this.options = options;
 		const defaultDeps = createDefaultDeps();
+		this.options = options;
 		this.deps = {
 			connectCloudApi:
 				options.deps?.connectCloudApi ?? defaultDeps.connectCloudApi,
-			createRelaySubscription:
-				options.deps?.createRelaySubscription ??
-				defaultDeps.createRelaySubscription,
-			sendRelayResponse:
-				options.deps?.sendRelayResponse ?? defaultDeps.sendRelayResponse,
 		};
 	}
 
@@ -131,26 +120,16 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	async doStream(
 		options: LanguageModelV3CallOptions,
 	): Promise<LanguageModelV3StreamResult> {
-		const requestedProviderSessionId = this.extractProviderSessionId(
-			options.providerOptions,
-		);
-		const requestedSessionState = this.extractProviderSessionState(
-			options.providerOptions,
-		);
-		const providerSessionId = requestedProviderSessionId ?? crypto.randomUUID();
-		const stream = this.createStream(
-			options,
-			providerSessionId,
-			requestedProviderSessionId !== undefined,
-			requestedSessionState,
-		);
+		const chatId = this.extractChatId(options.providerOptions);
+		const toolResults = this.extractToolResults(options.prompt);
+		const stream = this.createStream(options, chatId, toolResults);
 
 		return {
 			stream,
 			request: undefined,
 			response: {
 				headers: {
-					"x-giselle-session-id": providerSessionId,
+					"x-giselle-session-id": chatId,
 				},
 			},
 		};
@@ -158,67 +137,48 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 	private createStream(
 		options: LanguageModelV3CallOptions,
-		providerSessionId: string,
-		isResume: boolean,
-		sessionState: GiselleSessionState | undefined,
+		chatId: string,
+		toolResults: Array<{
+			toolName: string;
+			toolCallId: string;
+			output: unknown;
+		}>,
 	): ReadableStream<LanguageModelV3StreamPart> {
 		return new ReadableStream<LanguageModelV3StreamPart>({
 			start: (controller) => {
 				void this.runStream({
 					options,
-					providerSessionId,
-					isResume,
-					sessionState,
+					chatId,
+					toolResults,
 					controller,
 				});
-			},
-			cancel: () => {
-				void removeLiveConnection(providerSessionId);
 			},
 		});
 	}
 
 	private async runStream(input: {
 		options: LanguageModelV3CallOptions;
-		providerSessionId: string;
-		isResume: boolean;
-		sessionState?: GiselleSessionState;
+		chatId: string;
+		toolResults: Array<{
+			toolName: string;
+			toolCallId: string;
+			output: unknown;
+		}>;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 	}): Promise<void> {
 		try {
 			input.controller.enqueue({
 				type: "response-metadata",
-				id: input.providerSessionId,
+				id: input.chatId,
 			});
 
-			// `useChat` always sends a chat `id`. Treating every request that includes
-			// an id as a resume causes false-positive resume attempts on first turns.
-			// We only resume when the *last* message contains tool results — i.e. this
-			// request is a direct continuation of a paused tool call. Checking all
-			// messages would false-positive on follow-up user messages in conversations
-			// that previously used tools (the old session is already deleted by then).
-			const lastMessage = input.options.prompt[input.options.prompt.length - 1];
-			const lastMessageHasToolResults =
-				lastMessage?.role === "tool" &&
-				lastMessage.content.some((part) => part.type === "tool-result");
-
-			console.log(
-				"[giselle-provider] runStream: providerSessionId=%s, isResume=%s, lastRole=%s, hasToolResults=%s, promptLength=%d",
-				input.providerSessionId,
-				input.isResume,
-				lastMessage?.role,
-				lastMessageHasToolResults,
-				input.options.prompt.length,
-			);
-
-			if (input.isResume && lastMessageHasToolResults) {
-				await this.resumeStream(input);
-				return;
-			}
-
-			await this.startNewSessionStream({
-				...input,
-				isFollowUp: input.isResume,
+			const connection = await this.connectCloudApi(input.options, {
+				chatId: input.chatId,
+				toolResults: input.toolResults,
+			});
+			await this.consumeNdjsonStream({
+				controller: input.controller,
+				connection,
 			});
 		} catch (error) {
 			try {
@@ -229,6 +189,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			} catch {
 				// ignore
 			}
+
 			try {
 				input.controller.close();
 			} catch {
@@ -237,253 +198,41 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		}
 	}
 
-	private async startNewSessionStream(input: {
-		options: LanguageModelV3CallOptions;
-		providerSessionId: string;
-		isFollowUp?: boolean;
-		sessionState?: GiselleSessionState;
-		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
-	}): Promise<void> {
-		let resumeData: { sessionId?: string; sandboxId?: string } | undefined;
-
-		if (input.isFollowUp && input.sessionState) {
-			console.log(
-				"[giselle-provider] follow-up: existing session =",
-				JSON.stringify(input.sessionState),
-			);
-			resumeData = {
-				sessionId: input.sessionState.geminiSessionId,
-				sandboxId: input.sessionState.sandboxId,
-			};
-		}
-
-		console.log(
-			"[giselle-provider] startNewSessionStream: isFollowUp=%s, resumeData=%s",
-			!!input.isFollowUp,
-			JSON.stringify(resumeData),
-		);
-
-		try {
-			const connection = await this.connectCloudApi(input.options, resumeData);
-			await this.consumeNdjsonStream({
-				providerSessionId: input.providerSessionId,
-				controller: input.controller,
-				connection,
-				sessionState: input.sessionState,
-			});
-		} catch (error) {
-			await removeLiveConnection(input.providerSessionId).catch(
-				() => undefined,
-			);
-			throw error;
-		}
-	}
-
-	private async resumeStream(input: {
-		options: LanguageModelV3CallOptions;
-		providerSessionId: string;
-		sessionState?: GiselleSessionState;
-		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
-	}): Promise<void> {
-		const sessionState = input.sessionState;
-
-		if (!sessionState?.pendingRequestId) {
-			// No pending tool-call to resume — the previous stream already
-			// finished normally. Fall through to a follow-up session instead
-			// of throwing, because `sendAutomaticallyWhen` may fire an extra
-			// round-trip after the final tool result has already been delivered.
-			await this.startNewSessionStream({
-				...input,
-				isFollowUp: true,
-			});
-			return;
-		}
-
-		if (
-			!sessionState.relaySessionId ||
-			!sessionState.relayToken ||
-			!sessionState.relayUrl
-		) {
-			throw new Error(
-				`Session ${input.providerSessionId} is missing relay credentials.`,
-			);
-		}
-
-		const pendingResult = this.findPendingToolResult(
-			input.options.prompt,
-			sessionState.pendingRequestId,
-		);
-		if (!pendingResult) {
-			throw new Error(
-				`Missing tool result for pending request: ${sessionState.pendingRequestId}`,
-			);
-		}
-
-		await this.deps.sendRelayResponse({
-			relayUrl: sessionState.relayUrl,
-			sessionId: sessionState.relaySessionId,
-			token: sessionState.relayToken,
-			response: this.toolResultToRelayResponse(
-				pendingResult.toolName,
-				pendingResult.toolCallId,
-				pendingResult.output,
-			),
-		});
-
-		const resumedSessionState = mergeGiselleSessionStates(sessionState, {
-			pendingRequestId: null,
-		});
-		if (resumedSessionState) {
-			input.controller.enqueue({
-				type: "raw",
-				rawValue: createGiselleSessionStateRawValue(resumedSessionState),
-			});
-		}
-
-		const hotConnection = getLiveConnection(input.providerSessionId);
-		if (hotConnection) {
-			await this.consumeNdjsonStream({
-				providerSessionId: input.providerSessionId,
-				controller: input.controller,
-				connection: hotConnection,
-				sessionState: resumedSessionState,
-			});
-			return;
-		}
-
-		const coldConnection = await this.connectCloudApi(input.options, {
-			sessionId: sessionState.geminiSessionId,
-			sandboxId: sessionState.sandboxId,
-		});
-		await this.consumeNdjsonStream({
-			providerSessionId: input.providerSessionId,
-			controller: input.controller,
-			connection: coldConnection,
-			sessionState: resumedSessionState,
-		});
-	}
-
 	private async consumeNdjsonStream(input: {
-		providerSessionId: string;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
-		connection: LiveConnection;
-		sessionState?: GiselleSessionState;
+		connection: CloudConnection;
 	}): Promise<void> {
 		const context = createMapperContext();
-		context.textBlockOpen = input.connection.textBlockOpen;
-		const sessionStateRef: { current?: GiselleSessionState } = {
-			current: input.sessionState,
-		};
-
 		const decoder = new TextDecoder();
-		let pausedForTool = false;
-		let relayWatcherError: Error | null = null;
-		let relayWatcherStarted = false;
-		let relayWatcher: Promise<void> | null = null;
-
-		const startRelayWatcher = () => {
-			if (relayWatcherStarted || !input.connection.relaySubscription) {
-				return;
-			}
-
-			relayWatcherStarted = true;
-			relayWatcher = (async () => {
-				while (!pausedForTool && input.connection.relaySubscription) {
-					const relayEvent =
-						await input.connection.relaySubscription.nextRequest();
-					if (pausedForTool) {
-						return;
-					}
-
-					const paused = await this.processRelayRequest({
-						providerSessionId: input.providerSessionId,
-						controller: input.controller,
-						connection: input.connection,
-						context,
-						event: relayEvent,
-						sessionStateRef,
-					});
-					if (!paused) {
-						continue;
-					}
-
-					pausedForTool = true;
-					await input.connection.relaySubscription
-						.close()
-						.catch(() => undefined);
-					input.connection.relaySubscription = null;
-					await input.connection.reader.cancel().catch(() => undefined);
-					try {
-						input.connection.reader.releaseLock();
-					} catch {
-						// ignore
-					}
-					return;
-				}
-			})().catch((error) => {
-				relayWatcherError = new Error(
-					`Relay subscription failed: ${toStringError(error)}`,
-				);
-			});
-		};
+		let buffer = "";
 
 		try {
 			while (true) {
-				startRelayWatcher();
-				if (relayWatcherError) {
-					throw relayWatcherError;
-				}
-
 				const { done, value } = await input.connection.reader.read();
 				if (done) {
 					break;
 				}
 
-				input.connection.buffer += decoder.decode(value, { stream: true });
-				const parsed = extractJsonObjects(input.connection.buffer);
-				input.connection.buffer = parsed.rest;
+				buffer += decoder.decode(value, { stream: true });
+				const parsed = extractJsonObjects(buffer);
+				buffer = parsed.rest;
 
 				for (const objectText of parsed.objects) {
-					const paused = await this.processNdjsonObject({
-						providerSessionId: input.providerSessionId,
+					await this.processNdjsonObject({
 						controller: input.controller,
-						connection: input.connection,
 						context,
 						objectText,
-						sessionStateRef,
 					});
-					startRelayWatcher();
-					if (relayWatcherError) {
-						throw relayWatcherError;
-					}
-					if (paused) {
-						pausedForTool = true;
-						return;
-					}
 				}
 			}
 
-			if (pausedForTool) {
-				return;
-			}
-
-			const trailingBuffer = input.connection.buffer.trim();
+			const trailingBuffer = buffer.trim();
 			if (trailingBuffer.length > 0) {
-				const paused = await this.processNdjsonObject({
-					providerSessionId: input.providerSessionId,
+				await this.processNdjsonObject({
 					controller: input.controller,
-					connection: input.connection,
 					context,
 					objectText: trailingBuffer,
-					sessionStateRef,
 				});
-				if (paused) {
-					pausedForTool = true;
-					return;
-				}
-			}
-			if (pausedForTool) {
-				return;
 			}
 
 			const finishParts = finishStream(context);
@@ -491,188 +240,60 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				input.controller.enqueue(part);
 			}
 
-			await input.connection.relaySubscription?.close().catch(() => undefined);
-			input.connection.relaySubscription = null;
-
-			const clearedSessionState = mergeGiselleSessionStates(
-				sessionStateRef.current,
-				{
-					pendingRequestId: null,
-				},
-			);
-			if (
-				clearedSessionState &&
-				sessionStateRef.current?.pendingRequestId !==
-					clearedSessionState.pendingRequestId
-			) {
-				sessionStateRef.current = clearedSessionState;
-				input.controller.enqueue({
-					type: "raw",
-					rawValue: createGiselleSessionStateRawValue(clearedSessionState),
-				});
-			}
-
-			console.log(
-				"[giselle-provider] stream finished, keeping session for follow-ups: %s",
-				input.providerSessionId,
-			);
-
 			input.controller.close();
 		} catch (error) {
-			if (pausedForTool) {
-				return;
-			}
-
-			input.connection.textBlockOpen = context.textBlockOpen;
-			await input.connection.relaySubscription?.close().catch(() => undefined);
-			input.connection.relaySubscription = null;
-			await removeLiveConnection(input.providerSessionId).catch(
-				() => undefined,
-			);
 			throw new Error(
 				`Failed to process NDJSON stream: ${toStringError(error)}`,
 			);
 		} finally {
-			if (relayWatcher) {
-				await relayWatcher.catch(() => undefined);
-			}
-
-			if (!pausedForTool) {
-				await removeLiveConnection(input.providerSessionId).catch(
-					() => undefined,
-				);
-				try {
-					input.connection.reader.releaseLock();
-				} catch {
-					// ignore
-				}
+			await input.connection.reader.cancel().catch(() => undefined);
+			try {
+				input.connection.reader.releaseLock();
+			} catch {
+				// ignore
 			}
 		}
 	}
 
 	private async processNdjsonObject(input: {
-		providerSessionId: string;
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
-		connection: LiveConnection;
 		context: ReturnType<typeof createMapperContext>;
 		objectText: string;
-		sessionStateRef: { current?: GiselleSessionState };
-	}): Promise<boolean> {
+	}): Promise<void> {
 		let event: Record<string, unknown>;
 		try {
 			event = JSON.parse(input.objectText) as Record<string, unknown>;
 		} catch {
-			return false;
+			return;
 		}
 
 		console.log("[giselle-provider] NDJSON event:", JSON.stringify(event));
 
 		const mapped = mapNdjsonEvent(event, input.context);
-		if (mapped.sessionUpdate) {
-			input.sessionStateRef.current = mergeGiselleSessionStates(
-				input.sessionStateRef.current,
-				mapped.sessionUpdate,
-			);
-			if (input.sessionStateRef.current) {
-				input.controller.enqueue({
-					type: "raw",
-					rawValue: createGiselleSessionStateRawValue(
-						input.sessionStateRef.current,
-					),
-				});
-			}
-
-			if (
-				!input.connection.relaySubscription &&
-				typeof mapped.sessionUpdate.relaySessionId === "string" &&
-				typeof mapped.sessionUpdate.relayToken === "string" &&
-				typeof mapped.sessionUpdate.relayUrl === "string"
-			) {
-				input.connection.relaySubscription = this.deps.createRelaySubscription({
-					sessionId: mapped.sessionUpdate.relaySessionId,
-					token: mapped.sessionUpdate.relayToken,
-					relayUrl: mapped.sessionUpdate.relayUrl,
-				});
-			}
-		}
-
 		for (const part of mapped.parts) {
 			input.controller.enqueue(part);
 		}
-
-		if (!mapped.relayRequest) {
-			return false;
-		}
-
-		input.connection.textBlockOpen = input.context.textBlockOpen;
-		saveLiveConnection(input.providerSessionId, input.connection);
-		input.controller.close();
-		return true;
-	}
-
-	private async processRelayRequest(input: {
-		providerSessionId: string;
-		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
-		connection: LiveConnection;
-		context: ReturnType<typeof createMapperContext>;
-		event: Record<string, unknown>;
-		sessionStateRef: { current?: GiselleSessionState };
-	}): Promise<boolean> {
-		const mapped = mapNdjsonEvent(input.event, input.context);
-		if (mapped.sessionUpdate) {
-			input.sessionStateRef.current = mergeGiselleSessionStates(
-				input.sessionStateRef.current,
-				mapped.sessionUpdate,
-			);
-			if (input.sessionStateRef.current) {
-				input.controller.enqueue({
-					type: "raw",
-					rawValue: createGiselleSessionStateRawValue(
-						input.sessionStateRef.current,
-					),
-				});
-			}
-		}
-
-		for (const part of mapped.parts) {
-			input.controller.enqueue(part);
-		}
-
-		if (!mapped.relayRequest) {
-			return false;
-		}
-
-		input.connection.textBlockOpen = input.context.textBlockOpen;
-		input.controller.close();
-		return true;
 	}
 
 	private async connectCloudApi(
 		options: LanguageModelV3CallOptions,
-		resumeData?: {
-			sessionId?: string;
-			sandboxId?: string;
+		params: {
+			chatId: string;
+			toolResults?: ExtractedToolResult[];
 		},
-	): Promise<LiveConnection> {
-		const response = await this.deps.connectCloudApi({
+	): Promise<CloudConnection> {
+		return this.deps.connectCloudApi({
 			endpoint: buildCloudEndpoint(
 				this.options.baseUrl ?? "https://studio.giselles.ai/agent-api/run",
 			),
+			chatId: params.chatId,
 			message: this.extractUserMessage(options.prompt),
-			sessionId: resumeData?.sessionId,
-			sandboxId: resumeData?.sandboxId,
+			toolResults: params.toolResults,
 			agentType: this.options.agent.agentType ?? this.options.agent.type,
 			snapshotId: this.options.agent.snapshotId,
 			headers: this.mergeCloudHeaders(options.headers),
 			signal: options.abortSignal,
 		});
-
-		return {
-			reader: response.reader,
-			buffer: "",
-			relaySubscription: null,
-			textBlockOpen: false,
-		};
 	}
 
 	private mergeCloudHeaders(
@@ -701,16 +322,21 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		return headers;
 	}
 
-	private extractProviderSessionId(
+	private extractChatId(
 		providerOptions: LanguageModelV3CallOptions["providerOptions"],
-	): string | undefined {
-		return getGiselleSessionIdFromProviderOptions(providerOptions);
-	}
+	): string {
+		if (!providerOptions || typeof providerOptions !== "object") {
+			return crypto.randomUUID();
+		}
 
-	private extractProviderSessionState(
-		providerOptions: LanguageModelV3CallOptions["providerOptions"],
-	): GiselleSessionState | undefined {
-		return getGiselleSessionStateFromProviderOptions(providerOptions);
+		const typedProviderOptions = providerOptions as {
+			giselle?: { sessionId?: unknown };
+		};
+
+		return (
+			asNonEmptyString(typedProviderOptions.giselle?.sessionId) ??
+			crypto.randomUUID()
+		);
 	}
 
 	private extractUserMessage(prompt: LanguageModelV3Prompt): string {
@@ -765,15 +391,6 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		return results;
 	}
 
-	private findPendingToolResult(
-		prompt: LanguageModelV3Prompt,
-		pendingRequestId: string,
-	): ExtractedToolResult | undefined {
-		return this.extractToolResults(prompt).find(
-			(result) => result.toolCallId === pendingRequestId,
-		);
-	}
-
 	private toolResultOutputToUnknown(
 		output: LanguageModelV3ToolResultOutput,
 	): unknown {
@@ -792,33 +409,5 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			case "content":
 				return output.value;
 		}
-	}
-
-	private toolResultToRelayResponse(
-		toolName: string,
-		toolCallId: string,
-		result: unknown,
-	): Record<string, unknown> {
-		if (toolName === "getFormSnapshot") {
-			return {
-				type: "snapshot_response",
-				requestId: toolCallId,
-				fields: pickObjectField(result, "fields") ?? result,
-			};
-		}
-
-		if (toolName === "executeFormActions") {
-			return {
-				type: "execute_response",
-				requestId: toolCallId,
-				report: pickObjectField(result, "report") ?? result,
-			};
-		}
-
-		return {
-			type: "error_response",
-			requestId: toolCallId,
-			message: `Unknown tool: ${toolName}`,
-		};
 	}
 }

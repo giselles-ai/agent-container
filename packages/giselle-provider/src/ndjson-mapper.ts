@@ -1,5 +1,4 @@
 import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
-import type { SessionMetadata } from "./types";
 
 type CloudApiEvent = {
 	type?: string;
@@ -15,7 +14,7 @@ export type NdjsonMapperContext = {
 
 export type MapResult = {
 	parts: LanguageModelV3StreamPart[];
-	sessionUpdate?: Partial<SessionMetadata>;
+	sessionUpdate?: Record<string, unknown>;
 	relayRequest?: Record<string, unknown>;
 };
 

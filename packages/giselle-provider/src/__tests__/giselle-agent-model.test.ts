@@ -3,30 +3,22 @@ import type {
 	LanguageModelV3Prompt,
 	LanguageModelV3StreamPart,
 } from "@ai-sdk/provider";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GiselleAgentModel } from "../giselle-agent-model";
-import { getLiveConnection } from "../session-manager";
-import { getGiselleSessionStateFromRawValue } from "../session-state";
-import type { GiselleSessionState, RelaySubscription } from "../types";
 
 function createCallOptions(input: {
 	prompt: LanguageModelV3Prompt;
 	sessionId?: string;
-	sessionState?: GiselleSessionState;
 }): LanguageModelV3CallOptions {
 	return {
 		prompt: input.prompt,
-		providerOptions:
-			input.sessionId || input.sessionState
-				? {
-						giselle: {
-							...(input.sessionId ? { sessionId: input.sessionId } : {}),
-							...(input.sessionState
-								? { sessionState: input.sessionState }
-								: {}),
-						},
-					}
-				: undefined,
+		providerOptions: input.sessionId
+			? {
+					giselle: {
+						sessionId: input.sessionId,
+					},
+				}
+			: undefined,
 	};
 }
 
@@ -41,7 +33,6 @@ function createPromptWithUser(text: string): LanguageModelV3Prompt {
 
 function createNdjsonReader(events: Array<Record<string, unknown>>): {
 	reader: ReadableStreamDefaultReader<Uint8Array>;
-	cancel: ReturnType<typeof vi.fn>;
 	releaseLock: ReturnType<typeof vi.fn>;
 } {
 	const encoder = new TextEncoder();
@@ -49,7 +40,6 @@ function createNdjsonReader(events: Array<Record<string, unknown>>): {
 		encoder.encode(`${JSON.stringify(event)}\n`),
 	);
 	let index = 0;
-	const cancel = vi.fn(async () => undefined);
 	const releaseLock = vi.fn(() => undefined);
 
 	return {
@@ -69,38 +59,10 @@ function createNdjsonReader(events: Array<Record<string, unknown>>): {
 					value,
 				};
 			},
-			cancel,
+			cancel: async () => undefined,
 			releaseLock,
 		} as unknown as ReadableStreamDefaultReader<Uint8Array>,
-		cancel,
 		releaseLock,
-	};
-}
-
-function createRelaySubscriptionMock(): {
-	subscription: RelaySubscription;
-	nextRequest: ReturnType<typeof vi.fn>;
-	close: ReturnType<typeof vi.fn>;
-} {
-	let rejectWaiter: ((error: Error) => void) | null = null;
-	const nextRequest = vi.fn(
-		() =>
-			new Promise<Record<string, unknown>>((_, reject) => {
-				rejectWaiter = reject;
-			}),
-	);
-	const close = vi.fn(async () => {
-		rejectWaiter?.(new Error("closed"));
-		rejectWaiter = null;
-	});
-
-	return {
-		subscription: {
-			nextRequest,
-			close,
-		},
-		nextRequest,
-		close,
 	};
 }
 
@@ -123,195 +85,168 @@ async function readAllParts(
 	} catch {
 		// ignore
 	}
+
 	return parts;
 }
 
-function extractSessionStates(
-	parts: LanguageModelV3StreamPart[],
-): GiselleSessionState[] {
-	return parts.flatMap((part) => {
-		if (part.type !== "raw") {
-			return [];
-		}
-
-		const sessionState = getGiselleSessionStateFromRawValue(part.rawValue);
-		return sessionState ? [sessionState] : [];
-	});
-}
-
-function createAgent(
-	type: "gemini" | "codex" = "gemini",
-	snapshotId = "snap_default",
-): { agentType: "gemini" | "codex"; snapshotId: string } {
-	return {
-		agentType: type,
-		snapshotId,
-	};
-}
-
 describe("GiselleAgentModel", () => {
-	beforeEach(() => {
-		delete globalThis.__giselleProviderSessions;
-	});
-
-	it("streams a text session and emits session state updates", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "gem-1" },
-			{ type: "message", role: "assistant", content: "Hello ", delta: true },
-			{ type: "message", role: "assistant", content: "world!", delta: true },
-		]);
+	function createProvider() {
 		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
+			reader: createNdjsonReader([
+				{ type: "message", role: "assistant", content: "Done!", delta: true },
+			]).reader,
 			response: new Response(null, { status: 200 }),
 		}));
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_default_1"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(),
+			agent: {
+				agentType: "gemini",
+				snapshotId: "snap_default",
 			},
+			deps: { connectCloudApi },
 		});
+
+		return { connectCloudApi, model };
+	}
+
+	it("posts chat_id and tool_results to Cloud", async () => {
+		const { connectCloudApi, model } = createProvider();
 
 		const result = await model.doStream(
 			createCallOptions({
-				prompt: createPromptWithUser("Fill login form"),
+				sessionId: "chat-1",
+				prompt: [
+					...createPromptWithUser("Capture form"),
+					{
+						role: "tool",
+						content: [
+							{
+								type: "tool-result",
+								toolName: "getFormSnapshot",
+								toolCallId: "tool-result-1",
+								output: {
+									type: "json",
+									value: {
+										fields: [{ name: "email" }],
+									},
+								},
+							},
+						],
+					},
+				],
 			}),
 		);
-		const providerSessionId =
-			result.response?.headers?.["x-giselle-session-id"];
 		const parts = await readAllParts(result.stream);
-		const sessionStates = extractSessionStates(parts);
 
-		expect(providerSessionId).toEqual(expect.any(String));
-		expect(parts.some((part) => part.type === "text-start")).toBe(true);
-		expect(
-			parts.some(
-				(part) => part.type === "text-delta" && part.delta === "Hello ",
-			),
-		).toBe(true);
-		expect(
-			parts.some(
-				(part) => part.type === "text-delta" && part.delta === "world!",
-			),
-		).toBe(true);
-		expect(
-			parts.some(
-				(part) =>
-					part.type === "finish" && part.finishReason.unified === "stop",
-			),
-		).toBe(true);
-		expect(sessionStates.at(-1)).toMatchObject({
-			geminiSessionId: "gem-1",
-			pendingRequestId: null,
-		});
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
 				endpoint: "https://studio.giselles.ai",
-				message: "Fill login form",
+				chatId: "chat-1",
+				message: "Capture form",
 				agentType: "gemini",
-				snapshotId: "snap_default_1",
+				snapshotId: "snap_default",
+				toolResults: [
+					{
+						toolName: "getFormSnapshot",
+						toolCallId: "tool-result-1",
+						output: { fields: [{ name: "email" }] },
+					},
+				],
 			}),
 		);
-		expect(getLiveConnection(providerSessionId as string)).toBeUndefined();
+
+		expect(parts.some((part) => part.type === "text-delta")).toBe(true);
+		expect(
+			parts.some(
+				(part) => part.type === "response-metadata" && part.id === "chat-1",
+			),
+		).toBe(true);
 	});
 
-	it("uses round-tripped session state for follow-up requests", async () => {
-		const cloudReader = createNdjsonReader([
-			{
-				type: "message",
-				role: "assistant",
-				content: "Follow-up",
-				delta: false,
-			},
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("codex", "snap_follow_up"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(),
-			},
-		});
+	it("does not require round-tripped sessionState for follow-up user messages", async () => {
+		const { connectCloudApi, model } = createProvider();
 
 		await readAllParts(
 			(
 				await model.doStream(
 					createCallOptions({
-						sessionId: "provider-follow-up",
-						sessionState: {
-							geminiSessionId: "gem-follow-up",
-							sandboxId: "sandbox-follow-up",
-						},
-						prompt: createPromptWithUser("Continue"),
+						sessionId: "chat-1",
+						prompt: createPromptWithUser("First message"),
+					}),
+				)
+			).stream,
+		);
+		await readAllParts(
+			(
+				await model.doStream(
+					createCallOptions({
+						sessionId: "chat-1",
+						prompt: createPromptWithUser("Second message"),
 					}),
 				)
 			).stream,
 		);
 
-		expect(connectCloudApi).toHaveBeenCalledWith(
+		expect(connectCloudApi).toHaveBeenCalledTimes(2);
+		expect(connectCloudApi).toHaveBeenNthCalledWith(
+			2,
 			expect.objectContaining({
-				sessionId: "gem-follow-up",
-				sandboxId: "sandbox-follow-up",
-				agentType: "codex",
-				snapshotId: "snap_follow_up",
+				chatId: "chat-1",
+				message: "Second message",
+				toolResults: [],
 			}),
 		);
 	});
 
-	it("pauses on tool calls and keeps an in-memory live connection", async () => {
-		const relaySubscription = createRelaySubscriptionMock();
-		const cloudReader = createNdjsonReader([
-			{ type: "init", session_id: "gem-2" },
-			{
-				type: "relay.session",
-				sessionId: "relay-1",
-				token: "relay-token-1",
-				relayUrl: "https://relay.example",
-			},
-			{
-				type: "snapshot_request",
-				requestId: "req-1",
-				instruction: "Capture fields",
-			},
-		]);
+	it("streams snapshot_request and execute_request as tool calls without provider relay logic", async () => {
 		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
+			reader: createNdjsonReader([
+				{
+					type: "snapshot_request",
+					requestId: "snapshot-1",
+					instruction: "Capture fields",
+				},
+				{
+					type: "execute_request",
+					requestId: "execute-1",
+					report: { applied: 1 },
+				},
+			]).reader,
 			response: new Response(null, { status: 200 }),
 		}));
 
 		const model = new GiselleAgentModel({
 			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_tool_pause"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse: vi.fn(async () => undefined),
-				createRelaySubscription: vi.fn(() => relaySubscription.subscription),
+			agent: {
+				agentType: "gemini",
+				snapshotId: "snap_tools",
 			},
+			deps: { connectCloudApi },
 		});
 
 		const result = await model.doStream(
 			createCallOptions({
-				prompt: createPromptWithUser("Fill login form"),
+				sessionId: "chat-tools",
+				prompt: createPromptWithUser("Run tool"),
 			}),
 		);
-		const providerSessionId = result.response?.headers?.[
-			"x-giselle-session-id"
-		] as string;
 		const parts = await readAllParts(result.stream);
-		const sessionStates = extractSessionStates(parts);
 
 		expect(
 			parts.some(
-				(part) => part.type === "tool-call" && part.toolCallId === "req-1",
+				(part) =>
+					part.type === "tool-call" &&
+					part.toolCallId === "snapshot-1" &&
+					part.toolName === "getFormSnapshot",
+			),
+		).toBe(true);
+		expect(
+			parts.some(
+				(part) =>
+					part.type === "tool-call" &&
+					part.toolCallId === "execute-1" &&
+					part.toolName === "executeFormActions",
 			),
 		).toBe(true);
 		expect(
@@ -320,249 +255,27 @@ describe("GiselleAgentModel", () => {
 					part.type === "finish" && part.finishReason.unified === "tool-calls",
 			),
 		).toBe(true);
-		expect(sessionStates.at(-1)).toMatchObject({
-			geminiSessionId: "gem-2",
-			relaySessionId: "relay-1",
-			relayToken: "relay-token-1",
-			relayUrl: "https://relay.example",
-			pendingRequestId: "req-1",
-		});
-		expect(getLiveConnection(providerSessionId)).toBeDefined();
 	});
 
-	it("resumes via hot path using the client round-tripped session state", async () => {
-		const relaySubscription = createRelaySubscriptionMock();
-		const sharedReader = createNdjsonReader([
-			{ type: "init", session_id: "gem-hot" },
-			{
-				type: "relay.session",
-				sessionId: "relay-hot",
-				token: "relay-hot-token",
-				relayUrl: "https://relay.example",
-			},
-			{
-				type: "snapshot_request",
-				requestId: "req-hot",
-				instruction: "Capture fields",
-			},
-			{ type: "message", role: "assistant", content: "Done!", delta: true },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: sharedReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-		const sendRelayResponse = vi.fn(async () => undefined);
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_hot"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse,
-				createRelaySubscription: vi.fn(() => relaySubscription.subscription),
-			},
-		});
-
-		const firstResult = await model.doStream(
-			createCallOptions({
-				prompt: createPromptWithUser("Fill login form"),
-			}),
-		);
-		const providerSessionId = firstResult.response?.headers?.[
-			"x-giselle-session-id"
-		] as string;
-		const firstParts = await readAllParts(firstResult.stream);
-		const sessionState = extractSessionStates(firstParts).at(-1);
-
-		expect(sessionState).toBeDefined();
-		expect(getLiveConnection(providerSessionId)).toBeDefined();
-
-		const secondResult = await model.doStream(
-			createCallOptions({
-				sessionId: providerSessionId,
-				sessionState,
-				prompt: [
-					...createPromptWithUser("Fill login form"),
-					{
-						role: "tool",
-						content: [
-							{
-								type: "tool-result",
-								toolName: "getFormSnapshot",
-								toolCallId: "req-hot",
-								output: {
-									type: "json",
-									value: {
-										fields: [{ fieldId: "email" }],
-									},
-								},
-							},
-						],
-					},
-				],
-			}),
-		);
-		const secondParts = await readAllParts(secondResult.stream);
-		const secondSessionStates = extractSessionStates(secondParts);
-
-		expect(connectCloudApi).toHaveBeenCalledTimes(1);
-		expect(sendRelayResponse).toHaveBeenCalledWith(
-			expect.objectContaining({
-				response: {
-					type: "snapshot_response",
-					requestId: "req-hot",
-					fields: [{ fieldId: "email" }],
-				},
-			}),
-		);
-		expect(
-			secondParts.some(
-				(part) => part.type === "text-delta" && part.delta === "Done!",
-			),
-		).toBe(true);
-		expect(secondSessionStates[0]).toMatchObject({
-			pendingRequestId: null,
-		});
-		expect(getLiveConnection(providerSessionId)).toBeUndefined();
-	});
-
-	it("resumes via cold path when only client session state remains", async () => {
-		const cloudReader = createNdjsonReader([
-			{ type: "message", role: "assistant", content: "Completed", delta: true },
-		]);
-		const connectCloudApi = vi.fn(async () => ({
-			reader: cloudReader.reader,
-			response: new Response(null, { status: 200 }),
-		}));
-		const sendRelayResponse = vi.fn(async () => undefined);
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_cold"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse,
-				createRelaySubscription: vi.fn(),
-			},
-		});
-
-		const sessionState: GiselleSessionState = {
-			geminiSessionId: "gem-cold",
-			sandboxId: "sandbox-cold",
-			relaySessionId: "relay-cold",
-			relayToken: "relay-cold-token",
-			relayUrl: "https://relay.example",
-			pendingRequestId: "req-cold",
-		};
+	it("does not emit raw session-state parts", async () => {
+		const { connectCloudApi, model } = createProvider();
 
 		const result = await model.doStream(
 			createCallOptions({
-				sessionId: "provider-cold",
-				sessionState,
-				prompt: [
-					...createPromptWithUser("Fill login form"),
-					{
-						role: "tool",
-						content: [
-							{
-								type: "tool-result",
-								toolName: "executeFormActions",
-								toolCallId: "req-cold",
-								output: {
-									type: "json",
-									value: {
-										report: {
-											applied: 1,
-											skipped: 0,
-											warnings: [],
-										},
-									},
-								},
-							},
-						],
-					},
-				],
+				sessionId: "chat-no-state",
+				prompt: createPromptWithUser("Simple follow-up"),
 			}),
 		);
 		const parts = await readAllParts(result.stream);
 
-		expect(sendRelayResponse).toHaveBeenCalledWith(
-			expect.objectContaining({
-				response: {
-					type: "execute_response",
-					requestId: "req-cold",
-					report: {
-						applied: 1,
-						skipped: 0,
-						warnings: [],
-					},
-				},
-			}),
-		);
-		expect(connectCloudApi).toHaveBeenCalledWith(
-			expect.objectContaining({
-				sessionId: "gem-cold",
-				sandboxId: "sandbox-cold",
-			}),
-		);
 		expect(
 			parts.some(
 				(part) =>
-					part.type === "finish" && part.finishReason.unified === "stop",
+					part.type === "raw" &&
+					part.rawValue &&
+					typeof part.rawValue === "object",
 			),
-		).toBe(true);
-	});
-
-	it("emits an error when the pending tool result does not match session state", async () => {
-		const connectCloudApi = vi.fn(async () => {
-			throw new Error("should not connect");
-		});
-		const sendRelayResponse = vi.fn(async () => undefined);
-
-		const model = new GiselleAgentModel({
-			baseUrl: "https://studio.giselles.ai",
-			agent: createAgent("gemini", "snap_error"),
-			deps: {
-				connectCloudApi,
-				sendRelayResponse,
-				createRelaySubscription: vi.fn(),
-			},
-		});
-
-		const result = await model.doStream(
-			createCallOptions({
-				sessionId: "provider-mismatch",
-				sessionState: {
-					relaySessionId: "relay-mismatch",
-					relayToken: "relay-token",
-					relayUrl: "https://relay.example",
-					pendingRequestId: "req-expected",
-				},
-				prompt: [
-					...createPromptWithUser("Fill login form"),
-					{
-						role: "tool",
-						content: [
-							{
-								type: "tool-result",
-								toolName: "getFormSnapshot",
-								toolCallId: "req-other",
-								output: {
-									type: "json",
-									value: {
-										fields: [],
-									},
-								},
-							},
-						],
-					},
-				],
-			}),
-		);
-		const parts = await readAllParts(result.stream);
-
-		expect(sendRelayResponse).not.toHaveBeenCalled();
-		expect(connectCloudApi).not.toHaveBeenCalled();
-		expect(parts.some((part) => part.type === "error")).toBe(true);
+		).toBe(false);
+		expect(connectCloudApi).toHaveBeenCalledTimes(1);
 	});
 });

@@ -146,7 +146,7 @@ flowchart TD
 | 1 | [phase-1-runtime-session-coordinator.md](./phase-1-runtime-session-coordinator.md) | ✅ DONE | Add `runCloudChat()` and persist state updates around `runChat()` |
 | 2 | [phase-2-runtime-relay-resume.md](./phase-2-runtime-relay-resume.md) | 🔲 TODO | Move relay subscription, pending tool state, and tool-result resume into runtime |
 | 3 | [phase-3-cloud-consumer-adoption.md](./phase-3-cloud-consumer-adoption.md) | 🔲 TODO | Wire the hosted `agent-api/run` route to `runCloudChat()` with a Redis adapter |
-| 4 | [phase-4-provider-cleanup.md](./phase-4-provider-cleanup.md) | 🔲 TODO | Remove provider-owned session state and simplify demo transports/routes |
+| 4 | [phase-4-provider-cleanup.md](./phase-4-provider-cleanup.md) | ✅ DONE | Remove provider-owned session state and simplify demo transports/routes |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies

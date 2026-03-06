@@ -1,16 +1,18 @@
-import type { GiselleSessionState } from "./session-state";
-
-export type { GiselleSessionState } from "./session-state";
-
 /**
  * Parameters for connecting to the Giselle Cloud API.
  */
+export type CloudToolResult = {
+	toolCallId: string;
+	toolName: string;
+	output: unknown;
+};
+
 export type ConnectCloudApiParams = {
 	endpoint: string;
+	chatId: string;
 	message: string;
 	document?: string;
-	sessionId?: string;
-	sandboxId?: string;
+	toolResults?: CloudToolResult[];
 	agentType?: string;
 	snapshotId?: string;
 	headers?: Record<string, string>;
@@ -26,46 +28,12 @@ export type ConnectCloudApiResult = {
 };
 
 /**
- * A live relay subscription that receives relay requests from the hosted relay.
- */
-export type RelaySubscription = {
-	nextRequest: () => Promise<Record<string, unknown>>;
-	close: () => Promise<void>;
-};
-
-/**
  * Dependency Injection interface for the Giselle provider.
  */
 export type GiselleProviderDeps = {
 	connectCloudApi: (
 		params: ConnectCloudApiParams,
 	) => Promise<ConnectCloudApiResult>;
-	createRelaySubscription: (params: {
-		sessionId: string;
-		token: string;
-		relayUrl: string;
-	}) => RelaySubscription;
-	sendRelayResponse: (params: {
-		relayUrl: string;
-		sessionId: string;
-		token: string;
-		response: Record<string, unknown>;
-	}) => Promise<void>;
-};
-
-/**
- * Session state required to resume Giselle provider streams across requests.
- */
-export type SessionMetadata = GiselleSessionState;
-
-/**
- * Live connection state stored in the globalThis Map.
- */
-export type LiveConnection = {
-	reader: ReadableStreamDefaultReader<Uint8Array>;
-	buffer: string;
-	relaySubscription: RelaySubscription | null;
-	textBlockOpen: boolean;
 };
 
 /**
