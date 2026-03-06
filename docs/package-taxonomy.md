@@ -38,7 +38,8 @@ Clearer responsibility-based names win over compatibility in this realignment. A
 
 - Keep `browser-tool` as one package because it owns one domain: browser automation
 - Use subpath exports to separate browser, React, relay, and sandbox entry points
-- Do not split it again unless mandatory dependency leakage becomes a concrete install-time problem
+- Keep React peer requirements scoped to `@giselles-ai/browser-tool/react`; root, `/dom`, `/relay`, and `/mcp-server` must remain non-React entry points
+- Do not split it again unless a new consumer-facing mandatory peer or incompatible install surface becomes a concrete problem
 
 ## Historical Docs Policy
 

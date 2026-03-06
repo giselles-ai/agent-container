@@ -108,7 +108,7 @@ Snapshot build CLI/library for preparing sandboxes with agent CLIs and browser-t
 
 ### `@giselles-ai/browser-tool`
 
-Browser automation toolkit covering DOM snapshot/execute operations, the MCP server, and the relay infrastructure. `@giselles-ai/browser-tool` stays a single domain package; subpath exports separate runtimes without splitting the package again.
+Browser automation toolkit covering DOM snapshot/execute operations, the MCP server, and the relay infrastructure. `@giselles-ai/browser-tool` stays a single domain package; subpath exports separate runtimes without splitting the package again. Only `@giselles-ai/browser-tool/react` requires React peers, while the root, `/dom`, `/relay`, and `/mcp-server` entry points remain intentionally non-React.
 
 | Export Path | Runtime | Description |
 |---|---|---|
