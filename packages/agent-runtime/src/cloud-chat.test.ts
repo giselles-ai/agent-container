@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { runCloudChat } from "./cloud-chat";
+import { getLiveCloudConnection } from "./cloud-chat-live";
 import type { CloudChatSessionState } from "./cloud-chat-state";
 
 function createStore() {
@@ -59,6 +60,36 @@ function createNdjsonResponse(
 	});
 }
 
+function neverResolveRelayRequest<T>(): Promise<T> {
+	return new Promise<T>(() => {
+		// Intentionally unresolved for tests where relay request should never arrive.
+	});
+}
+
+function createRelaySubscriptionMock(
+	requests: Array<{
+		type: "snapshot_request" | "execute_request";
+		requestId: string;
+		instruction?: string;
+		actions?: unknown[];
+		fields?: unknown[];
+	}> = [],
+) {
+	let index = 0;
+	return {
+		nextRequest: vi.fn(async () => {
+			if (index >= requests.length) {
+				return neverResolveRelayRequest();
+			}
+
+			const request = requests[index];
+			index += 1;
+			return request;
+		}),
+		close: vi.fn(async () => undefined),
+	};
+}
+
 const dummyAgent = {} as never;
 
 describe("runCloudChat", () => {
@@ -75,8 +106,8 @@ describe("runCloudChat", () => {
 				})}\n`,
 			]),
 		);
-
 		const createRelaySession = createRelaySessionFactory("relay-1", "token-1");
+		const relaySubscription = createRelaySubscriptionMock();
 
 		await runCloudChat({
 			chatId: "chat-new",
@@ -92,6 +123,7 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
 			},
 		});
 
@@ -117,6 +149,7 @@ describe("runCloudChat", () => {
 		});
 		const runChatImpl = vi.fn(async () => createNdjsonResponse(["{}\n"]));
 		const createRelaySession = createRelaySessionFactory("relay-2", "token-2");
+		const relaySubscription = createRelaySubscriptionMock();
 
 		await runCloudChat({
 			chatId: "chat-existing",
@@ -132,6 +165,7 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
 			},
 		});
 
@@ -158,6 +192,7 @@ describe("runCloudChat", () => {
 				})}\n`,
 			]),
 		);
+		const relaySubscription = createRelaySubscriptionMock();
 
 		const response = await runCloudChat({
 			chatId: "chat-stream",
@@ -173,6 +208,7 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession: createRelaySessionFactory("relay-3", "token-3"),
 				runChatImpl,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
 			},
 		});
 
@@ -194,7 +230,6 @@ describe("runCloudChat", () => {
 			1_730_000_300,
 		);
 		const now = vi.fn(() => 1_730_000_400);
-
 		const runChatImpl = vi.fn(async () =>
 			createNdjsonResponse([
 				`${JSON.stringify({ type: "init", session_id: "agent-1" })}\n`,
@@ -208,6 +243,7 @@ describe("runCloudChat", () => {
 				})}\n`,
 			]),
 		);
+		const relaySubscription = createRelaySubscriptionMock();
 
 		const response = await runCloudChat({
 			chatId: "chat-save",
@@ -224,6 +260,7 @@ describe("runCloudChat", () => {
 				createRelaySession,
 				runChatImpl,
 				now,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
 			},
 		});
 
@@ -244,82 +281,319 @@ describe("runCloudChat", () => {
 		});
 	});
 
-	it("fails fast when a stored session still has pendingTool", async () => {
+	it("pauses on snapshot_request and persists pendingTool", async () => {
 		const store = createStore();
-		store.load.mockResolvedValueOnce({
-			chatId: "chat-pending",
+		store.load.mockResolvedValueOnce(null);
+		const runChatImpl = vi.fn(async () =>
+			createNdjsonResponse([
+				`${JSON.stringify({ type: "init", session_id: "agent-1" })}\n`,
+				`${JSON.stringify({
+					type: "snapshot_request",
+					requestId: "tool-pause-1",
+					instruction: "collect fields",
+				})}\n`,
+				`${JSON.stringify({
+					type: "message",
+					content: "should-not-appear",
+				})}\n`,
+			]),
+		);
+		const relaySubscription = createRelaySubscriptionMock();
+
+		const response = await runCloudChat({
+			chatId: "chat-pause",
+			request: {
+				message: "snapshot me",
+				chat_id: "chat-pause",
+				tool_results: [],
+			},
+			agent: dummyAgent,
+			signal: new AbortController().signal,
+			deps: {
+				store,
+				relayUrl: "https://relay.example.com",
+				createRelaySession: createRelaySessionFactory(
+					"relay-pause",
+					"token-pause",
+				),
+				runChatImpl,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+			},
+		});
+
+		const body = await response.text();
+		const saved = store.get("chat-pause");
+		const live = getLiveCloudConnection("chat-pause");
+
+		expect(body).toContain('"type":"relay.session"');
+		expect(body).toContain('"type":"init"');
+		expect(body).toContain('"type":"snapshot_request"');
+		expect(body).not.toContain('"should-not-appear"');
+		expect(saved).toMatchObject({
+			chatId: "chat-pause",
+			agentSessionId: "agent-1",
 			pendingTool: {
-				requestId: "tool-request-1",
+				requestId: "tool-pause-1",
 				requestType: "snapshot_request",
 				toolName: "getFormSnapshot",
 			},
-			updatedAt: 1,
-		});
-		const runChatImpl = vi.fn(async () => createNdjsonResponse(["{}\n"]));
-		const createRelaySession = createRelaySessionFactory("relay-5", "token-5");
-
-		await expect(
-			runCloudChat({
-				chatId: "chat-pending",
-				request: {
-					message: "resume",
-					chat_id: "chat-pending",
-					tool_results: [
-						{
-							toolCallId: "tool-request-1",
-							toolName: "getFormSnapshot",
-							output: { report: "ok" },
-						},
-					],
-				},
-				agent: dummyAgent,
-				signal: new AbortController().signal,
-				deps: {
-					store,
-					relayUrl: "https://relay.example.com",
-					createRelaySession,
-					runChatImpl,
-				},
-			}),
-		).rejects.toThrow(
-			"Chat chat-pending is paused on tool-request-1; tool resume lands in Phase 2.",
-		);
-		expect(runChatImpl).not.toHaveBeenCalled();
-		expect(createRelaySession).not.toHaveBeenCalled();
-
-		store.load.mockResolvedValueOnce({
-			chatId: "chat-pending-2",
-			pendingTool: {
-				requestId: "tool-request-2",
-				requestType: "snapshot_request",
-				toolName: "getFormSnapshot",
+			relay: {
+				sessionId: "relay-pause",
+				token: "token-pause",
+				url: "https://relay.example.com",
+				expiresAt: 1_730_000_000,
 			},
-			updatedAt: 2,
+			updatedAt: expect.any(Number),
 		});
-
-		await expect(
-			runCloudChat({
-				chatId: "chat-pending-2",
-				request: {
-					message: "resume",
-					chat_id: "chat-pending-2",
-				},
-				agent: dummyAgent,
-				signal: new AbortController().signal,
-				deps: {
-					store,
-					relayUrl: "https://relay.example.com",
-					createRelaySession,
-					runChatImpl,
-				},
-			}),
-		).rejects.toThrow(
-			"Chat chat-pending-2 is paused on tool-request-2; tool resume lands in Phase 2.",
-		);
-		expect(createRelaySession).toHaveBeenCalledTimes(0);
+		expect(live).toBeDefined();
 	});
 
-	it("preserves response headers and status for managed NDJSON stream", async () => {
+	it("uses hot live connection to resume after tool result", async () => {
+		const store = createStore();
+		const relaySubscription = createRelaySubscriptionMock();
+		const runChatImpl = vi.fn(async () =>
+			createNdjsonResponse(
+				[
+					`${JSON.stringify({ type: "init", session_id: "agent-hot" })}\n`,
+					`${JSON.stringify({
+						type: "snapshot_request",
+						requestId: "tool-hot-1",
+						instruction: "collect fields",
+					})}\n`,
+					`${JSON.stringify({
+						type: "message",
+						content: "continued-after-resume",
+					})}\n`,
+				],
+				{ status: 201, headers: { "X-Flow": "hot" } },
+			),
+		);
+		const sendRelayResponse = vi.fn(async () => undefined);
+
+		const firstResponse = await runCloudChat({
+			chatId: "chat-hot",
+			request: {
+				message: "snapshot me",
+				chat_id: "chat-hot",
+				tool_results: [],
+			},
+			agent: dummyAgent,
+			signal: new AbortController().signal,
+			deps: {
+				store,
+				relayUrl: "https://relay.example.com",
+				createRelaySession: createRelaySessionFactory("relay-hot", "token-hot"),
+				runChatImpl,
+				sendRelayResponse,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+			},
+		});
+
+		const firstBody = await firstResponse.text();
+		expect(firstBody).toContain('"type":"snapshot_request"');
+		expect(firstBody).not.toContain('"continued-after-resume"');
+
+		const secondResponse = await runCloudChat({
+			chatId: "chat-hot",
+			request: {
+				message: "resume",
+				chat_id: "chat-hot",
+				tool_results: [
+					{
+						toolCallId: "tool-hot-1",
+						toolName: "getFormSnapshot",
+						output: { fields: [{ fieldId: "title", currentValue: "foo" }] },
+					},
+				],
+			},
+			agent: dummyAgent,
+			signal: new AbortController().signal,
+			deps: {
+				store,
+				relayUrl: "https://relay.example.com",
+				createRelaySession: createRelaySessionFactory(
+					"relay-hot-resumed",
+					"token-hot-resumed",
+				),
+				runChatImpl: vi.fn(async () => {
+					throw new Error("hot resume should not re-run chat");
+				}),
+				sendRelayResponse,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
+			},
+		});
+
+		const secondBody = await secondResponse.text();
+		const saved = store.get("chat-hot");
+
+		expect(secondResponse.status).toBe(201);
+		expect(secondResponse.headers.get("X-Flow")).toBe("hot");
+		expect(secondBody).toContain(
+			'"type":"message","content":"continued-after-resume"',
+		);
+		expect(sendRelayResponse).toHaveBeenCalledWith({
+			sessionId: "relay-hot",
+			token: "token-hot",
+			response: {
+				type: "snapshot_response",
+				requestId: "tool-hot-1",
+				fields: [{ fieldId: "title", currentValue: "foo" }],
+			},
+		});
+		expect(saved?.pendingTool).toBeNull();
+		expect(getLiveCloudConnection("chat-hot")).toBeUndefined();
+		expect(relaySubscription.close).toHaveBeenCalledTimes(1);
+	});
+
+	it("cold-resumes with stored agentSessionId and sandboxId when no live connection exists", async () => {
+		const store = createStore();
+		const createRelaySession = createRelaySessionFactory(
+			"relay-cold",
+			"token-cold",
+		);
+		store.load.mockResolvedValue({
+			chatId: "chat-cold",
+			agentSessionId: "agent-cold",
+			sandboxId: "sandbox-cold",
+			relay: {
+				sessionId: "relay-existing",
+				token: "token-existing",
+				url: "https://relay.example.com",
+				expiresAt: 1_730_000_100,
+			},
+			pendingTool: {
+				requestId: "tool-cold-1",
+				requestType: "execute_request",
+				toolName: "executeFormActions",
+			},
+			updatedAt: 1_700_000_000,
+		});
+		const createRelaySub = createRelaySubscriptionMock();
+		const sendRelayResponse = vi.fn(async () => undefined);
+		const runChatImpl = vi.fn(async () =>
+			createNdjsonResponse(
+				[
+					`${JSON.stringify({ type: "message", content: "cold resumed message" })}\n`,
+				],
+				{
+					status: 201,
+					headers: {
+						"X-Flow": "cold",
+					},
+				},
+			),
+		);
+
+		const response = await runCloudChat({
+			chatId: "chat-cold",
+			request: {
+				message: "resume",
+				chat_id: "chat-cold",
+				tool_results: [
+					{
+						toolCallId: "tool-cold-1",
+						toolName: "executeFormActions",
+						output: { report: { applied: 1, skipped: 0, warnings: [] } },
+					},
+				],
+			},
+			agent: dummyAgent,
+			signal: new AbortController().signal,
+			deps: {
+				store,
+				relayUrl: "https://relay.example.com",
+				createRelaySession: createRelaySession,
+				runChatImpl,
+				sendRelayResponse,
+				createRelayRequestSubscription: vi.fn(async () => createRelaySub),
+			},
+		});
+
+		const body = await response.text();
+		const saved = store.get("chat-cold");
+
+		expect(response.status).toBe(201);
+		expect(response.headers.get("X-Flow")).toBe("cold");
+		expect(body).toContain('"type":"message","content":"cold resumed message"');
+		expect(runChatImpl).toHaveBeenCalledWith({
+			agent: dummyAgent,
+			signal: expect.any(AbortSignal),
+			input: {
+				message: "resume",
+				chat_id: "chat-cold",
+				tool_results: [
+					{
+						toolCallId: "tool-cold-1",
+						toolName: "executeFormActions",
+						output: { report: { applied: 1, skipped: 0, warnings: [] } },
+					},
+				],
+				session_id: "agent-cold",
+				sandbox_id: "sandbox-cold",
+				relay_session_id: "relay-cold-resume",
+				relay_token: "token-cold-resume",
+			},
+		});
+		expect(sendRelayResponse).toHaveBeenCalledWith({
+			sessionId: "relay-existing",
+			token: "token-existing",
+			response: {
+				type: "execute_response",
+				requestId: "tool-cold-1",
+				report: { applied: 1, skipped: 0, warnings: [] },
+			},
+		});
+		expect(saved?.pendingTool).toBeNull();
+	});
+
+	it("errors when a matching tool result cannot be found", async () => {
+		const store = createStore();
+		const createRelaySession = createRelaySessionFactory(
+			"relay-missing",
+			"token-missing",
+		);
+		store.load.mockResolvedValue({
+			chatId: "chat-missing",
+			pendingTool: {
+				requestId: "tool-missing-1",
+				requestType: "snapshot_request",
+				toolName: "getFormSnapshot",
+			},
+			relay: {
+				sessionId: "relay-existing",
+				token: "token-existing",
+				url: "https://relay.example.com",
+				expiresAt: 1_730_000_100,
+			},
+			updatedAt: 1_700_000_000,
+		});
+		const runChatImpl = vi.fn(async () => createNdjsonResponse(["{}\n"]));
+		const sendRelayResponse = vi.fn(async () => undefined);
+
+		await expect(
+			runCloudChat({
+				chatId: "chat-missing",
+				request: {
+					message: "resume",
+					chat_id: "chat-missing",
+					tool_results: [],
+				},
+				agent: dummyAgent,
+				signal: new AbortController().signal,
+				deps: {
+					store,
+					relayUrl: "https://relay.example.com",
+					createRelaySession,
+					runChatImpl,
+					sendRelayResponse,
+				},
+			}),
+		).rejects.toThrow("Missing tool result for tool-missing-1");
+		expect(runChatImpl).not.toHaveBeenCalled();
+		expect(sendRelayResponse).not.toHaveBeenCalled();
+	});
+
+	it("preserves response headers and status for managed streams", async () => {
 		const store = createStore();
 		store.load.mockResolvedValueOnce(null);
 		const runChatImpl = vi.fn(async () =>
@@ -334,6 +608,7 @@ describe("runCloudChat", () => {
 				},
 			),
 		);
+		const relaySubscription = createRelaySubscriptionMock();
 
 		const response = await runCloudChat({
 			chatId: "chat-headers",
@@ -349,6 +624,7 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession: createRelaySessionFactory("relay-6", "token-6"),
 				runChatImpl,
+				createRelayRequestSubscription: vi.fn(async () => relaySubscription),
 			},
 		});
 
