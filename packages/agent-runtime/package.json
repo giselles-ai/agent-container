@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/agent-runtime",
-	"version": "0.1.16",
+	"version": "0.1.17",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
