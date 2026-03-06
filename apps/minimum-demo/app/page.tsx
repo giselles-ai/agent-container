@@ -67,7 +67,10 @@ function SpreadsheetGrid({
               const headerId = `header-${columnIndex}`;
 
               return (
-                <th key={headerId} className="border border-white/10 bg-[#111d29]">
+                <th
+                  key={headerId}
+                  className="border border-white/10 bg-[#111d29]"
+                >
                   <input
                     type="text"
                     data-browser-tool-id={headerId}
@@ -110,7 +113,10 @@ function SpreadsheetGrid({
                 const cellId = `cell-${rowIndex}-${columnIndex}`;
 
                 return (
-                  <td key={cellId} className="border border-white/10 bg-[#0f1822]">
+                  <td
+                    key={cellId}
+                    className="border border-white/10 bg-[#0f1822]"
+                  >
                     <input
                       type="text"
                       data-browser-tool-id={cellId}
@@ -253,7 +259,12 @@ export default function Home() {
                 10 x 6
               </div>
             </div>
-            <SpreadsheetGrid key={gridKey} rows={10} columns={6} isBusy={isBusy} />
+            <SpreadsheetGrid
+              key={gridKey}
+              rows={10}
+              columns={6}
+              isBusy={isBusy}
+            />
           </section>
 
           <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#11131a]/88 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur">
