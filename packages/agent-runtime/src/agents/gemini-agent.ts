@@ -55,6 +55,10 @@ async function patchGeminiSettingsTransportEnv(
 	const settings: GeminiSettings = JSON.parse(new TextDecoder().decode(buffer));
 
 	if (settings.mcpServers) {
+		console.info("[gemini-agent] patchGeminiSettingsTransportEnv", {
+			mcpServers: Object.keys(settings.mcpServers),
+			envKeys: Object.keys(bridgeTransportEnv).sort(),
+		});
 		settings.mcpServers = Object.fromEntries(
 			Object.entries(settings.mcpServers).map(([key, server]) => [
 				key,
@@ -140,6 +144,11 @@ export function createGeminiAgent(
 				BROWSER_TOOL_RELAY_SESSION_ID: input.relay_session_id,
 				BROWSER_TOOL_RELAY_TOKEN: input.relay_token,
 			};
+			console.info("[gemini-agent] prepareSandbox browser tool", {
+				relaySessionId: input.relay_session_id,
+				hasRelayUrl: Boolean(env.BROWSER_TOOL_RELAY_URL),
+				envKeys: Object.keys(patchEnv).sort(),
+			});
 
 			await patchGeminiSettingsTransportEnv(sandbox, patchEnv);
 		},

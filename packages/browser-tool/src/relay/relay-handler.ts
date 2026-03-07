@@ -45,6 +45,51 @@ const postBodySchema = z.discriminatedUnion("type", [
 	respondSchema,
 ]);
 
+function summarizeRelayRequestForLog(request: z.infer<typeof relayRequestSchema>) {
+	if (request.type === "snapshot_request") {
+		return {
+			type: request.type,
+			requestId: request.requestId,
+			instruction: request.instruction,
+		};
+	}
+
+	return {
+		type: request.type,
+		requestId: request.requestId,
+		actionCount: request.actions.length,
+		fieldCount: request.fields.length,
+	};
+}
+
+function summarizeRelayResponseForLog(
+	response: z.infer<typeof relayResponseSchema>,
+) {
+	if (response.type === "snapshot_response") {
+		return {
+			type: response.type,
+			requestId: response.requestId,
+			fieldCount: response.fields.length,
+		};
+	}
+
+	if (response.type === "execute_response") {
+		return {
+			type: response.type,
+			requestId: response.requestId,
+			applied: response.report.applied,
+			skipped: response.report.skipped,
+			warningCount: response.report.warnings.length,
+		};
+	}
+
+	return {
+		type: response.type,
+		requestId: response.requestId,
+		message: response.message,
+	};
+}
+
 function createRelayEventsRoute(request: Request): Promise<Response> {
 	const cors = corsHeaders(request);
 	const url = new URL(request.url);
@@ -237,6 +282,10 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 	}
 
 	if (parsed.data.type === "relay.dispatch") {
+		console.info(`${LOG_PREFIX} post.dispatch`, {
+			sessionId: parsed.data.sessionId,
+			request: summarizeRelayRequestForLog(parsed.data.request),
+		});
 		try {
 			const response = await dispatchRelayRequest({
 				sessionId: parsed.data.sessionId,
@@ -244,9 +293,18 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 				request: parsed.data.request,
 				timeoutMs: parsed.data.timeoutMs,
 			});
+			console.info(`${LOG_PREFIX} post.dispatch.ok`, {
+				sessionId: parsed.data.sessionId,
+				response: summarizeRelayResponseForLog(response),
+			});
 			return Response.json({ ok: true, response }, { headers: cors });
 		} catch (error) {
 			const relayError = toRelayError(error);
+			console.error(`${LOG_PREFIX} post.dispatch.error`, {
+				sessionId: parsed.data.sessionId,
+				errorCode: relayError.code,
+				message: relayError.message,
+			});
 			return Response.json(
 				{ ok: false, errorCode: relayError.code, message: relayError.message },
 				{ status: relayError.status, headers: cors },
@@ -254,15 +312,28 @@ async function createRelayPostRoute(request: Request): Promise<Response> {
 		}
 	}
 
+	console.info(`${LOG_PREFIX} post.respond`, {
+		sessionId: parsed.data.sessionId,
+		response: summarizeRelayResponseForLog(parsed.data.response),
+	});
 	try {
 		await resolveRelayResponse({
 			sessionId: parsed.data.sessionId,
 			token: parsed.data.token,
 			response: parsed.data.response,
 		});
+		console.info(`${LOG_PREFIX} post.respond.ok`, {
+			sessionId: parsed.data.sessionId,
+			requestId: parsed.data.response.requestId,
+		});
 		return Response.json({ ok: true }, { headers: cors });
 	} catch (error) {
 		const relayError = toRelayError(error);
+		console.error(`${LOG_PREFIX} post.respond.error`, {
+			sessionId: parsed.data.sessionId,
+			errorCode: relayError.code,
+			message: relayError.message,
+		});
 		return Response.json(
 			{ ok: false, errorCode: relayError.code, message: relayError.message },
 			{ status: relayError.status, headers: cors },

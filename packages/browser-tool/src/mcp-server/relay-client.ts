@@ -25,6 +25,14 @@ function trimTrailingSlash(input: string): string {
 	return input.replace(/\/+$/, "");
 }
 
+function safeJsonStringify(value: unknown): string {
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+}
+
 export class RelayClient {
 	private readonly url: string;
 	private readonly sessionId: string;
@@ -133,7 +141,14 @@ export class RelayClient {
 
 		const success = dispatchSuccessSchema.safeParse(body);
 		if (!success.success) {
-			throw new Error("Relay dispatch returned an unexpected payload.");
+			throw new Error(
+				[
+					"Relay dispatch returned an unexpected payload.",
+					`status=${response.status}`,
+					`url=${this.url}`,
+					`body=${safeJsonStringify(body)}`,
+				].join(" "),
+			);
 		}
 
 		if (!response.ok) {

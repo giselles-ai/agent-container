@@ -52,6 +52,80 @@ const pendingReadAheadByChatId = new Map<
 	Promise<ReadableStreamReadResult<Uint8Array>>
 >();
 
+function summarizeUnknownForLog(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return {
+			type: "array",
+			length: value.length,
+			first:
+				value.length > 0 && value[0] && typeof value[0] === "object"
+					? Object.keys(value[0] as Record<string, unknown>)
+					: value[0],
+		};
+	}
+
+	if (value && typeof value === "object") {
+		const record = value as Record<string, unknown>;
+		const summary: Record<string, unknown> = {
+			type: "object",
+			keys: Object.keys(record),
+		};
+		if (Array.isArray(record.fields)) {
+			summary.fieldCount = record.fields.length;
+		}
+		if (
+			record.report &&
+			typeof record.report === "object" &&
+			!Array.isArray(record.report)
+		) {
+			const report = record.report as Record<string, unknown>;
+			summary.report = {
+				keys: Object.keys(report),
+				applied: report.applied,
+				skipped: report.skipped,
+				warningCount: Array.isArray(report.warnings)
+					? report.warnings.length
+					: undefined,
+			};
+		}
+		if ("type" in record) {
+			summary.outputType = record.type;
+		}
+		if ("value" in record) {
+			summary.value = summarizeUnknownForLog(record.value);
+		}
+		return summary;
+	}
+
+	return value;
+}
+
+function summarizeRelayResponseForLog(response: RelayResponse): Record<string, unknown> {
+	if (response.type === "snapshot_response") {
+		return {
+			type: response.type,
+			requestId: response.requestId,
+			fieldCount: response.fields.length,
+		};
+	}
+
+	if (response.type === "execute_response") {
+		return {
+			type: response.type,
+			requestId: response.requestId,
+			applied: response.report.applied,
+			skipped: response.report.skipped,
+			warningCount: response.report.warnings.length,
+		};
+	}
+
+	return {
+		type: response.type,
+		requestId: response.requestId,
+		message: response.message,
+	};
+}
+
 export type RelaySessionFactoryResult = {
 	sessionId: string;
 	token: string;
@@ -117,6 +191,14 @@ export async function runCloudChat<
 	}
 
 	const relaySession = await input.deps.createRelaySession();
+	const relaySubscription = await createRelaySub({
+		sessionId: relaySession.sessionId,
+		token: relaySession.token,
+	});
+	console.info("[cloud-chat] relay subscription ready", {
+		chatId: input.chatId,
+		relaySessionId: relaySession.sessionId,
+	});
 	const runtimeInput = {
 		...input.request,
 		...(existing?.agentSessionId
@@ -127,15 +209,17 @@ export async function runCloudChat<
 		relay_token: relaySession.token,
 	} as TRequest;
 
-	const response = await (input.deps.runChatImpl ?? runChat)({
-		agent: input.agent,
-		signal: input.signal,
-		input: runtimeInput,
-	});
-	const relaySubscription = await createRelaySub({
-		sessionId: relaySession.sessionId,
-		token: relaySession.token,
-	});
+	let response: Response;
+	try {
+		response = await (input.deps.runChatImpl ?? runChat)({
+			agent: input.agent,
+			signal: input.signal,
+			input: runtimeInput,
+		});
+	} catch (error) {
+		await relaySubscription.close().catch(() => undefined);
+		throw error;
+	}
 	const managed = createManagedCloudResponseFromReader({
 		chatId: input.chatId,
 		store: input.deps.store,
@@ -187,6 +271,18 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 		input.request.tool_results ?? [],
 		pending.requestId,
 	);
+	console.info("[cloud-chat] resume request", {
+		chatId: input.chatId,
+		pending,
+		toolResultCount: input.request.tool_results?.length ?? 0,
+		matchingToolResult: toolResult
+			? {
+					toolCallId: toolResult.toolCallId,
+					toolName: toolResult.toolName,
+					output: summarizeUnknownForLog(toolResult.output),
+				}
+			: null,
+	});
 	if (!toolResult) {
 		throw new Error(`Missing tool result for ${pending.requestId}`);
 	}
@@ -194,13 +290,19 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 		throw new Error(`Chat ${input.chatId} is missing relay credentials.`);
 	}
 
+	const relayResponse = toolResultToRelayResponse({
+		pending,
+		result: toolResult,
+	});
+	console.info("[cloud-chat] sending relay response", {
+		chatId: input.chatId,
+		response: summarizeRelayResponseForLog(relayResponse),
+	});
+
 	await input.sendResponse({
 		sessionId: input.existing.relay.sessionId,
 		token: input.existing.relay.token,
-		response: toolResultToRelayResponse({
-			pending,
-			result: toolResult,
-		}),
+		response: relayResponse,
 	});
 
 	const resumedState = applyCloudChatPatch({
@@ -223,6 +325,14 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 	}
 
 	const relaySession = await input.deps.createRelaySession();
+	const relaySubscription = await input.createRelaySub({
+		sessionId: relaySession.sessionId,
+		token: relaySession.token,
+	});
+	console.info("[cloud-chat] relay subscription ready (resume)", {
+		chatId: input.chatId,
+		relaySessionId: relaySession.sessionId,
+	});
 	const runtimeInput = {
 		...input.request,
 		...(input.existing.agentSessionId
@@ -235,15 +345,17 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 		relay_token: relaySession.token,
 	} as unknown as TRequest;
 
-	const response = await (input.deps.runChatImpl ?? runChat)({
-		agent: input.agent,
-		signal: input.signal,
-		input: runtimeInput,
-	});
-	const relaySubscription = await input.createRelaySub({
-		sessionId: relaySession.sessionId,
-		token: relaySession.token,
-	});
+	let response: Response;
+	try {
+		response = await (input.deps.runChatImpl ?? runChat)({
+			agent: input.agent,
+			signal: input.signal,
+			input: runtimeInput,
+		});
+	} catch (error) {
+		await relaySubscription.close().catch(() => undefined);
+		throw error;
+	}
 
 	const managed = createManagedCloudResponseFromReader({
 		chatId: input.chatId,
@@ -338,6 +450,11 @@ function createManagedCloudResponseFromReader(
 				savePendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null,
 			) => {
 				paused = true;
+				console.info("[cloud-chat] pause for relay request", {
+					chatId: input.chatId,
+					requestType: request.type,
+					requestId: request.requestId,
+				});
 				const pending = relayRequestToPendingTool(request);
 				await persistPatch({ pendingTool: pending });
 				controller.enqueue(

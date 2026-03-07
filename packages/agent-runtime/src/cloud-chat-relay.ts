@@ -7,6 +7,38 @@ type SnapshotRelayResponse = Extract<
 >;
 type ExecuteRelayResponse = Extract<RelayResponse, { type: "execute_response" }>;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function unwrapRelayResult(output: unknown, key: "fields" | "report"): unknown {
+	if (isRecord(output)) {
+		if (key in output) {
+			return output[key];
+		}
+
+		if ("value" in output) {
+			return unwrapRelayResult(output.value, key);
+		}
+	}
+
+	if (
+		Array.isArray(output) &&
+		output.length === 1 &&
+		isRecord(output[0]) &&
+		output[0].type === "text" &&
+		typeof output[0].text === "string"
+	) {
+		try {
+			return unwrapRelayResult(JSON.parse(output[0].text), key);
+		} catch {
+			return output;
+		}
+	}
+
+	return output;
+}
+
 export function relayRequestToPendingTool(
 	request: RelayRequest,
 ): PendingToolState {
@@ -34,25 +66,19 @@ export function toolResultToRelayResponse(input: {
 		return {
 			type: "snapshot_response",
 			requestId: input.pending.requestId,
-			fields:
-				typeof input.result.output === "object" &&
-				input.result.output !== null &&
-				"fields" in (input.result.output as Record<string, unknown>)
-					? ((input.result.output as Record<string, unknown>)
-							.fields as SnapshotRelayResponse["fields"])
-					: (input.result.output as SnapshotRelayResponse["fields"]),
+			fields: unwrapRelayResult(
+				input.result.output,
+				"fields",
+			) as SnapshotRelayResponse["fields"],
 		};
 	}
 
 	return {
 		type: "execute_response",
 		requestId: input.pending.requestId,
-		report:
-			typeof input.result.output === "object" &&
-			input.result.output !== null &&
-			"report" in (input.result.output as Record<string, unknown>)
-				? ((input.result.output as Record<string, unknown>)
-						.report as ExecuteRelayResponse["report"])
-				: (input.result.output as ExecuteRelayResponse["report"]),
+		report: unwrapRelayResult(
+			input.result.output,
+			"report",
+		) as ExecuteRelayResponse["report"],
 	};
 }

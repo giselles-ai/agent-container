@@ -6,8 +6,11 @@ import {
 import {
 	assertRelaySession,
 	createRelaySubscriber,
+	markBrowserConnected,
+	RELAY_SSE_KEEPALIVE_INTERVAL_MS,
 	relayRequestChannel,
 	resolveRelayResponse,
+	touchBrowserConnected,
 } from "./relay-store";
 
 export type RelayRequestSubscription = {
@@ -22,7 +25,23 @@ export async function createRelayRequestSubscription(input: {
 	await assertRelaySession(input.sessionId, input.token);
 	const subscriber = createRelaySubscriber();
 	const channel = relayRequestChannel(input.sessionId);
-	await subscriber.subscribe(channel);
+	let keepaliveId: ReturnType<typeof setInterval> | null = null;
+
+	try {
+		await subscriber.subscribe(channel);
+		// The cloud runtime consumes relay requests directly, so it must mark the
+		// session as "connected" just like the browser SSE client used to.
+		await markBrowserConnected(input.sessionId, input.token);
+		keepaliveId = setInterval(() => {
+			void touchBrowserConnected(input.sessionId).catch(() => undefined);
+		}, RELAY_SSE_KEEPALIVE_INTERVAL_MS);
+	} catch (error) {
+		await subscriber.unsubscribe(channel).catch(() => undefined);
+		await subscriber.quit().catch(() => {
+			subscriber.disconnect();
+		});
+		throw error;
+	}
 
 	const nextRequest = () => {
 		return new Promise<RelayRequest>((resolve, reject) => {
@@ -63,6 +82,10 @@ export async function createRelayRequestSubscription(input: {
 	};
 
 	const close = async (): Promise<void> => {
+		if (keepaliveId) {
+			clearInterval(keepaliveId);
+			keepaliveId = null;
+		}
 		await subscriber.unsubscribe(channel).catch(() => undefined);
 		await subscriber.quit().catch(() => {
 			subscriber.disconnect();
