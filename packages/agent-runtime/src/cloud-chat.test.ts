@@ -135,14 +135,12 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession,
-				runChatImpl,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession,
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		expect(runChatImpl).toHaveBeenCalledTimes(1);
@@ -182,14 +180,12 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession,
-				runChatImpl,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession,
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const runtimeInput = (
@@ -228,14 +224,12 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySessionFactory("relay-3", "token-3"),
-				runChatImpl,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySessionFactory("relay-3", "token-3"),
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const body = await response.text();
@@ -280,15 +274,13 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession,
-				runChatImpl,
-				now,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession,
+			runChatImpl,
+			now,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		await response.text();
@@ -336,17 +328,15 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySessionFactory(
-					"relay-pause",
-					"token-pause",
-				),
-				runChatImpl,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySessionFactory(
+				"relay-pause",
+				"token-pause",
+			),
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const body = await response.text();
@@ -407,15 +397,13 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySessionFactory("relay-hot", "token-hot"),
-				runChatImpl,
-				sendRelayResponse,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySessionFactory("relay-hot", "token-hot"),
+			runChatImpl,
+			sendRelayResponse,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const firstBody = await firstResponse.text();
@@ -437,20 +425,18 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySessionFactory(
-					"relay-hot-resumed",
-					"token-hot-resumed",
-				),
-				runChatImpl: vi.fn(async () => {
-					throw new Error("hot resume should not re-run chat");
-				}),
-				sendRelayResponse,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySessionFactory(
+				"relay-hot-resumed",
+				"token-hot-resumed",
+			),
+			runChatImpl: vi.fn(async () => {
+				throw new Error("hot resume should not re-run chat");
+			}),
+			sendRelayResponse,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const secondBody = await secondResponse.text();
@@ -529,15 +515,13 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySession,
-				runChatImpl,
-				sendRelayResponse,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(createRelaySub),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySession,
+			runChatImpl,
+			sendRelayResponse,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(createRelaySub),
 		});
 
 		const body = await response.text();
@@ -611,13 +595,11 @@ describe("runCloudChat", () => {
 				},
 				agent: dummyAgent,
 				signal: new AbortController().signal,
-				deps: {
-					store,
-					relayUrl: "https://relay.example.com",
-					createRelaySession,
-					runChatImpl,
-					sendRelayResponse,
-				},
+				store,
+				relayUrl: "https://relay.example.com",
+				createRelaySession,
+				runChatImpl,
+				sendRelayResponse,
 			}),
 		).rejects.toThrow("Missing tool result for tool-missing-1");
 		expect(runChatImpl).not.toHaveBeenCalled();
@@ -650,14 +632,12 @@ describe("runCloudChat", () => {
 			},
 			agent: dummyAgent,
 			signal: new AbortController().signal,
-			deps: {
-				store,
-				relayUrl: "https://relay.example.com",
-				createRelaySession: createRelaySessionFactory("relay-6", "token-6"),
-				runChatImpl,
-				createRelayRequestSubscription:
-					createRelayRequestSubscriptionFactory(relaySubscription),
-			},
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession: createRelaySessionFactory("relay-6", "token-6"),
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
 		});
 
 		const body = await response.text();

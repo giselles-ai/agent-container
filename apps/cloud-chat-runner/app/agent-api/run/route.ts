@@ -81,7 +81,6 @@ export async function POST(request: Request): Promise<Response> {
 				type: parsed.data.agent_type,
 				snapshotId: parsed.data.snapshot_id,
 				env: {
-					BROWSER_TOOL_RELAY_URL: relayUrl,
 					VERCEL_PROTECTION_BYPASS: process.env.VERCEL_PROTECTION_BYPASS,
 					GISELLE_PROTECTION_BYPASS: process.env.GISELLE_PROTECTION_BYPASS,
 				},
@@ -92,11 +91,9 @@ export async function POST(request: Request): Promise<Response> {
 				},
 			},
 			signal: request.signal,
-			deps: {
-				store,
-				relayUrl,
-				createRelaySession,
-			},
+			store,
+			relayUrl,
+			createRelaySession,
 		});
 	} catch (error) {
 		if (error instanceof MissingServerConfigError) {

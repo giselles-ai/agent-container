@@ -139,23 +139,6 @@ export type RunChatImpl<TRequest extends BaseChatRequest> = (
 	input: RunChatInput<TRequest>,
 ) => Promise<Response>;
 
-export type CloudChatDeps<TRequest extends BaseChatRequest> = {
-	store: CloudChatStateStore;
-	relayUrl: string;
-	createRelaySession: () => Promise<RelaySessionFactoryResult>;
-	runChatImpl?: RunChatImpl<TRequest>;
-	now?: () => number;
-	createRelayRequestSubscription?: (input: {
-		sessionId: string;
-		token: string;
-	}) => Promise<RelayRequestSubscription>;
-	sendRelayResponse?: (input: {
-		sessionId: string;
-		token: string;
-		response: RelayResponse;
-	}) => Promise<void>;
-};
-
 export async function runCloudChat<
 	TRequest extends CloudChatRequest & {
 		relay_session_id?: string;
@@ -169,14 +152,27 @@ export async function runCloudChat<
 	>;
 	agent: AgentParam<TRequest>;
 	signal: AbortSignal;
-	deps: CloudChatDeps<TRequest>;
+	relayUrl: string;
+	store: CloudChatStateStore;
+	createRelaySession: () => Promise<RelaySessionFactoryResult>;
+	runChatImpl?: RunChatImpl<TRequest>;
+	now?: () => number;
+	createRelayRequestSubscription?: (input: {
+		sessionId: string;
+		token: string;
+	}) => Promise<RelayRequestSubscription>;
+	sendRelayResponse?: (input: {
+		sessionId: string;
+		token: string;
+		response: RelayResponse;
+	}) => Promise<void>;
 }): Promise<Response> {
 	const agent = resolveAgent(input.agent);
-	const now = input.deps.now?.() ?? Date.now();
+	const now = input.now?.() ?? Date.now();
 	const createRelaySub =
-		input.deps.createRelayRequestSubscription ?? createRelayRequestSubscription;
-	const sendResponse = input.deps.sendRelayResponse ?? sendRelayResponse;
-	const existing = await input.deps.store.load(input.chatId);
+		input.createRelayRequestSubscription ?? createRelayRequestSubscription;
+	const sendResponse = input.sendRelayResponse ?? sendRelayResponse;
+	const existing = await input.store.load(input.chatId);
 
 	if (existing?.pendingTool) {
 		return resumeCloudChat({
@@ -184,17 +180,18 @@ export async function runCloudChat<
 			agent,
 			signal: input.signal,
 			request: input.request,
-			store: input.deps.store,
-			relayUrl: input.deps.relayUrl,
+			store: input.store,
+			relayUrl: input.relayUrl,
 			existing,
-			deps: input.deps,
+			createRelaySession: input.createRelaySession,
+			runChatImpl: input.runChatImpl,
 			now,
 			createRelaySub,
 			sendResponse,
 		});
 	}
 
-	const relaySession = await input.deps.createRelaySession();
+	const relaySession = await input.createRelaySession();
 	const relaySubscription = await createRelaySub({
 		sessionId: relaySession.sessionId,
 		token: relaySession.token,
@@ -215,7 +212,7 @@ export async function runCloudChat<
 
 	let response: Response;
 	try {
-		response = await (input.deps.runChatImpl ?? runChat)({
+		response = await (input.runChatImpl ?? runChat)({
 			agent,
 			signal: input.signal,
 			input: runtimeInput,
@@ -226,7 +223,7 @@ export async function runCloudChat<
 	}
 	const managed = createManagedCloudResponseFromReader({
 		chatId: input.chatId,
-		store: input.deps.store,
+		store: input.store,
 		now,
 		baseState: existing,
 		reader: response.body?.getReader() ?? null,
@@ -235,7 +232,7 @@ export async function runCloudChat<
 		headers: response.headers,
 		relaySubscription,
 		relaySession,
-		relayUrl: input.deps.relayUrl,
+		relayUrl: input.relayUrl,
 		includeRelaySessionPrelude: true,
 		initialBuffer: "",
 		initialTextBlockOpen: false,
@@ -255,7 +252,8 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 	store: CloudChatStateStore;
 	relayUrl: string;
 	existing: CloudChatSessionState;
-	deps: CloudChatDeps<TRequest>;
+	createRelaySession: () => Promise<RelaySessionFactoryResult>;
+	runChatImpl?: RunChatImpl<TRequest>;
 	now: number;
 	createRelaySub: (input: {
 		sessionId: string;
@@ -328,7 +326,7 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 		});
 	}
 
-	const relaySession = await input.deps.createRelaySession();
+	const relaySession = await input.createRelaySession();
 	const relaySubscription = await input.createRelaySub({
 		sessionId: relaySession.sessionId,
 		token: relaySession.token,
@@ -351,7 +349,7 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 
 	let response: Response;
 	try {
-		response = await (input.deps.runChatImpl ?? runChat)({
+		response = await (input.runChatImpl ?? runChat)({
 			agent: input.agent,
 			signal: input.signal,
 			input: runtimeInput,

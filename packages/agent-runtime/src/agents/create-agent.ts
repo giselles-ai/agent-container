@@ -54,6 +54,14 @@ export function createAgent(
 		}
 	}
 
+	const browserRelayUrl = agentOptions.tools?.browser?.relayUrl?.trim();
+	if (browserRelayUrl && !agentOptions.env?.BROWSER_TOOL_RELAY_URL) {
+		agentOptions.env = {
+			...agentOptions.env,
+			BROWSER_TOOL_RELAY_URL: browserRelayUrl,
+		};
+	}
+
 	switch (type) {
 		case "gemini":
 			return createGeminiAgent(agentOptions);
