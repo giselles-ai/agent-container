@@ -8,7 +8,11 @@ import {
 	type RelayRequestSubscription,
 	sendRelayResponse,
 } from "@giselles-ai/browser-tool/relay";
-import { type AgentParam, resolveAgent } from "./agents/create-agent";
+import {
+	type AgentParam,
+	type CreateAgentOptions,
+	resolveAgent,
+} from "./agents/create-agent";
 import type { BaseChatRequest, ChatAgent, RunChatInput } from "./chat-run";
 import { runChat } from "./chat-run";
 import {
@@ -139,6 +143,35 @@ export type RunChatImpl<TRequest extends BaseChatRequest> = (
 	input: RunChatInput<TRequest>,
 ) => Promise<Response>;
 
+function isCreateAgentOptions<TRequest extends BaseChatRequest>(
+	param: AgentParam<TRequest>,
+): param is CreateAgentOptions & AgentParam<TRequest> {
+	return (
+		"type" in param &&
+		(param.type === "gemini" || param.type === "codex") &&
+		!("requestSchema" in param)
+	);
+}
+
+function injectRelayUrl<TRequest extends BaseChatRequest>(
+	agent: AgentParam<TRequest>,
+	relayUrl: string,
+): AgentParam<TRequest> {
+	if (!isCreateAgentOptions(agent)) {
+		return agent;
+	}
+	if (!agent.tools?.browser) {
+		return agent;
+	}
+	return {
+		...agent,
+		tools: {
+			...agent.tools,
+			browser: { ...agent.tools.browser, relayUrl },
+		},
+	};
+}
+
 export async function runCloudChat<
 	TRequest extends CloudChatRequest & {
 		relay_session_id?: string;
@@ -167,7 +200,8 @@ export async function runCloudChat<
 		response: RelayResponse;
 	}) => Promise<void>;
 }): Promise<Response> {
-	const agent = resolveAgent(input.agent);
+	const agentParam = injectRelayUrl(input.agent, input.relayUrl);
+	const agent = resolveAgent(agentParam);
 	const now = input.now?.() ?? Date.now();
 	const createRelaySub =
 		input.createRelayRequestSubscription ?? createRelayRequestSubscription;

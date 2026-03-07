@@ -85,9 +85,7 @@ export async function POST(request: Request): Promise<Response> {
 					GISELLE_PROTECTION_BYPASS: process.env.GISELLE_PROTECTION_BYPASS,
 				},
 				tools: {
-					browser: {
-						relayUrl,
-					},
+					browser: {},
 				},
 			},
 			signal: request.signal,
