@@ -100,7 +100,9 @@ function summarizeUnknownForLog(value: unknown): unknown {
 	return value;
 }
 
-function summarizeRelayResponseForLog(response: RelayResponse): Record<string, unknown> {
+function summarizeRelayResponseForLog(
+	response: RelayResponse,
+): Record<string, unknown> {
 	if (response.type === "snapshot_response") {
 		return {
 			type: response.type,
@@ -534,33 +536,10 @@ function createManagedCloudResponseFromReader(
 						activeReader = input.reader.read();
 					}
 
-						const nextEventPromise =
-							input.relaySubscription !== null
-								? Promise.race([
-										activeReader.then(
-											(
-												result,
-											): {
-												kind: "reader";
-												result: ReadableStreamReadResult<Uint8Array>;
-											} => ({
-												kind: "reader",
-												result,
-											}),
-										),
-										input.relaySubscription.nextRequest().then(
-											(
-												request,
-											): {
-												kind: "relay";
-												request: RelayRequest;
-											} => ({
-												kind: "relay",
-												request,
-											}),
-										),
-									])
-								: activeReader.then(
+					const nextEventPromise =
+						input.relaySubscription !== null
+							? Promise.race([
+									activeReader.then(
 										(
 											result,
 										): {
@@ -570,7 +549,30 @@ function createManagedCloudResponseFromReader(
 											kind: "reader",
 											result,
 										}),
-									);
+									),
+									input.relaySubscription.nextRequest().then(
+										(
+											request,
+										): {
+											kind: "relay";
+											request: RelayRequest;
+										} => ({
+											kind: "relay",
+											request,
+										}),
+									),
+								])
+							: activeReader.then(
+									(
+										result,
+									): {
+										kind: "reader";
+										result: ReadableStreamReadResult<Uint8Array>;
+									} => ({
+										kind: "reader",
+										result,
+									}),
+								);
 
 					const outcome = await nextEventPromise;
 

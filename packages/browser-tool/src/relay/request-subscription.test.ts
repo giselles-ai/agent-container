@@ -16,10 +16,7 @@ const relayStoreMocks = vi.hoisted(() => {
 		quit: vi.fn(async () => undefined),
 		disconnect: vi.fn(),
 		on: vi.fn(
-			(
-				event: "message" | "error",
-				handler: MessageHandler | ErrorHandler,
-			) => {
+			(event: "message" | "error", handler: MessageHandler | ErrorHandler) => {
 				if (event === "message") {
 					handlers.message.add(handler as MessageHandler);
 					return;
@@ -28,10 +25,7 @@ const relayStoreMocks = vi.hoisted(() => {
 			},
 		),
 		off: vi.fn(
-			(
-				event: "message" | "error",
-				handler: MessageHandler | ErrorHandler,
-			) => {
+			(event: "message" | "error", handler: MessageHandler | ErrorHandler) => {
 				if (event === "message") {
 					handlers.message.delete(handler as MessageHandler);
 					return;
@@ -47,7 +41,9 @@ const relayStoreMocks = vi.hoisted(() => {
 		markBrowserConnected: vi.fn(async () => undefined),
 		touchBrowserConnected: vi.fn(async () => undefined),
 		resolveRelayResponse: vi.fn(async () => undefined),
-		relayRequestChannel: vi.fn((sessionId: string) => `relay:${sessionId}:request`),
+		relayRequestChannel: vi.fn(
+			(sessionId: string) => `relay:${sessionId}:request`,
+		),
 		RELAY_SSE_KEEPALIVE_INTERVAL_MS: 20_000,
 		handlers,
 		subscriber,

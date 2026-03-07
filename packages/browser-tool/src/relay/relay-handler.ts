@@ -45,7 +45,9 @@ const postBodySchema = z.discriminatedUnion("type", [
 	respondSchema,
 ]);
 
-function summarizeRelayRequestForLog(request: z.infer<typeof relayRequestSchema>) {
+function summarizeRelayRequestForLog(
+	request: z.infer<typeof relayRequestSchema>,
+) {
 	if (request.type === "snapshot_request") {
 		return {
 			type: request.type,

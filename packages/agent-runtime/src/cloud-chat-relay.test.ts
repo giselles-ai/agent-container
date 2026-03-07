@@ -19,7 +19,7 @@ describe("toolResultToRelayResponse", () => {
 							fields: [
 								{
 									fieldId: "bt:header-0",
-									selector: "[data-browser-tool-id=\"header-0\"]",
+									selector: '[data-browser-tool-id="header-0"]',
 									kind: "text",
 									label: "Header column 1",
 									required: false,
@@ -36,7 +36,7 @@ describe("toolResultToRelayResponse", () => {
 			fields: [
 				{
 					fieldId: "bt:header-0",
-					selector: "[data-browser-tool-id=\"header-0\"]",
+					selector: '[data-browser-tool-id="header-0"]',
 					kind: "text",
 					label: "Header column 1",
 					required: false,

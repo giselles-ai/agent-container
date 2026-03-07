@@ -1,9 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
 import type { RelayRequest } from "@giselles-ai/browser-tool";
 import type { RelayRequestSubscription } from "@giselles-ai/browser-tool/relay";
+import { describe, expect, it, vi } from "vitest";
 import { runCloudChat } from "./cloud-chat";
 import { getLiveCloudConnection } from "./cloud-chat-live";
-import type { CloudChatRequest, CloudChatSessionState } from "./cloud-chat-state";
+import type {
+	CloudChatRequest,
+	CloudChatSessionState,
+} from "./cloud-chat-state";
 
 type TestRuntimeInput = CloudChatRequest & {
 	session_id?: string;
@@ -137,10 +140,10 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
-					createRelayRequestSubscription:
-						createRelayRequestSubscriptionFactory(relaySubscription),
-				},
-			});
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
+			},
+		});
 
 		expect(runChatImpl).toHaveBeenCalledTimes(1);
 		const runtimeInput = (
@@ -184,10 +187,10 @@ describe("runCloudChat", () => {
 				relayUrl: "https://relay.example.com",
 				createRelaySession,
 				runChatImpl,
-					createRelayRequestSubscription:
-						createRelayRequestSubscriptionFactory(relaySubscription),
-				},
-			});
+				createRelayRequestSubscription:
+					createRelayRequestSubscriptionFactory(relaySubscription),
+			},
+		});
 
 		const runtimeInput = (
 			runChatImpl.mock.calls[0]?.[0] as { input: TestRuntimeInput } | undefined

@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cloud Chat Runner",
-  description: "Local API app for runCloudChat and agent snapshot builds.",
+	title: "Cloud Chat Runner",
+	description: "Local API app for runCloudChat and agent snapshot builds.",
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+	return (
+		<html lang="en">
+			<body>{children}</body>
+		</html>
+	);
 }

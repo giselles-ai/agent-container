@@ -5,7 +5,10 @@ type SnapshotRelayResponse = Extract<
 	RelayResponse,
 	{ type: "snapshot_response" }
 >;
-type ExecuteRelayResponse = Extract<RelayResponse, { type: "execute_response" }>;
+type ExecuteRelayResponse = Extract<
+	RelayResponse,
+	{ type: "execute_response" }
+>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
