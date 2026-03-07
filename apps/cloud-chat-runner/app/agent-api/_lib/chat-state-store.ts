@@ -1,7 +1,7 @@
 import type {
 	CloudChatSessionState,
 	CloudChatStateStore,
-} from "@giselles-ai/agent-runtime";
+} from "@giselles-ai/agent/server";
 import Redis from "ioredis";
 
 const CHAT_STATE_TTL_SEC = 60 * 60;

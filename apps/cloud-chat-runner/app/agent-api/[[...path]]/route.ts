@@ -1,4 +1,4 @@
-import { createAgentApi } from "@giselles-ai/agent-runtime";
+import { createAgentApi } from "@giselles-ai/agent/server";
 import { extractBearerToken, verifyApiToken } from "../_lib/auth";
 import { RedisCloudChatStateStore } from "../_lib/chat-state-store";
 

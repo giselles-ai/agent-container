@@ -112,14 +112,14 @@ Phases 2 and 3 can run in parallel after Phase 1 is complete. Phase 4 waits for 
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-package-scaffold.md](./phase-0-package-scaffold.md) | 🔲 TODO | Create `packages/agent` with package.json, tsconfig, tsup, and sub-path exports |
-| 1 | [phase-1-move-source.md](./phase-1-move-source.md) | 🔲 TODO | Move source files from both packages into `packages/agent/src` and fix internal imports |
-| 2 | [phase-2-migrate-tests.md](./phase-2-migrate-tests.md) | 🔲 TODO | Move test files, update import paths, and verify all tests pass |
-| 3 | [phase-3-update-consumers.md](./phase-3-update-consumers.md) | 🔲 TODO | Rewrite `apps/` imports to `@giselles-ai/agent` and update package.json dependencies |
-| 4 | [phase-4-cleanup.md](./phase-4-cleanup.md) | 🔲 TODO | Delete old packages, reinstall, and run full build/typecheck/test verification |
+| 0 | [phase-0-package-scaffold.md](./phase-0-package-scaffold.md) | ✅ DONE | Create `packages/agent` with package.json, tsconfig, tsup, and sub-path exports |
+| 1 | [phase-1-move-source.md](./phase-1-move-source.md) | ✅ DONE | Move source files from both packages into `packages/agent/src` and fix internal imports |
+| 2 | [phase-2-migrate-tests.md](./phase-2-migrate-tests.md) | ✅ DONE | Move test files, update import paths, and verify all tests pass |
+| 3 | [phase-3-update-consumers.md](./phase-3-update-consumers.md) | ✅ DONE | Rewrite `apps/` imports to `@giselles-ai/agent` and update package.json dependencies |
+| 4 | [phase-4-cleanup.md](./phase-4-cleanup.md) | ✅ DONE | Delete old packages, reinstall, and run full build/typecheck/test verification |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
-> Then check the status table above. Pick the first `🔲 TODO` task whose dependencies
+> Then check the status table above. Pick the first `✅ DONE` task whose dependencies
 > (see dependency graph) are `✅ DONE`. Open that task file and follow its instructions.
 > When done, update the status in this table to `✅ DONE`.
 

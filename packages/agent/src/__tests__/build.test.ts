@@ -7,7 +7,7 @@ vi.mock("@vercel/sandbox", () => ({
 }));
 
 import { Sandbox } from "@vercel/sandbox";
-import { createBuildHandler } from "../next-server/create-build-handler";
+import { buildAgent } from "../build";
 
 const mockCreate = vi.mocked(Sandbox.create);
 
@@ -47,7 +47,7 @@ function createMockSandbox(overrides?: {
 	};
 }
 
-describe("createBuildHandler", () => {
+describe("buildAgent", () => {
 	const savedEnv = { ...process.env };
 
 	beforeEach(() => {
@@ -60,40 +60,7 @@ describe("createBuildHandler", () => {
 		process.env = { ...savedEnv };
 	});
 
-	it("returns 401 when auth is required but token is missing", async () => {
-		const handler = createBuildHandler({ verifyToken: vi.fn() });
-		const res = await handler(makeRequest({}));
-
-		expect(res.status).toBe(401);
-		const body = await res.json();
-		expect(body).toEqual(
-			expect.objectContaining({
-				ok: false,
-				message: "Missing authorization token.",
-			}),
-		);
-		expect(mockCreate).not.toHaveBeenCalled();
-	});
-
-	it("returns 401 when token is invalid", async () => {
-		const handler = createBuildHandler({
-			verifyToken: vi.fn().mockResolvedValue(false),
-		});
-		const res = await handler(makeRequest({}, "wrong-token"));
-
-		expect(res.status).toBe(401);
-		const body = await res.json();
-		expect(body).toEqual(
-			expect.objectContaining({
-				ok: false,
-				message: "Invalid authorization token.",
-			}),
-		);
-		expect(mockCreate).not.toHaveBeenCalled();
-	});
-
 	it("returns 400 for invalid body", async () => {
-		const handler = createBuildHandler();
 		const malformed: unknown[] = [
 			{},
 			{ config_hash: "hash", agent_type: "gemini" },
@@ -108,7 +75,7 @@ describe("createBuildHandler", () => {
 		];
 
 		for (const body of malformed) {
-			const res = await handler(makeRequest(body));
+			const res = await buildAgent({ request: makeRequest(body) });
 			expect(res.status).toBe(400);
 		}
 
@@ -116,10 +83,11 @@ describe("createBuildHandler", () => {
 	});
 
 	it("returns 400 for invalid JSON", async () => {
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({ any: "ignored" }, undefined, { bodyText: "{invalid-json" }),
-		);
+		const res = await buildAgent({
+			request: makeRequest({ any: "ignored" }, undefined, {
+				bodyText: "{invalid-json",
+			}),
+		});
 
 		expect(res.status).toBe(400);
 		expect(mockCreate).not.toHaveBeenCalled();
@@ -130,14 +98,13 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({
+		const res = await buildAgent({
+			request: makeRequest({
 				config_hash: "no_files_hash",
 				agent_type: "gemini",
 				files: [],
 			}),
-		);
+		});
 
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { snapshot_id: string; cached: boolean };
@@ -154,18 +121,17 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler({ baseSnapshotId: "snap_config" });
-		const files = [
-			{ path: "/test/a.md", content: "hello" },
-			{ path: "/test/b.md", content: "world" },
-		];
-		const res = await handler(
-			makeRequest({
+		const res = await buildAgent({
+			request: makeRequest({
 				config_hash: "buffer_hash",
 				agent_type: "codex",
-				files,
+				files: [
+					{ path: "/test/a.md", content: "hello" },
+					{ path: "/test/b.md", content: "world" },
+				],
 			}),
-		);
+			baseSnapshotId: "snap_config",
+		});
 
 		expect(res.status).toBe(200);
 		expect(mockCreate).toHaveBeenCalledWith({
@@ -183,14 +149,14 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler({ baseSnapshotId: "snap_config" });
-		const res = await handler(
-			makeRequest({
+		const res = await buildAgent({
+			request: makeRequest({
 				config_hash: "env_preferred_hash",
 				agent_type: "gemini",
 				files: [],
 			}),
-		);
+			baseSnapshotId: "snap_config",
+		});
 
 		expect(res.status).toBe(200);
 		expect(mockCreate).toHaveBeenCalledWith({
@@ -203,14 +169,13 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_built" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({
+		const res = await buildAgent({
+			request: makeRequest({
 				config_hash: "build_miss_hash",
 				agent_type: "gemini",
 				files: [{ path: "/x.md", content: "abc" }],
 			}),
-		);
+		});
 
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { snapshot_id: string; cached: boolean };
@@ -223,15 +188,14 @@ describe("createBuildHandler", () => {
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_cached" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler();
 		const body = {
 			config_hash: "cache_hash",
 			agent_type: "gemini",
 			files: [{ path: "/x", content: "1" }],
 		};
 
-		await handler(makeRequest(body));
-		const res = await handler(makeRequest(body));
+		await buildAgent({ request: makeRequest(body) });
+		const res = await buildAgent({ request: makeRequest(body) });
 		const result = (await res.json()) as {
 			snapshot_id: string;
 			cached: boolean;
@@ -253,12 +217,20 @@ describe("createBuildHandler", () => {
 			files: [{ path: "/x", content: "1" }],
 		};
 
-		const handlerA = createBuildHandler({ baseSnapshotId: "snap_a_base" });
-		await handlerA(makeRequest(body));
+		const resA = await buildAgent({
+			request: makeRequest(body),
+			baseSnapshotId: "snap_a_base",
+		});
+		expect(await resA.json()).toMatchObject({
+			snapshot_id: "snap_a",
+			cached: false,
+		});
 
-		const handlerB = createBuildHandler({ baseSnapshotId: "snap_b_base" });
-		const res = await handlerB(makeRequest(body));
-		const result = (await res.json()) as {
+		const resB = await buildAgent({
+			request: makeRequest(body),
+			baseSnapshotId: "snap_b_base",
+		});
+		const result = (await resB.json()) as {
 			snapshot_id: string;
 			cached: boolean;
 		};
@@ -268,58 +240,55 @@ describe("createBuildHandler", () => {
 	});
 
 	it("returns 500 when baseSnapshotId is missing in env and config", async () => {
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({
+		const res = await buildAgent({
+			request: makeRequest({
 				config_hash: "missing_base_hash",
 				agent_type: "gemini",
 				files: [],
 			}),
-		);
+		});
 
 		expect(res.status).toBe(500);
 		expect(await res.json()).toEqual(
 			expect.objectContaining({
 				ok: false,
 				message:
-					"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or BuildHandlerConfig.baseSnapshotId.",
+					"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or configure build.baseSnapshotId.",
 			}),
 		);
 		expect(mockCreate).not.toHaveBeenCalled();
 	});
 
-	it("returns 500 when sandbox create fails", async () => {
+	it("rejects when sandbox create fails", async () => {
 		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		mockCreate.mockRejectedValue(new Error("create failed"));
 
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({
-				config_hash: "error_hash_create",
-				agent_type: "gemini",
-				files: [{ path: "/x", content: "1" }],
+		await expect(
+			buildAgent({
+				request: makeRequest({
+					config_hash: "error_hash_create",
+					agent_type: "gemini",
+					files: [{ path: "/x", content: "1" }],
+				}),
 			}),
-		);
-
-		expect(res.status).toBe(500);
+		).rejects.toThrow("create failed");
 	});
 
-	it("returns 500 when snapshot fails", async () => {
+	it("rejects when snapshot fails", async () => {
 		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({
 			snapshotSpy: vi.fn().mockRejectedValue(new Error("snapshot failed")),
 		});
 		mockCreate.mockResolvedValue(mockSandbox);
 
-		const handler = createBuildHandler();
-		const res = await handler(
-			makeRequest({
-				config_hash: "error_hash_snapshot",
-				agent_type: "gemini",
-				files: [{ path: "/x", content: "1" }],
+		await expect(
+			buildAgent({
+				request: makeRequest({
+					config_hash: "error_hash_snapshot",
+					agent_type: "gemini",
+					files: [{ path: "/x", content: "1" }],
+				}),
 			}),
-		);
-
-		expect(res.status).toBe(500);
+		).rejects.toThrow("snapshot failed");
 	});
 });

@@ -9,7 +9,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@giselles-ai/agent-runtime": "workspace:*",
+		"@giselles-ai/agent": "workspace:*",
 		"@giselles-ai/browser-tool": "workspace:*",
 		"ioredis": "5.9.3",
 		"next": "16.1.6",

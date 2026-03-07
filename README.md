@@ -60,41 +60,28 @@ Browser (useChat)             Route Handler            Redis              Sandbo
 ```
 agent-container/
 ├── packages/
-│   ├── agent-builder/            # @giselles-ai/agent-builder — build-time integration
-│   ├── agent-runtime/            # @giselles-ai/agent-runtime — sandbox runtime primitives
+│   ├── agent/                    # @giselles-ai/agent — unified agent package
 │   ├── agent-kit/                # @giselles-ai/agent-kit — agent tooling CLI/library
 │   ├── browser-tool/             # @giselles-ai/browser-tool — browser automation domain package
 │   └── giselle-provider/         # @giselles-ai/giselle-provider — AI SDK provider
 └── scripts/
 ```
 
-`agent-runtime` and `agent-kit` are the current runtime and agent-tooling package names and directories.
+`agent` and `agent-kit` are the current agent and tooling package names and directories.
 
 `apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
 
 ## Packages
 
-### `@giselles-ai/agent-builder`
+### `@giselles-ai/agent`
 
-Build-time integration package for defining agents and wiring framework-specific build hooks.
+Unified agent package for defining agents, build integration, and server runtime APIs.
 
 | Export Path | Description |
 |---|---|
-| `@giselles-ai/agent-builder` | `defineAgent()`, config hashing, and shared agent definition types |
-| `@giselles-ai/agent-builder/next` | Next.js plugin entry point (`withGiselleAgent`) |
-| `@giselles-ai/agent-builder/next-server` | Server-side build handler APIs (`createBuildHandler`) |
-
-### `@giselles-ai/agent-runtime`
-
-Sandbox runtime primitives for running CLI agents in Vercel Sandbox containers.
-
-| Export | Description |
-|---|---|
-| `ChatAgent` | Interface for pluggable CLI agent implementations |
-| `createGeminiAgent()` | Gemini CLI agent (runs `gemini --output-format stream-json`) |
-| `AGENT_METADATA_PATH` | Path to agent metadata file inside snapshots (`/.agent-metadata.json`) |
-| `readAgentMetadata()` | Read agent metadata from a sandbox snapshot |
-| `runChat()` | Sandbox orchestrator that creates/resumes a sandbox and streams NDJSON |
+| `@giselles-ai/agent` | `defineAgent()`, config hashing, and shared agent definition types |
+| `@giselles-ai/agent/next` | Next.js plugin entry point (`withGiselleAgent`) |
+| `@giselles-ai/agent/server` | Runtime-facing server APIs (`createAgentApi`, `runCloudChat`, etc.) |
 
 ### `@giselles-ai/agent-kit`
 

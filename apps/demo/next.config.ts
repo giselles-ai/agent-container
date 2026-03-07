@@ -1,4 +1,4 @@
-import { withGiselleAgent } from "@giselles-ai/agent-builder/next";
+import { withGiselleAgent } from "@giselles-ai/agent/next";
 import type { NextConfig } from "next";
 import { agent } from "./lib/agent";
 

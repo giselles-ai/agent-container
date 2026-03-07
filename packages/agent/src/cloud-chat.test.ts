@@ -545,8 +545,8 @@ describe("runCloudChat", () => {
 				],
 				session_id: "agent-cold",
 				sandbox_id: "sandbox-cold",
-				relay_session_id: "relay-cold-resume",
-				relay_token: "token-cold-resume",
+				relay_session_id: "relay-cold",
+				relay_token: "token-cold",
 			},
 		});
 		expect(sendRelayResponse).toHaveBeenCalledWith({

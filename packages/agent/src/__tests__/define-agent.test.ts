@@ -27,16 +27,18 @@ describe("defineAgent", () => {
 
 	it("throws when snapshotId is accessed without env", () => {
 		const agent = defineAgent({});
-		expect(() => agent.snapshotId).toThrow("GISELLE_SNAPSHOT_ID is not set");
+		expect(() => agent.snapshotId).toThrow(
+			"GISELLE_SANDBOX_AGENT_SNAPSHOT_ID is not set",
+		);
 	});
 
 	it("returns snapshotId from env", () => {
-		process.env.GISELLE_SNAPSHOT_ID = "snap_test123";
+		process.env.GISELLE_SANDBOX_AGENT_SNAPSHOT_ID = "snap_test123";
 		try {
 			const agent = defineAgent({});
 			expect(agent.snapshotId).toBe("snap_test123");
 		} finally {
-			delete process.env.GISELLE_SNAPSHOT_ID;
+			delete process.env.GISELLE_SANDBOX_AGENT_SNAPSHOT_ID;
 		}
 	});
 });

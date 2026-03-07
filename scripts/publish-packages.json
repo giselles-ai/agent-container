@@ -1,14 +1,6 @@
 {
 	"packages": [
 		{
-			"name": "@giselles-ai/agent-builder",
-			"dir": "packages/agent-builder"
-		},
-		{
-			"name": "@giselles-ai/agent-runtime",
-			"dir": "packages/agent-runtime"
-		},
-		{
 			"name": "@giselles-ai/agent-kit",
 			"dir": "packages/agent-kit"
 		},

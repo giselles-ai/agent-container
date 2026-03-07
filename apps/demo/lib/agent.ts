@@ -1,4 +1,4 @@
-import { defineAgent } from "@giselles-ai/agent-builder";
+import { defineAgent } from "@giselles-ai/agent";
 
 const agentMd = `
 You are a helpful assistant embedded in a spreadsheet application. The user is chatting with you from a chat panel displayed to the right of a spreadsheet grid.
