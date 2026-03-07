@@ -1,9 +1,9 @@
 import {
+	type AgentRequest,
 	type ChatAgent,
 	type CloudChatRequest,
 	type CloudToolResult,
-	createCodexAgent,
-	createGeminiAgent,
+	createAgent,
 	runCloudChat,
 } from "@giselles-ai/agent-runtime";
 import { createRelaySession } from "@giselles-ai/browser-tool/relay";
@@ -37,13 +37,10 @@ const requestSchema = z.object({
 		.optional(),
 });
 
-type RunnerCloudChatRequest = CloudChatRequest & {
-	snapshot_id: string;
-	session_id?: string;
-	sandbox_id?: string;
-	relay_session_id?: string;
-	relay_token?: string;
-};
+type RunnerCloudChatRequest = CloudChatRequest &
+	AgentRequest & {
+		snapshot_id: string;
+	};
 
 const store = new RedisCloudChatStateStore();
 
@@ -103,8 +100,9 @@ function createRuntimeAgent(input: {
 	agentType: "gemini" | "codex";
 	snapshotId: string;
 	relayUrl: string;
-}): ChatAgent<RunnerCloudChatRequest> {
-	const options = {
+}) {
+	return createAgent({
+		type: input.agentType,
 		snapshotId: input.snapshotId,
 		env: createBrowserRelayEnv(input.relayUrl, input.agentType),
 		tools: {
@@ -112,16 +110,7 @@ function createRuntimeAgent(input: {
 				relayUrl: input.relayUrl,
 			},
 		},
-	};
-
-	const agent =
-		input.agentType === "gemini"
-			? createGeminiAgent(options)
-			: createCodexAgent(options);
-
-	// `runCloudChat()` adds chat-level fields (`chat_id`, `tool_results`) that the
-	// agent implementations ignore. The runtime path does not read `requestSchema`.
-	return agent as unknown as ChatAgent<RunnerCloudChatRequest>;
+	});
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -155,7 +144,7 @@ export async function POST(request: Request): Promise<Response> {
 				snapshot_id: parsed.data.snapshot_id,
 				tool_results: parsed.data.tool_results as CloudToolResult[] | undefined,
 			},
-			agent,
+			agent: agent as ChatAgent<RunnerCloudChatRequest>,
 			signal: request.signal,
 			deps: {
 				store,

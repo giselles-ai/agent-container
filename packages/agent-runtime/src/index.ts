@@ -1,6 +1,12 @@
 export { Agent } from "./agent";
 export { createCodexAgent } from "./agents/codex-agent";
 export { createCodexStdoutMapper } from "./agents/codex-mapper";
+export {
+	type AgentRequest,
+	type AgentType,
+	type CreateAgentOptions,
+	createAgent,
+} from "./agents/create-agent";
 export { createGeminiAgent } from "./agents/gemini-agent";
 export {
 	type BaseChatRequest,
