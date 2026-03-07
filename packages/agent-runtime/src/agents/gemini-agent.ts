@@ -23,7 +23,7 @@ export type GeminiAgentRequest = z.infer<typeof geminiRequestSchema>;
 
 export type GeminiAgentOptions = {
 	snapshotId?: string;
-	env?: Record<string, string>;
+	env?: Record<string, string | undefined>;
 	tools?: {
 		browser?: {
 			relayUrl?: string;
@@ -31,7 +31,10 @@ export type GeminiAgentOptions = {
 	};
 };
 
-function requiredEnv(env: Record<string, string>, name: string): string {
+function requiredEnv(
+	env: Record<string, string | undefined>,
+	name: string,
+): string {
 	const value = env[name]?.trim();
 	if (!value) {
 		throw new Error(`Missing required environment variable: ${name}`);
@@ -139,11 +142,13 @@ export function createGeminiAgent(
 
 			assertBrowserToolRelayCredentials(input);
 
-			const patchEnv = {
-				...env,
-				BROWSER_TOOL_RELAY_SESSION_ID: input.relay_session_id,
-				BROWSER_TOOL_RELAY_TOKEN: input.relay_token,
-			};
+			const patchEnv = Object.fromEntries(
+				Object.entries({
+					...env,
+					BROWSER_TOOL_RELAY_SESSION_ID: input.relay_session_id,
+					BROWSER_TOOL_RELAY_TOKEN: input.relay_token,
+				}).filter((e): e is [string, string] => e[1] != null),
+			);
 			console.info("[gemini-agent] prepareSandbox browser tool", {
 				relaySessionId: input.relay_session_id,
 				hasRelayUrl: Boolean(env.BROWSER_TOOL_RELAY_URL),

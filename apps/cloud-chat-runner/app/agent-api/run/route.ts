@@ -8,7 +8,6 @@ import { z } from "zod";
 import {
 	extractBearerToken,
 	getOptionalEnv,
-	getRequiredEnv,
 	MissingServerConfigError,
 	verifyApiToken,
 } from "../_lib/auth";
@@ -76,27 +75,6 @@ function resolveRelayUrl(request: Request): string {
 	return new URL("/agent-api/relay", request.url).toString();
 }
 
-function createBrowserRelayEnv(
-	relayUrl: string,
-	agentType: "gemini" | "codex",
-): Record<string, string> {
-	const vercelProtectionBypass = getOptionalEnv("VERCEL_PROTECTION_BYPASS");
-	const giselleProtectionBypass = getOptionalEnv("GISELLE_PROTECTION_BYPASS");
-
-	return {
-		BROWSER_TOOL_RELAY_URL: relayUrl,
-		...(agentType === "gemini"
-			? { GEMINI_API_KEY: getRequiredEnv("GEMINI_API_KEY") }
-			: { CODEX_API_KEY: getRequiredEnv("CODEX_API_KEY") }),
-		...(vercelProtectionBypass
-			? { VERCEL_PROTECTION_BYPASS: vercelProtectionBypass }
-			: {}),
-		...(giselleProtectionBypass
-			? { GISELLE_PROTECTION_BYPASS: giselleProtectionBypass }
-			: {}),
-	};
-}
-
 export async function POST(request: Request): Promise<Response> {
 	try {
 		const token = extractBearerToken(request);
@@ -126,7 +104,11 @@ export async function POST(request: Request): Promise<Response> {
 			agent: {
 				type: parsed.data.agent_type,
 				snapshotId: parsed.data.snapshot_id,
-				env: createBrowserRelayEnv(relayUrl, parsed.data.agent_type),
+				env: {
+					BROWSER_TOOL_RELAY_URL: relayUrl,
+					VERCEL_PROTECTION_BYPASS: process.env.VERCEL_PROTECTION_BYPASS,
+					GISELLE_PROTECTION_BYPASS: process.env.GISELLE_PROTECTION_BYPASS,
+				},
 				tools: {
 					browser: {
 						relayUrl,

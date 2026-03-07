@@ -36,10 +36,23 @@ export function resolveAgent<TRequest extends BaseChatRequest>(
 	return param;
 }
 
+const agentApiKeyEnvName: Record<AgentType, string> = {
+	gemini: "GEMINI_API_KEY",
+	codex: "CODEX_API_KEY",
+};
+
 export function createAgent(
 	options: CreateAgentOptions,
 ): ChatAgent<AgentRequest> {
 	const { type, ...agentOptions } = options;
+
+	const keyName = agentApiKeyEnvName[type];
+	if (!agentOptions.env?.[keyName]) {
+		const fromProcess = process.env[keyName]?.trim();
+		if (fromProcess) {
+			agentOptions.env = { ...agentOptions.env, [keyName]: fromProcess };
+		}
+	}
 
 	switch (type) {
 		case "gemini":

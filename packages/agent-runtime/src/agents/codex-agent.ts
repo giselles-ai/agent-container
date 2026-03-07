@@ -33,7 +33,7 @@ export type CodexAgentRequest = z.infer<typeof codexRequestSchema>;
 
 export type CodexAgentOptions = {
 	snapshotId?: string;
-	env?: Record<string, string>;
+	env?: Record<string, string | undefined>;
 	tools?: {
 		browser?: {
 			relayUrl?: string;
@@ -41,7 +41,10 @@ export type CodexAgentOptions = {
 	};
 };
 
-function requiredEnv(env: Record<string, string>, name: string): string {
+function requiredEnv(
+	env: Record<string, string | undefined>,
+	name: string,
+): string {
 	const value = env[name]?.trim();
 	if (!value) {
 		throw new Error(`Missing required environment variable: ${name}`);
@@ -151,11 +154,13 @@ export function createCodexAgent(
 
 			assertBrowserToolRelayCredentials(_input.input);
 
-			const patchEnv = {
-				...env,
-				BROWSER_TOOL_RELAY_SESSION_ID: _input.input.relay_session_id,
-				BROWSER_TOOL_RELAY_TOKEN: _input.input.relay_token,
-			};
+			const patchEnv = Object.fromEntries(
+				Object.entries({
+					...env,
+					BROWSER_TOOL_RELAY_SESSION_ID: _input.input.relay_session_id,
+					BROWSER_TOOL_RELAY_TOKEN: _input.input.relay_token,
+				}).filter((e): e is [string, string] => e[1] != null),
+			);
 
 			await patchCodexConfigTransportEnv(_input.sandbox, patchEnv);
 		},
