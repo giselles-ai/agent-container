@@ -27,6 +27,46 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
+  apps/cloud-chat-runner:
+    dependencies:
+      '@giselles-ai/agent-builder':
+        specifier: workspace:*
+        version: link:../../packages/agent-builder
+      '@giselles-ai/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
+      '@giselles-ai/browser-tool':
+        specifier: workspace:*
+        version: link:../../packages/browser-tool
+      ioredis:
+        specifier: 5.9.3
+        version: 5.9.3
+      next:
+        specifier: 16.1.6
+        version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.0.10
+        version: 25.0.10
+      '@types/react':
+        specifier: 19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.10)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   apps/demo:
     dependencies:
       '@ai-sdk/react':

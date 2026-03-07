@@ -36,6 +36,13 @@ class InvalidChatRequestError extends Error {
   }
 }
 
+class MissingServerConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MissingServerConfigError";
+  }
+}
+
 const tools = {
   getFormSnapshot: tool({
     description: "Capture the current state of form fields on the page.",
@@ -134,12 +141,14 @@ function invalidRequestResponse(message: string): Response {
   );
 }
 
-function internalErrorResponse(): Response {
+function internalErrorResponse(
+  message = "Failed to process chat request.",
+): Response {
   return Response.json(
     {
       ok: false,
       errorCode: "INTERNAL_ERROR",
-      message: "Failed to process chat request.",
+      message,
     },
     { status: 500 },
   );
@@ -155,7 +164,6 @@ export async function POST(request: Request): Promise<Response> {
       model: giselle({
         agent,
         baseUrl: process.env.SANDBOX_AGENT_BASE_URL,
-        apiKey: process.env.SANDBOX_AGENT_API_KEY,
         headers: {
           "x-vercel-protection-bypass":
             process.env.EXTERNAL_AGENT_API_PROTECTION_BYPASS,
@@ -180,6 +188,9 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     if (error instanceof InvalidChatRequestError) {
       return invalidRequestResponse(error.message);
+    }
+    if (error instanceof MissingServerConfigError) {
+      return internalErrorResponse(error.message);
     }
 
     console.error("POST /chat failed", error);
