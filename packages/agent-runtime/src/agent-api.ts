@@ -3,6 +3,7 @@ import {
 	createRelaySession,
 } from "@giselles-ai/browser-tool/relay";
 import type { CreateAgentOptions } from "./agents/create-agent";
+import { buildAgent } from "./build";
 import { runCloudChat } from "./cloud-chat";
 import {
 	type CloudChatRunRequest,
@@ -11,15 +12,23 @@ import {
 	cloudChatRunRequestSchema,
 } from "./cloud-chat-state";
 
+type BeforeHook = (
+	request: Request,
+) => Response | undefined | Promise<Response | undefined>;
+
 export type AgentApiOptions = {
 	basePath: string;
 	store: CloudChatStateStore;
 	agent: Omit<CreateAgentOptions, "type" | "snapshotId">;
+	build?: {
+		baseSnapshotId?: string;
+	};
 	hooks?: {
 		chat?: {
-			before?: (
-				request: Request,
-			) => Response | undefined | Promise<Response | undefined>;
+			before?: BeforeHook;
+		};
+		build?: {
+			before?: BeforeHook;
 		};
 	};
 };
@@ -64,7 +73,32 @@ export function createAgentApi(options: AgentApiOptions): {
 	const { basePath, store, agent: agentOptions } = options;
 
 	const runPath = `${basePath}/run`;
+	const buildPath = `${basePath}/build`;
 	const relayPrefix = `${basePath}/relay`;
+
+	async function handleBuild(request: Request): Promise<Response> {
+		if (!options.build) {
+			return errorResponse(404, "NOT_FOUND", "Build endpoint not configured.");
+		}
+		try {
+			const hookResult = await options.hooks?.build?.before?.(request);
+			if (hookResult instanceof Response) {
+				return hookResult;
+			}
+
+			return await buildAgent({
+				request,
+				baseSnapshotId: options.build.baseSnapshotId,
+			});
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to process build request.";
+			console.error(`POST ${buildPath} failed`, error);
+			return errorResponse(500, "INTERNAL_ERROR", message);
+		}
+	}
 
 	async function handleRun(request: Request): Promise<Response> {
 		try {
@@ -121,6 +155,10 @@ export function createAgentApi(options: AgentApiOptions): {
 			return "run";
 		}
 
+		if (pathname === buildPath || pathname === `${buildPath}/`) {
+			return "build";
+		}
+
 		if (pathname === relayPrefix || pathname.startsWith(`${relayPrefix}/`)) {
 			return "relay";
 		}
@@ -140,6 +178,9 @@ export function createAgentApi(options: AgentApiOptions): {
 			const sub = matchSubPath(request);
 			if (sub === "run") {
 				return handleRun(request);
+			}
+			if (sub === "build") {
+				return handleBuild(request);
 			}
 			if (sub === "relay") {
 				return relay.POST(request);

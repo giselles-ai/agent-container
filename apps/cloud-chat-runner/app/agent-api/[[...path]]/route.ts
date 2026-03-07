@@ -5,6 +5,16 @@ import { RedisCloudChatStateStore } from "../_lib/chat-state-store";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function authHook(request: Request): Response | undefined {
+	const token = extractBearerToken(request);
+	if (!token || !verifyApiToken(token)) {
+		return Response.json(
+			{ ok: false, errorCode: "UNAUTHORIZED", message: "Unauthorized." },
+			{ status: 401 },
+		);
+	}
+}
+
 const api = createAgentApi({
 	basePath: "/agent-api",
 	store: new RedisCloudChatStateStore(),
@@ -17,18 +27,12 @@ const api = createAgentApi({
 			browser: {},
 		},
 	},
+	build: {
+		baseSnapshotId: process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID,
+	},
 	hooks: {
-		chat: {
-			before: (request) => {
-				const token = extractBearerToken(request);
-				if (!token || !verifyApiToken(token)) {
-					return Response.json(
-						{ ok: false, errorCode: "UNAUTHORIZED", message: "Unauthorized." },
-						{ status: 401 },
-					);
-				}
-			},
-		},
+		chat: { before: authHook },
+		build: { before: authHook },
 	},
 });
 

@@ -29,9 +29,6 @@ importers:
 
   apps/cloud-chat-runner:
     dependencies:
-      '@giselles-ai/agent-builder':
-        specifier: workspace:*
-        version: link:../../packages/agent-builder
       '@giselles-ai/agent-runtime':
         specifier: workspace:*
         version: link:../../packages/agent-runtime
