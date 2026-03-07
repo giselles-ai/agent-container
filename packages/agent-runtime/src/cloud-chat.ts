@@ -8,6 +8,7 @@ import {
 	type RelayRequestSubscription,
 	sendRelayResponse,
 } from "@giselles-ai/browser-tool/relay";
+import { type AgentParam, resolveAgent } from "./agents/create-agent";
 import type { BaseChatRequest, ChatAgent, RunChatInput } from "./chat-run";
 import { runChat } from "./chat-run";
 import {
@@ -166,10 +167,11 @@ export async function runCloudChat<
 		TRequest,
 		"session_id" | "sandbox_id" | "relay_session_id" | "relay_token"
 	>;
-	agent: ChatAgent<TRequest>;
+	agent: AgentParam<TRequest>;
 	signal: AbortSignal;
 	deps: CloudChatDeps<TRequest>;
 }): Promise<Response> {
+	const agent = resolveAgent(input.agent);
 	const now = input.deps.now?.() ?? Date.now();
 	const createRelaySub =
 		input.deps.createRelayRequestSubscription ?? createRelayRequestSubscription;
@@ -179,7 +181,7 @@ export async function runCloudChat<
 	if (existing?.pendingTool) {
 		return resumeCloudChat({
 			chatId: input.chatId,
-			agent: input.agent,
+			agent,
 			signal: input.signal,
 			request: input.request,
 			store: input.deps.store,
@@ -214,7 +216,7 @@ export async function runCloudChat<
 	let response: Response;
 	try {
 		response = await (input.deps.runChatImpl ?? runChat)({
-			agent: input.agent,
+			agent,
 			signal: input.signal,
 			input: runtimeInput,
 		});

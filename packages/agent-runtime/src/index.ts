@@ -2,6 +2,7 @@ export { Agent } from "./agent";
 export { createCodexAgent } from "./agents/codex-agent";
 export { createCodexStdoutMapper } from "./agents/codex-mapper";
 export {
+	type AgentParam,
 	type AgentRequest,
 	type AgentType,
 	type CreateAgentOptions,

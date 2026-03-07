@@ -13,6 +13,29 @@ export type CreateAgentOptions = (GeminiAgentOptions & CodexAgentOptions) & {
 	type: AgentType;
 };
 
+export type AgentParam<TRequest extends BaseChatRequest> =
+	| ChatAgent<TRequest>
+	| CreateAgentOptions;
+
+function isCreateAgentOptions(
+	param: AgentParam<BaseChatRequest>,
+): param is CreateAgentOptions {
+	return (
+		"type" in param &&
+		(param.type === "gemini" || param.type === "codex") &&
+		!("requestSchema" in param)
+	);
+}
+
+export function resolveAgent<TRequest extends BaseChatRequest>(
+	param: AgentParam<TRequest>,
+): ChatAgent<TRequest> {
+	if (isCreateAgentOptions(param)) {
+		return createAgent(param) as ChatAgent<TRequest>;
+	}
+	return param;
+}
+
 export function createAgent(
 	options: CreateAgentOptions,
 ): ChatAgent<AgentRequest> {

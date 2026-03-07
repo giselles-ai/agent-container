@@ -1,9 +1,6 @@
 import {
-	type AgentRequest,
-	type ChatAgent,
 	type CloudChatRequest,
 	type CloudToolResult,
-	createAgent,
 	runCloudChat,
 } from "@giselles-ai/agent-runtime";
 import { createRelaySession } from "@giselles-ai/browser-tool/relay";
@@ -37,10 +34,14 @@ const requestSchema = z.object({
 		.optional(),
 });
 
-type RunnerCloudChatRequest = CloudChatRequest &
-	AgentRequest & {
-		snapshot_id: string;
-	};
+type RunnerCloudChatRequest = CloudChatRequest & {
+	message: string;
+	snapshot_id: string;
+	session_id?: string;
+	sandbox_id?: string;
+	relay_session_id?: string;
+	relay_token?: string;
+};
 
 const store = new RedisCloudChatStateStore();
 
@@ -96,23 +97,6 @@ function createBrowserRelayEnv(
 	};
 }
 
-function createRuntimeAgent(input: {
-	agentType: "gemini" | "codex";
-	snapshotId: string;
-	relayUrl: string;
-}) {
-	return createAgent({
-		type: input.agentType,
-		snapshotId: input.snapshotId,
-		env: createBrowserRelayEnv(input.relayUrl, input.agentType),
-		tools: {
-			browser: {
-				relayUrl: input.relayUrl,
-			},
-		},
-	});
-}
-
 export async function POST(request: Request): Promise<Response> {
 	try {
 		const token = extractBearerToken(request);
@@ -130,11 +114,6 @@ export async function POST(request: Request): Promise<Response> {
 		}
 
 		const relayUrl = resolveRelayUrl(request);
-		const agent = createRuntimeAgent({
-			agentType: parsed.data.agent_type,
-			snapshotId: parsed.data.snapshot_id,
-			relayUrl,
-		});
 
 		return await runCloudChat<RunnerCloudChatRequest>({
 			chatId: parsed.data.chat_id,
@@ -144,7 +123,16 @@ export async function POST(request: Request): Promise<Response> {
 				snapshot_id: parsed.data.snapshot_id,
 				tool_results: parsed.data.tool_results as CloudToolResult[] | undefined,
 			},
-			agent: agent as ChatAgent<RunnerCloudChatRequest>,
+			agent: {
+				type: parsed.data.agent_type,
+				snapshotId: parsed.data.snapshot_id,
+				env: createBrowserRelayEnv(relayUrl, parsed.data.agent_type),
+				tools: {
+					browser: {
+						relayUrl,
+					},
+				},
+			},
 			signal: request.signal,
 			deps: {
 				store,
