@@ -1,0 +1,37 @@
+import { createAgentApi } from "@giselles-ai/agent-runtime";
+import { extractBearerToken, verifyApiToken } from "../_lib/auth";
+import { RedisCloudChatStateStore } from "../_lib/chat-state-store";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const api = createAgentApi({
+	basePath: "/agent-api",
+	store: new RedisCloudChatStateStore(),
+	agent: {
+		env: {
+			VERCEL_PROTECTION_BYPASS: process.env.VERCEL_PROTECTION_BYPASS,
+			GISELLE_PROTECTION_BYPASS: process.env.GISELLE_PROTECTION_BYPASS,
+		},
+		tools: {
+			browser: {},
+		},
+	},
+	hooks: {
+		chat: {
+			before: (request) => {
+				const token = extractBearerToken(request);
+				if (!token || !verifyApiToken(token)) {
+					return Response.json(
+						{ ok: false, errorCode: "UNAUTHORIZED", message: "Unauthorized." },
+						{ status: 401 },
+					);
+				}
+			},
+		},
+	},
+});
+
+export const GET = api.GET;
+export const POST = api.POST;
+export const OPTIONS = api.OPTIONS;
