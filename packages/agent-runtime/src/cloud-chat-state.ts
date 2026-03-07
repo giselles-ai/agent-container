@@ -1,4 +1,5 @@
 import type { RelayRequest } from "@giselles-ai/browser-tool";
+import { z } from "zod";
 import type { BaseChatRequest } from "./chat-run";
 
 export type CloudToolName = "getFormSnapshot" | "executeFormActions";
@@ -101,6 +102,25 @@ export function reduceCloudChatEvent(
 
 	return null;
 }
+
+export const cloudChatRunRequestSchema = z.object({
+	type: z.literal("agent.run"),
+	chat_id: z.string().min(1),
+	message: z.string().min(1),
+	agent_type: z.enum(["gemini", "codex"]),
+	snapshot_id: z.string().min(1),
+	tool_results: z
+		.array(
+			z.object({
+				toolCallId: z.string().min(1),
+				toolName: z.enum(["getFormSnapshot", "executeFormActions"]),
+				output: z.unknown(),
+			}),
+		)
+		.optional(),
+});
+
+export type CloudChatRunRequest = z.infer<typeof cloudChatRunRequestSchema>;
 
 export function applyCloudChatPatch(input: {
 	chatId: string;

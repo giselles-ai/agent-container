@@ -26,6 +26,8 @@ export {
 export {
 	applyCloudChatPatch,
 	type CloudChatRequest,
+	type CloudChatRunRequest,
+	cloudChatRunRequestSchema,
 	type CloudChatSessionPatch,
 	type CloudChatSessionState,
 	type CloudChatStateStore,

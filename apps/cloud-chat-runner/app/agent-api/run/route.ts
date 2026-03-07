@@ -1,10 +1,10 @@
 import {
-	type CloudChatRequest,
+	type CloudChatRunRequest,
 	type CloudToolResult,
+	cloudChatRunRequestSchema,
 	runCloudChat,
 } from "@giselles-ai/agent-runtime";
 import { createRelaySession } from "@giselles-ai/browser-tool/relay";
-import { z } from "zod";
 import {
 	extractBearerToken,
 	getOptionalEnv,
@@ -15,32 +15,6 @@ import { RedisCloudChatStateStore } from "../_lib/chat-state-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const requestSchema = z.object({
-	type: z.literal("agent.run"),
-	chat_id: z.string().min(1),
-	message: z.string().min(1),
-	agent_type: z.enum(["gemini", "codex"]),
-	snapshot_id: z.string().min(1),
-	tool_results: z
-		.array(
-			z.object({
-				toolCallId: z.string().min(1),
-				toolName: z.enum(["getFormSnapshot", "executeFormActions"]),
-				output: z.unknown(),
-			}),
-		)
-		.optional(),
-});
-
-type RunnerCloudChatRequest = CloudChatRequest & {
-	message: string;
-	snapshot_id: string;
-	session_id?: string;
-	sandbox_id?: string;
-	relay_session_id?: string;
-	relay_token?: string;
-};
 
 const store = new RedisCloudChatStateStore();
 
@@ -86,18 +60,20 @@ export async function POST(request: Request): Promise<Response> {
 		}
 
 		const payload = await request.json().catch(() => null);
-		const parsed = requestSchema.safeParse(payload);
+		const parsed = cloudChatRunRequestSchema.safeParse(payload);
 		if (!parsed.success) {
 			return errorResponse(400, "INVALID_REQUEST", "Invalid run request.");
 		}
 
 		const relayUrl = resolveRelayUrl(request);
 
-		return await runCloudChat<RunnerCloudChatRequest>({
+		return await runCloudChat<CloudChatRunRequest>({
 			chatId: parsed.data.chat_id,
 			request: {
+				type: parsed.data.type,
 				message: parsed.data.message,
 				chat_id: parsed.data.chat_id,
+				agent_type: parsed.data.agent_type,
 				snapshot_id: parsed.data.snapshot_id,
 				tool_results: parsed.data.tool_results as CloudToolResult[] | undefined,
 			},
