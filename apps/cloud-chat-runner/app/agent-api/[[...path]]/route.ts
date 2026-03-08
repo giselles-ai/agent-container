@@ -1,6 +1,5 @@
 import { createAgentApi } from "@giselles-ai/agent/server";
 import { extractBearerToken, verifyApiToken } from "../_lib/auth";
-import { RedisCloudChatStateStore } from "../_lib/chat-state-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +16,7 @@ function authHook(request: Request): Response | undefined {
 
 const api = createAgentApi({
 	basePath: "/agent-api",
-	store: new RedisCloudChatStateStore(),
+	store: { adapter: "redis" },
 	agent: {
 		env: {
 			VERCEL_PROTECTION_BYPASS: process.env.VERCEL_PROTECTION_BYPASS,

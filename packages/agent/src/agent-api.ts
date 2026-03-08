@@ -7,10 +7,13 @@ import { buildAgent } from "./build";
 import { runCloudChat } from "./cloud-chat";
 import {
 	type CloudChatRunRequest,
-	type CloudChatStateStore,
 	type CloudToolResult,
 	cloudChatRunRequestSchema,
 } from "./cloud-chat-state";
+import {
+	type AgentApiStoreConfig,
+	resolveCloudChatStateStore,
+} from "./cloud-chat-store";
 
 type BeforeHook = (
 	request: Request,
@@ -18,7 +21,7 @@ type BeforeHook = (
 
 export type AgentApiOptions = {
 	basePath: string;
-	store: CloudChatStateStore;
+	store: AgentApiStoreConfig;
 	agent: Omit<CreateAgentOptions, "type" | "snapshotId">;
 	build?: {
 		baseSnapshotId?: string;
@@ -32,6 +35,8 @@ export type AgentApiOptions = {
 		};
 	};
 };
+
+export type { AgentApiStoreConfig } from "./cloud-chat-store";
 
 function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
@@ -70,11 +75,19 @@ export function createAgentApi(options: AgentApiOptions): {
 	OPTIONS: (request: Request) => Response;
 } {
 	const relay = createRelayHandler();
-	const { basePath, store, agent: agentOptions } = options;
+	const { basePath, agent: agentOptions } = options;
+	let storePromise: Promise<
+		import("./cloud-chat-state").CloudChatStateStore
+	> | null = null;
 
 	const runPath = `${basePath}/run`;
 	const buildPath = `${basePath}/build`;
 	const relayPrefix = `${basePath}/relay`;
+
+	function getStore() {
+		storePromise ??= resolveCloudChatStateStore(options.store);
+		return storePromise;
+	}
 
 	async function handleBuild(request: Request): Promise<Response> {
 		const baseSnapshotId =
@@ -136,7 +149,7 @@ export function createAgentApi(options: AgentApiOptions): {
 					snapshotId: parsed.data.snapshot_id,
 				},
 				signal: request.signal,
-				store,
+				store: await getStore(),
 				relayUrl,
 				createRelaySession,
 			});

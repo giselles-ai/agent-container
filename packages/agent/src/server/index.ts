@@ -1,5 +1,9 @@
 export { Agent } from "../agent";
-export { type AgentApiOptions, createAgentApi } from "../agent-api";
+export {
+	type AgentApiOptions,
+	type AgentApiStoreConfig,
+	createAgentApi,
+} from "../agent-api";
 export { createCodexAgent } from "../agents/codex-agent";
 export { createCodexStdoutMapper } from "../agents/codex-mapper";
 export {
