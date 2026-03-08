@@ -77,7 +77,10 @@ export function createAgentApi(options: AgentApiOptions): {
 	const relayPrefix = `${basePath}/relay`;
 
 	async function handleBuild(request: Request): Promise<Response> {
-		if (!options.build) {
+		const baseSnapshotId =
+			process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID?.trim() ||
+			options.build?.baseSnapshotId;
+		if (!options.build && !baseSnapshotId) {
 			return errorResponse(404, "NOT_FOUND", "Build endpoint not configured.");
 		}
 		try {
@@ -88,7 +91,7 @@ export function createAgentApi(options: AgentApiOptions): {
 
 			return await buildAgent({
 				request,
-				baseSnapshotId: options.build.baseSnapshotId,
+				baseSnapshotId,
 			});
 		} catch (error) {
 			const message =

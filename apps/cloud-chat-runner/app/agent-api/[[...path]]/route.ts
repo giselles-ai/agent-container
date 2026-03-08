@@ -27,9 +27,6 @@ const api = createAgentApi({
 			browser: {},
 		},
 	},
-	build: {
-		baseSnapshotId: process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID,
-	},
 	hooks: {
 		chat: { before: authHook },
 		build: { before: authHook },
