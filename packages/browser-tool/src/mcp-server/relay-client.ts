@@ -38,24 +38,20 @@ export class RelayClient {
 	private readonly sessionId: string;
 	private readonly token: string;
 	private readonly timeoutMs: number;
-	private readonly vercelProtectionBypass: string | null;
-	private readonly giselleProtectionBypass: string | null;
+	private readonly extraHeaders: Record<string, string>;
 
 	constructor(input: {
 		url: string;
 		sessionId: string;
 		token: string;
 		timeoutMs?: number;
-		vercelProtectionBypass?: string;
-		giselleProtectionBypass?: string;
+		extraHeaders?: Record<string, string>;
 	}) {
 		this.url = trimTrailingSlash(input.url);
 		this.sessionId = input.sessionId;
 		this.token = input.token;
 		this.timeoutMs = input.timeoutMs ?? 20_000;
-		this.vercelProtectionBypass = input.vercelProtectionBypass?.trim() || null;
-		this.giselleProtectionBypass =
-			input.giselleProtectionBypass?.trim() || null;
+		this.extraHeaders = input.extraHeaders ?? {};
 	}
 
 	async requestSnapshot(input: {
@@ -101,13 +97,8 @@ export class RelayClient {
 		try {
 			const headers: Record<string, string> = {
 				"content-type": "application/json",
+				...this.extraHeaders,
 			};
-			if (this.vercelProtectionBypass) {
-				headers["x-vercel-protection-bypass"] = this.vercelProtectionBypass;
-			}
-			if (this.giselleProtectionBypass) {
-				headers["x-giselle-protection-bypass"] = this.giselleProtectionBypass;
-			}
 
 			response = await fetch(`${this.url}`, {
 				method: "POST",
@@ -160,21 +151,31 @@ export class RelayClient {
 	}
 }
 
+function parseRelayHeaders(): Record<string, string> {
+	const raw = process.env.BROWSER_TOOL_RELAY_HEADERS?.trim();
+	if (!raw) {
+		return {};
+	}
+	try {
+		return JSON.parse(raw) as Record<string, string>;
+	} catch {
+		console.error(
+			"[relay-client] Failed to parse BROWSER_TOOL_RELAY_HEADERS, ignoring.",
+		);
+		return {};
+	}
+}
+
 export function createRelayClientFromEnv(): RelayClient {
-	const vercelProtectionBypass = process.env.VERCEL_PROTECTION_BYPASS;
-	const giselleProtectionBypass = process.env.GISELLE_PROTECTION_BYPASS;
+	const extraHeaders = parseRelayHeaders();
 	console.error(
-		`[relay-client] VERCEL_PROTECTION_BYPASS=${vercelProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
-	);
-	console.error(
-		`[relay-client] GISELLE_PROTECTION_BYPASS=${giselleProtectionBypass?.trim() ? "(set)" : "(unset)"}`,
+		`[relay-client] BROWSER_TOOL_RELAY_HEADERS keys=${Object.keys(extraHeaders).join(", ") || "(none)"}`,
 	);
 
 	return new RelayClient({
 		url: requiredEnv("BROWSER_TOOL_RELAY_URL"),
 		sessionId: requiredEnv("BROWSER_TOOL_RELAY_SESSION_ID"),
 		token: requiredEnv("BROWSER_TOOL_RELAY_TOKEN"),
-		vercelProtectionBypass,
-		giselleProtectionBypass,
+		extraHeaders,
 	});
 }

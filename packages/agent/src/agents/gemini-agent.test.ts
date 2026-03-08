@@ -98,12 +98,16 @@ describe("createGeminiAgent", () => {
 				GEMINI_API_KEY: "gemini-api-key",
 				SANDBOX_SNAPSHOT_ID: "snapshot-fixed",
 				BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
-				VERCEL_PROTECTION_BYPASS: "vercel-bypass",
-				GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
 			},
 			tools: {
 				browser: {
 					relayUrl: "https://relay.example.com/agent-api/relay/",
+					relayClient: {
+						headers: {
+							"x-vercel-protection-bypass": "vercel-bypass",
+							"x-giselle-protection-bypass": "giselle-bypass",
+						},
+					},
 				},
 			},
 		});
@@ -123,8 +127,10 @@ describe("createGeminiAgent", () => {
 			BROWSER_TOOL_RELAY_URL: "https://relay.example.com/agent-api/relay/",
 			BROWSER_TOOL_RELAY_SESSION_ID: "relay-session",
 			BROWSER_TOOL_RELAY_TOKEN: "relay-token",
-			VERCEL_PROTECTION_BYPASS: "vercel-bypass",
-			GISELLE_PROTECTION_PASSWORD: "giselle-bypass",
+			BROWSER_TOOL_RELAY_HEADERS: JSON.stringify({
+				"x-vercel-protection-bypass": "vercel-bypass",
+				"x-giselle-protection-bypass": "giselle-bypass",
+			}),
 		});
 
 		const command = agent.createCommand({

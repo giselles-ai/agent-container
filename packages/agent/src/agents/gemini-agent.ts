@@ -27,6 +27,9 @@ export type GeminiAgentOptions = {
 	tools?: {
 		browser?: {
 			relayUrl?: string;
+			relayClient?: {
+				headers?: Record<string, string | undefined>;
+			};
 		};
 	};
 };
@@ -125,6 +128,7 @@ export function createGeminiAgent(
 		options.snapshotId?.trim() || requiredEnv(env, "SANDBOX_SNAPSHOT_ID");
 	const browserToolEnabled = options.tools?.browser !== undefined;
 	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
+	const browserToolRelayHeaders = options.tools?.browser?.relayClient?.headers;
 	if (browserToolEnabled) {
 		requiredEnv(env, "BROWSER_TOOL_RELAY_URL");
 	}
@@ -142,11 +146,22 @@ export function createGeminiAgent(
 
 			assertBrowserToolRelayCredentials(input);
 
+			const relayHeadersJson = browserToolRelayHeaders
+				? JSON.stringify(
+						Object.fromEntries(
+							Object.entries(browserToolRelayHeaders).filter(
+								(e): e is [string, string] => e[1] != null,
+							),
+						),
+					)
+				: undefined;
+
 			const patchEnv = Object.fromEntries(
 				Object.entries({
-					...env,
+					BROWSER_TOOL_RELAY_URL: env.BROWSER_TOOL_RELAY_URL,
 					BROWSER_TOOL_RELAY_SESSION_ID: input.relay_session_id,
 					BROWSER_TOOL_RELAY_TOKEN: input.relay_token,
+					BROWSER_TOOL_RELAY_HEADERS: relayHeadersJson,
 				}).filter((e): e is [string, string] => e[1] != null),
 			);
 			console.info("[gemini-agent] prepareSandbox browser tool", {

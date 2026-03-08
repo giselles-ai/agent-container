@@ -18,12 +18,17 @@ const api = createAgentApi({
 	basePath: "/agent-api",
 	store: { adapter: "redis" },
 	agent: {
-		env: {
-			VERCEL_PROTECTION_BYPASS: process.env.VERCEL_PROTECTION_BYPASS,
-			GISELLE_PROTECTION_BYPASS: process.env.GISELLE_PROTECTION_BYPASS,
-		},
 		tools: {
-			browser: {},
+			browser: {
+				relayClient: {
+					headers: {
+						"x-vercel-protection-bypass":
+							process.env.VERCEL_PROTECTION_BYPASS,
+						"x-giselle-protection-bypass":
+							process.env.GISELLE_PROTECTION_BYPASS,
+					},
+				},
+			},
 		},
 	},
 	hooks: {

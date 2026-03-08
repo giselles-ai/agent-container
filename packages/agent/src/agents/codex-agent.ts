@@ -37,6 +37,9 @@ export type CodexAgentOptions = {
 	tools?: {
 		browser?: {
 			relayUrl?: string;
+			relayClient?: {
+				headers?: Record<string, string | undefined>;
+			};
 		};
 	};
 };
@@ -134,6 +137,7 @@ export function createCodexAgent(
 
 	const browserToolEnabled = options.tools?.browser !== undefined;
 	const browserToolRelayUrl = options.tools?.browser?.relayUrl?.trim();
+	const browserToolRelayHeaders = options.tools?.browser?.relayClient?.headers;
 	if (browserToolEnabled) {
 		requiredEnv(env, "BROWSER_TOOL_RELAY_URL");
 	}
@@ -154,11 +158,22 @@ export function createCodexAgent(
 
 			assertBrowserToolRelayCredentials(_input.input);
 
+			const relayHeadersJson = browserToolRelayHeaders
+				? JSON.stringify(
+						Object.fromEntries(
+							Object.entries(browserToolRelayHeaders).filter(
+								(e): e is [string, string] => e[1] != null,
+							),
+						),
+					)
+				: undefined;
+
 			const patchEnv = Object.fromEntries(
 				Object.entries({
-					...env,
+					BROWSER_TOOL_RELAY_URL: env.BROWSER_TOOL_RELAY_URL,
 					BROWSER_TOOL_RELAY_SESSION_ID: _input.input.relay_session_id,
 					BROWSER_TOOL_RELAY_TOKEN: _input.input.relay_token,
+					BROWSER_TOOL_RELAY_HEADERS: relayHeadersJson,
 				}).filter((e): e is [string, string] => e[1] != null),
 			);
 
