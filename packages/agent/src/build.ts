@@ -14,7 +14,7 @@ type BuildResponse = {
 const snapshotCache = new Map<string, string>();
 
 function resolveBaseSnapshotId(configured?: string): string | undefined {
-	const envValue = process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID?.trim();
+	const envValue = process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID?.trim();
 	if (envValue) {
 		return envValue;
 	}
@@ -88,7 +88,7 @@ export async function buildAgent(input: {
 			{
 				ok: false,
 				message:
-					"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or configure build.baseSnapshotId.",
+					"Missing base snapshot ID. Set GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID or configure build.baseSnapshotId.",
 			},
 			{ status: 500 },
 		);

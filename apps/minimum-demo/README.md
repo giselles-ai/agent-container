@@ -11,9 +11,8 @@ Spreadsheet demo app for exercising the local `cloud-chat-runner`.
 Required demo env:
 
 - `AGENT_TYPE`
-- `SANDBOX_AGENT_API_KEY`
-- `SANDBOX_AGENT_BUILD_URL`
-- `SANDBOX_AGENT_BASE_URL`
+- `GISELLE_AGENT_API_KEY`
+- `GISELLE_AGENT_BASE_URL`
 
 ## Run locally
 

@@ -14,10 +14,13 @@ export function withGiselleAgent(
 	options?: GiselleAgentPluginOptions,
 ): () => Promise<NextConfig> {
 	return async () => {
-		const apiUrl = trimTrailingSlash(
-			options?.apiUrl ?? "https://studio.giselles.ai/agent-api/build-api",
+		const baseUrl = trimTrailingSlash(
+			options?.baseUrl ??
+				process.env.GISELLE_AGENT_BASE_URL ??
+				"https://studio.giselles.ai/agent-api",
 		);
-		const token = options?.token ?? process.env.SANDBOX_AGENT_API_KEY;
+		const apiUrl = `${baseUrl}/build`;
+		const token = options?.token ?? process.env.GISELLE_AGENT_API_KEY;
 
 		if (!token) {
 			console.warn("[withGiselleAgent] Skipped snapshot build: missing token.");
@@ -88,7 +91,7 @@ export function withGiselleAgent(
 			...nextConfig,
 			env: {
 				...nextConfig.env,
-				GISELLE_SANDBOX_AGENT_SNAPSHOT_ID: result.snapshot_id,
+				GISELLE_AGENT_SNAPSHOT_ID: result.snapshot_id,
 			},
 		};
 	};

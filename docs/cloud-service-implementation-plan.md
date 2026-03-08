@@ -4,13 +4,13 @@
 
 ## Overview
 
-Provide the agent-container API as a Giselles Cloud Service, enabling users to get started with only `GISELLE_SANDBOX_AGENT_API_KEY`.
+Provide the agent-container API as a Giselles Cloud Service, enabling users to get started with only `GISELLE_AGENT_API_KEY`.
 
 ### Before / After
 
 | Item | Before (Current) | After (Cloud Service) |
 |---|---|---|
-| Env vars set by user | `GEMINI_API_KEY`, `SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_SANDBOX_AGENT_API_KEY` |
+| Env vars set by user | `GEMINI_API_KEY`, `SANDBOX_SNAPSHOT_ID`, `REDIS_URL` | `GISELLE_AGENT_API_KEY` |
 | Required external accounts | Google AI Studio, Vercel, Redis Cloud | None (Giselles only) |
 | API handler import | `@giselles-ai/agent` | `@giselles-ai/agent` (same name but cloud version) |
 | HTTP methods exported in route.ts | `GET`, `POST` | `POST` only |
@@ -359,7 +359,7 @@ export function handleAgentRunner(options: AgentRunnerOptions): AgentRunnerHandl
 import { handleAgentRunner } from "@giselles-ai/agent";
 
 const handler = handleAgentRunner({
-  apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+  apiKey: process.env.GISELLE_AGENT_API_KEY!,
 });
 
 export const POST = handler.POST;
@@ -666,7 +666,7 @@ The self-hosted version (`@giselles-ai/agent-self`) does not include `bridgeUrl`
 ### Cloud version user (packages/web/.env)
 
 ```env
-GISELLE_SANDBOX_AGENT_API_KEY=[REDACTED:api-key]
+GISELLE_AGENT_API_KEY=[REDACTED:api-key]
 ```
 
 ### Self-hosted version user
@@ -781,7 +781,7 @@ GISELLE_CLOUD_API_ENDPOINT=https://studio.giselles.ai/api/...
 | `packages/agent/src/react/use-agent.ts` | `bridgeUrl` support (BridgeSession type + connect + handleBridgeResponse) |
 | `packages/agent/package.json` | Remove `ioredis`, `@vercel/sandbox` |
 | `packages/web/app/api/agent/route.ts` | Change to Cloud version handler, remove GET export |
-| `packages/web/.env.example` | Only `GISELLE_SANDBOX_AGENT_API_KEY` |
+| `packages/web/.env.example` | Only `GISELLE_AGENT_API_KEY` |
 | `packages/web/package.json` | Remove unnecessary deps |
 
 ### Deleted files
@@ -797,7 +797,7 @@ GISELLE_CLOUD_API_ENDPOINT=https://studio.giselles.ai/api/...
 
 - [ ] `pnpm build` passes for all packages
 - [ ] `pnpm typecheck` passes for all packages
-- [ ] Cloud version: `packages/web` works with only `GISELLE_SANDBOX_AGENT_API_KEY`
+- [ ] Cloud version: `packages/web` works with only `GISELLE_AGENT_API_KEY`
 - [ ] Cloud version: Direct SSE connection from browser to Cloud API works without CORS errors
 - [ ] Cloud version: `bridge.respond` POST reaches Cloud API directly
 - [ ] Cloud version: Full round trip of DOM snapshot → execute completes within 20 seconds

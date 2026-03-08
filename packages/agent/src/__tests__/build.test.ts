@@ -53,7 +53,7 @@ describe("buildAgent", () => {
 	beforeEach(() => {
 		mockCreate.mockReset();
 		process.env = { ...savedEnv };
-		delete process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID;
+		delete process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID;
 	});
 
 	afterEach(() => {
@@ -94,7 +94,7 @@ describe("buildAgent", () => {
 	});
 
 	it("creates a snapshot even when no files are provided", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
@@ -145,7 +145,7 @@ describe("buildAgent", () => {
 	});
 
 	it("prefers env baseSnapshotId over config", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox();
 		mockCreate.mockResolvedValue(mockSandbox);
 
@@ -165,7 +165,7 @@ describe("buildAgent", () => {
 	});
 
 	it("returns built snapshot and cached false on miss", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_built" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
@@ -184,7 +184,7 @@ describe("buildAgent", () => {
 	});
 
 	it("returns cached snapshot on second request with same hash", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_cached" });
 		mockCreate.mockResolvedValue(mockSandbox);
 
@@ -253,14 +253,14 @@ describe("buildAgent", () => {
 			expect.objectContaining({
 				ok: false,
 				message:
-					"Missing base snapshot ID. Set GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID or configure build.baseSnapshotId.",
+					"Missing base snapshot ID. Set GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID or configure build.baseSnapshotId.",
 			}),
 		);
 		expect(mockCreate).not.toHaveBeenCalled();
 	});
 
 	it("rejects when sandbox create fails", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		mockCreate.mockRejectedValue(new Error("create failed"));
 
 		await expect(
@@ -275,7 +275,7 @@ describe("buildAgent", () => {
 	});
 
 	it("rejects when snapshot fails", async () => {
-		process.env.GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID = "snap_env";
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({
 			snapshotSpy: vi.fn().mockRejectedValue(new Error("snapshot failed")),
 		});

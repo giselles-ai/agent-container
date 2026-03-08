@@ -6,10 +6,10 @@ export function defineAgent(config: AgentConfig): DefinedAgent {
 		agentMd: config.agentMd,
 		files: config.files ?? [],
 		get snapshotId(): string {
-			const id = process.env?.GISELLE_SANDBOX_AGENT_SNAPSHOT_ID;
+			const id = process.env?.GISELLE_AGENT_SNAPSHOT_ID;
 			if (!id) {
 				throw new Error(
-					`GISELLE_SANDBOX_AGENT_SNAPSHOT_ID is not set. Ensure withGiselleAgent is configured in next.config.ts.`,
+					`GISELLE_AGENT_SNAPSHOT_ID is not set. Ensure withGiselleAgent is configured in next.config.ts.`,
 				);
 			}
 			return id;

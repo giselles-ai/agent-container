@@ -90,7 +90,7 @@ function createDefaultDeps(): GiselleProviderDeps {
 }
 
 function buildCloudEndpoint(baseUrl: string): string {
-	return trimTrailingSlash(baseUrl);
+	return `${trimTrailingSlash(baseUrl)}/run`;
 }
 
 export class GiselleAgentModel implements LanguageModelV3 {
@@ -284,7 +284,9 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	): Promise<CloudConnection> {
 		return this.deps.connectCloudApi({
 			endpoint: buildCloudEndpoint(
-				this.options.baseUrl ?? "https://studio.giselles.ai/agent-api/run",
+				this.options.baseUrl ??
+					process.env.GISELLE_AGENT_BASE_URL ??
+					"https://studio.giselles.ai/agent-api",
 			),
 			chatId: params.chatId,
 			message: this.extractUserMessage(options.prompt),
@@ -300,7 +302,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		callHeaders: LanguageModelV3CallOptions["headers"],
 	): Record<string, string> {
 		const apiKey =
-			this.options.apiKey ?? process.env.SANDBOX_AGENT_API_KEY?.trim();
+			this.options.apiKey ?? process.env.GISELLE_AGENT_API_KEY?.trim();
 		const headers: Record<string, string> = {};
 
 		for (const [name, value] of Object.entries(this.options.headers ?? {})) {

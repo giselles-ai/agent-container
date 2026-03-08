@@ -20,9 +20,9 @@ pnpm add @giselles-ai/agent @giselles-ai/browser-tool
 `.env.local`:
 
 ```env
-GISELLE_SANDBOX_AGENT_API_KEY=...
+GISELLE_AGENT_API_KEY=...
 # optional
-# GISELLE_SANDBOX_AGENT_BASE_URL=https://studio.giselles.ai/agent-api
+# GISELLE_AGENT_BASE_URL=https://studio.giselles.ai/agent-api
 ```
 
 ### 3. Route
@@ -35,7 +35,7 @@ import { handleAgentRunner } from "@giselles-ai/agent";
 export const runtime = "nodejs";
 
 const handler = handleAgentRunner({
-  apiKey: process.env.GISELLE_SANDBOX_AGENT_API_KEY!,
+  apiKey: process.env.GISELLE_AGENT_API_KEY!,
   baseUrl: "https://studio.giselles.ai/agent-api",
 });
 
@@ -95,7 +95,7 @@ import { createAgentApiHandler } from "@giselles-ai/agent-self";
 export const runtime = "nodejs";
 
 const handler = createAgentApiHandler({
-  baseUrl: process.env.GISELLE_SANDBOX_AGENT_BASE_URL!,
+  baseUrl: process.env.GISELLE_AGENT_BASE_URL!,
 });
 
 export const GET = handler.GET;
@@ -113,7 +113,7 @@ import { handleAgentRunner } from "@giselles-ai/agent";
 export const runtime = "nodejs";
 
 const handler = handleAgentRunner({
-  baseUrl: process.env.GISELLE_SANDBOX_AGENT_BASE_URL!,
+  baseUrl: process.env.GISELLE_AGENT_BASE_URL!,
 });
 
 export const POST = handler.POST;

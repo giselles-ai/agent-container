@@ -6,8 +6,8 @@ Next.js API app that exposes the local cloud-chat runtime used by `apps/minimum-
 
 Copy `.env.example` and set:
 
-- `SANDBOX_AGENT_API_KEY`
-- `GISELLE_SANDBOX_AGENT_BASE_SNAPSHOT_ID`
+- `GISELLE_AGENT_API_KEY`
+- `GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID`
 - `REDIS_URL`
 - `GEMINI_API_KEY`
 - `CODEX_API_KEY`

@@ -149,8 +149,8 @@ export async function POST(request: Request): Promise<Response> {
 		const result = streamText({
 			model: giselle({
 				agent,
-				baseUrl: process.env.SANDBOX_AGENT_BASE_URL,
-				apiKey: process.env.SANDBOX_AGENT_API_KEY,
+				baseUrl: process.env.GISELLE_AGENT_BASE_URL,
+				apiKey: process.env.GISELLE_AGENT_API_KEY,
 				headers: {
 					"x-vercel-protection-bypass":
 						process.env.EXTERNAL_AGENT_API_PROTECTION_BYPASS,

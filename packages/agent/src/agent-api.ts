@@ -53,7 +53,7 @@ function errorResponse(
 }
 
 function resolveRelayUrl(basePath: string, request: Request): string {
-	const configuredBaseUrl = process.env.AGENT_RELAY_URL?.trim();
+	const configuredBaseUrl = process.env.GISELLE_AGENT_RELAY_URL?.trim();
 	if (configuredBaseUrl) {
 		return new URL(
 			`${basePath}/relay`,

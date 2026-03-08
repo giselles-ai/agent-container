@@ -141,7 +141,7 @@ describe("GiselleAgentModel", () => {
 
 		expect(connectCloudApi).toHaveBeenCalledWith(
 			expect.objectContaining({
-				endpoint: "https://studio.giselles.ai",
+				endpoint: "https://studio.giselles.ai/run",
 				chatId: "chat-1",
 				message: "Capture form",
 				agentType: "gemini",

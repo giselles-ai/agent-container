@@ -31,5 +31,5 @@ export function extractBearerToken(request: Request): string | undefined {
 }
 
 export function verifyApiToken(token: string): boolean {
-	return token === getRequiredEnv("SANDBOX_AGENT_API_KEY");
+	return token === getRequiredEnv("GISELLE_AGENT_API_KEY");
 }
