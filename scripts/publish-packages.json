@@ -11,6 +11,10 @@
 		{
 			"name": "@giselles-ai/giselle-provider",
 			"dir": "packages/giselle-provider"
+		},
+		{
+			"name": "@giselles-ai/agent",
+			"dir": "packages/agent"
 		}
 	]
 }
