@@ -29,12 +29,8 @@ export async function buildAgent(options: BuildAgentOptions): Promise<void> {
 	});
 
 	if (result.cached) {
-		console.log(
-			`[agent-kit] Build cached: snapshot_id=${result.snapshot_id}`,
-		);
+		console.log(`[agent-kit] Build cached: snapshot_id=${result.snapshot_id}`);
 	} else {
-		console.log(
-			`[agent-kit] Build success: snapshot_id=${result.snapshot_id}`,
-		);
+		console.log(`[agent-kit] Build success: snapshot_id=${result.snapshot_id}`);
 	}
 }

@@ -53,7 +53,9 @@ export async function requestBuild(
 	const token = options?.token ?? process.env.GISELLE_AGENT_API_KEY;
 
 	if (!token) {
-		throw new Error("Missing API token. Set GISELLE_AGENT_API_KEY or pass options.token.");
+		throw new Error(
+			"Missing API token. Set GISELLE_AGENT_API_KEY or pass options.token.",
+		);
 	}
 
 	const configHash = computeConfigHash(agent);
