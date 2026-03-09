@@ -8,6 +8,9 @@ CLI agent execution is powered by Vercel Sandbox. You can self-host by setting u
 #### 1. Add skill
 `npx skills add giselles-ai/agent-container`
 
+> [!TODO]
+>  `npx skills add giselles-ai/agent`
+
 #### 2. Create Giselle account and create the API KEY
 
 https://studio.giselles.ai
@@ -114,6 +117,8 @@ browserTool.connect(addToolOutput);
 - **Browser tools** — Agents can interact with the user's browser (snapshot DOM, click, fill, select) via an MCP server relay between the sandbox and the client
 - **Cloud API & self-host** — Get started instantly with the hosted Cloud API, or self-host with your own Vercel Sandbox and Redis
 - **Next.js integration** — `withGiselleAgent` plugin for `next.config.ts` that automatically builds sandbox snapshots and injects configuration
+
+To understand how these pieces fit together — sandbox orchestration, the relay bridge, NDJSON stream mapping — see the [Architecture](./docs/03-architecture/03-01-architecture.md) guide.
 
 ### Packages
 
