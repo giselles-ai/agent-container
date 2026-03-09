@@ -139,6 +139,7 @@ export function withGiselleAgent(
 		console.log(`${green("✓")} Building...`);
 		console.log(`${green("✓")} Ready in ${elapsedStr}`);
 		console.log("");
+		console.log("");
 
 		return {
 			...nextConfig,
