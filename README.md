@@ -1,360 +1,125 @@
-# Giselle Agent Container
+# Giselle Agent SDK
 
-Run CLI-based AI agents (like [Gemini CLI](https://github.com/google-gemini/gemini-cli)) inside sandboxed containers and communicate with them through the [Vercel AI SDK](https://sdk.vercel.ai/) protocol. The custom `LanguageModelV3` provider translates the agent's NDJSON output into standard AI SDK streams, so your React app can use `useChat` and `streamText` as if it were talking to any other LLM — while the actual work is done by a CLI agent running in a [Vercel Sandbox](https://vercel.com/docs/sandbox).
+An SDK that lets you run CLI agents such as Gemini CLI and Codex CLI through Vercel AI SDK's `useChat` and `streamText`.
+CLI agent execution is powered by Vercel Sandbox. You can self-host by setting up Vercel Sandbox and Redis, or get started immediately using our hosted Cloud API.
 
-A key use case is RPA-style form automation: the sandboxed agent reasons about a page via an MCP server, and browser-tool operations flow through the AI SDK's `onToolCall` mechanism to snapshot DOM state and execute actions directly in the user's browser.
+### Installation
 
-## Architecture
+#### 1. Add skill
+`npx skills add giselles-ai/agent-container`
 
-```
-┌────────────────────┐        ┌──────────────────────┐        ┌──────────────────────┐
-│  React App         │        │  Your Server         │        │  Vercel Sandbox      │
-│  ┌──────────────┐  │  POST  │  ┌────────────────┐  │        │  ┌────────────────┐  │
-│  │  useChat()   │──┼───────▶│  │  streamText()  │  │        │  │  Gemini CLI    │  │
-│  │  (@ai-sdk)   │◀─┼─stream─│  │  + giselle()   │──┼─NDJSON▶│  │  (CLI agent)   │  │
-│  └──────────────┘  │        │  │  (provider)    │◀─┼─NDJSON─│  │                │  │
-│                    │        │  └────────────────┘  │        │  └───────┬────────┘  │
-│  ┌──────────────┐  │        │                      │        │          │ MCP       │
-│  │  onToolCall  │  │        │  ┌────────────────┐  │        │  ┌───────▼────────┐  │
-│  │  (DOM ops)   │  │        │  │  Session Mgr   │◀─┼─Redis──│  │  MCP Server    │  │
-│  └──────────────┘  │        │  └────────────────┘  │        │  └────────────────┘  │
-└────────────────────┘        └──────────────────────┘        └──────────────────────┘
-   Browser                       Route Handler                   Sandboxed Container
-```
+#### 2. Create Giselle account and create the API KEY
 
-The `giselle-provider` package is the bridge: it wraps the Cloud API (which orchestrates the sandbox) as a `LanguageModelV3`, so the NDJSON stream from the CLI agent is translated into AI SDK stream parts that `useChat` understands natively.
+https://studio.giselles.ai
 
-### Sequence: Browser Tool Form Automation
+#### 3. Tell the llm to build it for you
 
 ```
-Browser (useChat)             Route Handler            Redis              Sandbox (CLI Agent + MCP)
-     │                             │                     │                          │
-     │─── POST /api/chat ─────────▶│                     │                          │
-     │                             │── streamText() ─────┼─────────────────────────▶│
-     │◀── AI SDK stream ───────────│                     │                          │
-     │                             │                     │                          │
-     │                             │                     │   MCP: getFormSnapshot   │
-     │◀── tool-call ───────────────│◀─── NDJSON ─────────┼──────────────────────────│
-     │    (getFormSnapshot)        │                     │                          │
-     │                             │                     │                          │
-     │  onToolCall → snapshot()    │                     │                          │
-     │                             │                     │                          │
-     │─── POST /api/chat ─────────▶│── relay.respond ───▶│                          │
-     │    (tool results)           │                     │── publish response ─────▶│
-     │                             │                     │                          │
-     │                             │                     │   MCP: executeFormActions│
-     │◀── tool-call ───────────────│◀─── NDJSON ─────────┼──────────────────────────│
-     │    (executeFormActions)     │                     │                          │
-     │                             │                     │                          │
-     │  onToolCall → execute()     │                     │                          │
-     │                             │                     │                          │
-     │─── POST /api/chat ─────────▶│── relay.respond ───▶│                          │
-     │    (tool results)           │                     │── publish response ─────▶│
-     │                             │                     │                          │
-     │◀── AI SDK stream (done) ────│◀─────── NDJSON ─────┼──────────────────────────│
-     ▼                             ▼                     ▼                          ▼
+claude "This folder is initialized with a basic SpacetimeDB project. Using this as a starting point build a full Discord clone with channels, threads, and real time messaging with React.js"
 ```
 
-## Project Structure
+### Usage
 
-```
-agent-container/
-├── packages/
-│   ├── agent/                    # @giselles-ai/agent — unified agent package
-│   ├── agent-kit/                # @giselles-ai/agent-kit — agent tooling CLI/library
-│   ├── browser-tool/             # @giselles-ai/browser-tool — browser automation domain package
-│   └── giselle-provider/         # @giselles-ai/giselle-provider — AI SDK provider
-└── scripts/
-```
+See [./apps/minimum-demo](./apps/minimum-demo) for a complete runnable example.
 
-`agent` and `agent-kit` are the current agent and tooling package names and directories.
-
-`apps/demo` is a consumer app and is not part of the package taxonomy. `root/sandbox-agent/` is deprecated legacy workspace material and is not part of the active package taxonomy.
-
-## Packages
-
-### `@giselles-ai/agent`
-
-Unified agent package for defining agents, build integration, and server runtime APIs.
-
-| Export Path | Description |
-|---|---|
-| `@giselles-ai/agent` | `defineAgent()`, config hashing, and shared agent definition types |
-| `@giselles-ai/agent/next` | Next.js plugin entry point (`withGiselleAgent`) |
-| `@giselles-ai/agent/server` | Runtime-facing server APIs (`createAgentApi`, `runCloudChat`, etc.) |
-
-### `@giselles-ai/agent-kit`
-
-Agent tooling CLI/library for preparing sandboxes with agent CLIs and browser-tool assets. Today it ships snapshot build flows, but the broader package name leaves room for additional operator tooling.
-
-| Export / Command | Description |
-|---|---|
-| `buildSnapshot()` | Build or extend a sandbox snapshot with agent CLIs and browser-tool artifacts |
-| `BuildSnapshotOptions` | Options for local or npm-based snapshot assembly |
-| `agent-kit build-snapshot` | CLI entry point for building or extending a snapshot |
-
-### `@giselles-ai/browser-tool`
-
-Browser automation toolkit covering DOM snapshot/execute operations, the MCP server, and the relay infrastructure. `@giselles-ai/browser-tool` stays a single domain package; subpath exports separate runtimes without splitting the package again. Only `@giselles-ai/browser-tool/react` requires React peers, while the root, `/dom`, `/relay`, and `/mcp-server` entry points remain intentionally non-React.
-
-| Export Path | Runtime | Description |
-|---|---|---|
-| `@giselles-ai/browser-tool` | env-agnostic | Shared types and Zod schemas |
-| `@giselles-ai/browser-tool/dom` | browser | Client-side `snapshot()` and `execute()` functions |
-| `@giselles-ai/browser-tool/react` | React client | React integration components |
-| `@giselles-ai/browser-tool/relay` | Node / server | Server-side relay handlers and sessions |
-| `@giselles-ai/browser-tool/mcp-server` | sandbox / Node process | MCP server entry point |
-
-### `@giselles-ai/giselle-provider`
-
-Custom AI SDK `LanguageModelV3` provider — the bridge between CLI agents running in sandboxes and the AI SDK ecosystem. Translates the agent's NDJSON output into AI SDK stream parts, maps relay-based browser tool requests into `tool-call` parts, and manages two-layer sessions (Redis metadata + process-local live connections) for hot/cold stream resumption.
-
-| Export | Description |
-|---|---|
-| `giselle()` | Factory function returning a `GiselleAgentModel` instance |
-| `GiselleAgentModel` | `LanguageModelV3` implementation (`doStream`) |
-| `GiselleAgentConfig` | Agent selection config passed to the provider (`type`, `snapshotId`) |
-| `extractJsonObjects()` | NDJSON parser |
-| `mapNdjsonEvent()` | NDJSON event → `LanguageModelV3StreamPart` mapper |
-| `createSession()` / `loadSession()` | Redis session management |
-
-## Usage
-
-### Route Handler
+#### Define Agent
 
 ```ts
-// app/api/chat/route.ts
+import { defineAgent } from "@giselles-ai/agent";
+
+const agentMd = "You are a helpful assistant";
+
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd,
+});
+```
+
+#### Server API
+
+```ts
+import { type BrowserTools, browserTools } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
-import { streamText, tool, convertToModelMessages, validateUIMessages } from "ai";
-import { snapshotFieldSchema, browserToolActionSchema, executionReportSchema } from "@giselles-ai/browser-tool";
-import { z } from "zod";
+import {
+  consumeStream,
+  convertToModelMessages,
+  type InferUITools,
+  streamText,
+  type UIMessage,
+  validateUIMessages,
+} from "ai";
+import { agent } from "../../lib/agent";
 
-const tools = {
-  getFormSnapshot: tool({
-    description: "Capture the current state of form fields on the page.",
-    inputSchema: z.object({ instruction: z.string() }),
-    outputSchema: z.object({ fields: z.array(snapshotFieldSchema) }),
-  }),
-  executeFormActions: tool({
-    description: "Execute fill, click, and select actions on form fields.",
-    inputSchema: z.object({
-      actions: z.array(browserToolActionSchema),
-      fields: z.array(snapshotFieldSchema),
-    }),
-    outputSchema: z.object({ report: executionReportSchema }),
-  }),
-};
-
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const body = await request.json();
-  const messages = await validateUIMessages({ messages: body.messages, tools });
+  const sessionId = body.id ?? crypto.randomUUID();
+
+  const messages = await validateUIMessages<
+    UIMessage<never, never, InferUITools<BrowserTools>>
+  >({
+    messages: body.messages,
+    tools: browserTools,
+  });
 
   const result = streamText({
     model: giselle({
-      cloudApiUrl: "https://studio.giselles.ai",
-      headers: { authorization: "Bearer ..." },
+      agent,
     }),
     messages: await convertToModelMessages(messages),
-    tools,
+    tools: browserTools,
+    providerOptions: {
+      giselle: {
+        sessionId,
+      },
+    },
     abortSignal: request.signal,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    headers: {
+      "x-giselle-session-id": sessionId,
+    },
+    consumeSseStream: consumeStream,
+  });
 }
 ```
 
-### Agent Selection
-
-`giselle()` can accept an optional `agent` object to select the backend on a per-request basis:
-
-```ts
-const result = streamText({
-  model: giselle({
-    cloudApiUrl: "https://studio.giselles.ai",
-    headers: { authorization: "Bearer ..." },
-    agent: { type: "codex" },
-  }),
-  messages: await convertToModelMessages(messages),
-  tools,
-  abortSignal: request.signal,
-});
-
-const metadataDrivenResult = streamText({
-  model: giselle({
-    cloudApiUrl: "https://studio.giselles.ai",
-    headers: { authorization: "Bearer ..." },
-    agent: { snapshotId: "snap_custom_research_agent" },
-  }),
-  messages: await convertToModelMessages(messages),
-  tools,
-  abortSignal: request.signal,
-});
-```
-
-Resolution order:
-1. `agent.type` in `providerOptions.giselle.agent` (request-scoped, highest priority)
-2. `AGENT_TYPE` environment variable
-3. Cloud API may still finalize selection from snapshot metadata (`/.agent-metadata.json`), which can override request/env values
-
-### React (useChat + onToolCall)
+#### UI
 
 ```tsx
 import { useChat } from "@ai-sdk/react";
-import { snapshot, execute } from "@giselles-ai/browser-tool/dom";
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 
-function Chat() {
-  const { status, messages, sendMessage, addToolOutput } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onToolCall: async ({ toolCall }) => {
-      if (toolCall.toolName === "getFormSnapshot") {
-        addToolOutput({
-          tool: "getFormSnapshot",
-          toolCallId: toolCall.toolCallId,
-          output: { fields: snapshot() },
-        });
-      }
-      if (toolCall.toolName === "executeFormActions") {
-        const report = execute(toolCall.input.actions, toolCall.input.fields);
-        addToolOutput({
-          tool: "executeFormActions",
-          toolCallId: toolCall.toolCallId,
-          output: { report },
-        });
-      }
-    },
-  });
+const browserTool = useBrowserToolHandler();
 
-  return (
-    <div>
-      {messages.map((m) => (
-        <p key={m.id}>{m.role}: {m.parts.map(p => p.type === "text" ? p.text : "").join("")}</p>
-      ))}
-      <button onClick={() => sendMessage({ text: "Fill out the form" })}>Send</button>
-    </div>
-  );
-}
-```
+const { status, messages, error, sendMessage, addToolOutput } = useChat({
+  transport: new DefaultChatTransport({
+    api: "/chat",
+  }),
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  ...browserTool,
+});
 
-### CLI
+browserTool.connect(addToolOutput);
+````
 
-```bash
-npx @giselles-ai/agent-cli create
-npx @giselles-ai/agent-cli add-skill <path>
-npx @giselles-ai/agent-cli add-hosted-skill <slug>
-npx @giselles-ai/agent-cli edit-setup-script
-npx @giselles-ai/agent-cli build
-npx @giselles-ai/agent-cli delete [slug] [--force]
-```
+### Features
 
-## Prerequisites
+- **Vercel AI SDK compatible** — Works as a drop-in model provider for `streamText` and `useChat`, implementing the `LanguageModelV3` interface
+- **Multiple CLI agents** — Supports Gemini CLI and Codex CLI as execution runtimes inside Vercel Sandbox
+- **Browser tools** — Agents can interact with the user's browser (snapshot DOM, click, fill, select) via an MCP server relay between the sandbox and the client
+- **Cloud API & self-host** — Get started instantly with the hosted Cloud API, or self-host with your own Vercel Sandbox and Redis
+- **Next.js integration** — `withGiselleAgent` plugin for `next.config.ts` that automatically builds sandbox snapshots and injects configuration
 
-- Node.js 20+
-- pnpm 10+
+### Packages
 
-## Getting Started
-
-```bash
-pnpm install
-```
-
-### Run the demo app
-
-```bash
-cp apps/demo/.env.example apps/demo/.env.development.local
-# Fill in the required environment variables (see below)
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-### Environment Variables
-
-#### Required (cloud API)
-
-| Variable | Description |
-|---|---|
-| `EXTERNAL_AGENT_API_BEARER_TOKEN` | Bearer token for the Giselle cloud API |
-
-#### Required (self-hosted)
-
-| Variable | Description |
-|---|---|
-| `AGENT_TYPE` | Deployment fallback agent selection (`gemini` default, `codex` for OpenAI Codex) |
-| `GEMINI_API_KEY` | Google Gemini API key |
-| `OPENAI_API_KEY` | OpenAI API key for Codex mode |
-| `CODEX_API_KEY` | Optional alias for `OPENAI_API_KEY` in Codex mode |
-| `SANDBOX_SNAPSHOT_ID` | Optional fallback snapshot ID for env-based agent selection (overridden by request config when provided) |
-| `REDIS_URL` | Redis connection URL for relay sessions |
-
-#### Optional
-
-| Variable | Description |
-|---|---|
-| `GISELLE_PROTECTION_PASSWORD` | App-level password protection |
-| `VERCEL_PROTECTION_BYPASS` | Bypass Vercel preview deployment protection |
-| `EXTERNAL_AGENT_API_PROTECTION_BYPASS` | Bypass protection on external API |
-
-Redis URL is also read from these fallback env names: `REDIS_TLS_URL`, `KV_URL`, `UPSTASH_REDIS_TLS_URL`, `UPSTASH_REDIS_URL`.
-
-## Creating a Snapshot
-
-```bash
-pnpm snapshot:browser-tool
-```
-
-Creates a Vercel Sandbox snapshot containing Gemini CLI and the built browser-tool MCP server. The script outputs the recommended values for `SANDBOX_SNAPSHOT_ID` and related env vars.
-
-For a Codex-enabled snapshot:
-
-```bash
-SNAPSHOT_AGENT=codex pnpm snapshot:browser-tool
-```
-
-or
-
-```bash
-pnpm snapshot:browser-tool:codex
-```
-
-Codex snapshots include:
-
-- `codex` installed globally in the snapshot image
-- Built browser-tool MCP artifacts (so current repo upload/build flow remains unchanged)
-- No Gemini settings file is written
-
-## Commands
-
-| Command | Description |
-|---|---|
-| `pnpm dev` | Start the demo app |
-| `pnpm build` | Build all packages |
-| `pnpm typecheck` | Type-check all packages |
-| `pnpm format` | Format with Biome |
-| `pnpm snapshot:browser-tool` | Create a sandbox snapshot |
-| `pnpm snapshot:browser-tool:codex` | Create a Codex-enabled sandbox snapshot |
-| `pnpm sandbox:local:browser-tool` | Prepare local sandbox environment |
-| `pnpm mcp:check` | Run MCP smoke tests |
-| `pnpm knip` | Check for unused exports/dependencies |
-| `pnpm cli:release` | Release the CLI package |
-
-## Publishing
-
-Packages are published via the **Publish** workflow (`publish.yml`), triggered manually with a version bump choice (`patch`, `minor`, or `major`).
-
-You can trigger it from the command line with the GitHub CLI:
-
-```bash
-gh workflow run publish.yml -f bump=patch
-```
-
-To target a specific branch:
-
-```bash
-gh workflow run publish.yml --ref main -f bump=minor
-```
-
-## License
-
-[Apache-2.0](LICENSE)
+Package|Description
+-------|-----------
+`@giselles-ai/agent`|Define and configure CLI agents (Gemini CLI, Codex CLI) for use with the SDK
+`@giselles-ai/agent-kit`|CLI & library for building Vercel Sandbox snapshots with pre-installed agent tooling
+`@giselles-ai/browser-tool`|Browser interaction tools (click, fill, select, snapshot) bridged between CLI agents and the client via MCP
+`@giselles-ai/giselle-provider`|Vercel AI SDK-compatible model provider that routes `streamText` calls to a Giselle-hosted CLI agent
