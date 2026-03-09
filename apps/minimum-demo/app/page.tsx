@@ -7,7 +7,7 @@ import {
   isToolUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import type { FormEvent } from "react";
+import type { SyntheticEvent } from "react";
 import { useState } from "react";
 
 const SUGGESTED_PROMPTS = [
@@ -187,7 +187,7 @@ export default function Home() {
 
   const isBusy = status === "submitted" || status === "streaming";
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmed = input.trim();
