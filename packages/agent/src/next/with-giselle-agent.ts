@@ -1,12 +1,8 @@
 import type { NextConfig } from "next";
 
-import { computeConfigHash } from "../hash";
+import { requestBuild } from "../request-build";
 import type { AgentConfig } from "../types";
 import type { GiselleAgentPluginOptions } from "./types";
-
-function trimTrailingSlash(url: string): string {
-	return url.replace(/\/+$/, "");
-}
 
 export function withGiselleAgent(
 	nextConfig: NextConfig,
@@ -14,12 +10,6 @@ export function withGiselleAgent(
 	options?: GiselleAgentPluginOptions,
 ): () => Promise<NextConfig> {
 	return async () => {
-		const baseUrl = trimTrailingSlash(
-			options?.baseUrl ??
-				process.env.GISELLE_AGENT_BASE_URL ??
-				"https://studio.giselles.ai/agent-api",
-		);
-		const apiUrl = `${baseUrl}/build`;
 		const token = options?.token ?? process.env.GISELLE_AGENT_API_KEY;
 
 		if (!token) {
@@ -27,61 +17,14 @@ export function withGiselleAgent(
 			return nextConfig;
 		}
 
-		const configHash = computeConfigHash(agent);
+		console.debug("[withGiselleAgent] Building agent snapshot...");
 
-		const files: Array<{ path: string; content: string }> = [
-			...(agent.files ?? []),
-		];
-		if (agent.agentMd !== undefined) {
-			files.push(
-				{
-					path: "/home/vercel-sandbox/.codex/AGENTS.md",
-					content: agent.agentMd,
-				},
-				{
-					path: "/home/vercel-sandbox/.gemini/GEMINI.md",
-					content: agent.agentMd,
-				},
-			);
-		}
-
-		const requestBody = {
-			config_hash: configHash,
-			agent_type: agent.agentType ?? "gemini",
-			files,
-		};
-		const requestHeaders = {
-			"content-type": "application/json",
-			authorization: `Bearer ${token}`,
-			...options?.headers,
-		};
-		console.debug("[withGiselleAgent] POST %s", apiUrl);
-		console.debug(
-			"[withGiselleAgent] headers:",
-			JSON.stringify(requestHeaders, null, 2),
-		);
-		console.debug(
-			"[withGiselleAgent] body:",
-			JSON.stringify(requestBody, null, 2),
-		);
-
-		const response = await fetch(apiUrl, {
-			method: "POST",
-			headers: requestHeaders,
-			body: JSON.stringify(requestBody),
+		const result = await requestBuild(agent, {
+			baseUrl: options?.baseUrl,
+			token,
+			headers: options?.headers,
 		});
 
-		if (!response.ok) {
-			const body = await response.text().catch(() => "");
-			throw new Error(
-				`[withGiselleAgent] Build failed (${response.status}): ${body}`,
-			);
-		}
-
-		const result = (await response.json()) as {
-			snapshot_id: string;
-			cached: boolean;
-		};
 		console.debug(
 			"[withGiselleAgent] result:",
 			JSON.stringify(result, null, 2),
