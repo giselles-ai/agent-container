@@ -1,6 +1,10 @@
 {
 	"packages": [
 		{
+			"name": "@giselles-ai/agent",
+			"dir": "packages/agent"
+		},
+		{
 			"name": "@giselles-ai/agent-kit",
 			"dir": "packages/agent-kit"
 		},
@@ -11,10 +15,6 @@
 		{
 			"name": "@giselles-ai/giselle-provider",
 			"dir": "packages/giselle-provider"
-		},
-		{
-			"name": "@giselles-ai/agent",
-			"dir": "packages/agent"
 		}
 	]
 }
