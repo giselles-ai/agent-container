@@ -1,20 +1,14 @@
-import {
-	browserToolActionSchema,
-	executionReportSchema,
-	snapshotFieldSchema,
-} from "@giselles-ai/browser-tool";
+import { type BrowserTools, browserTools } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
 import {
 	consumeStream,
 	convertToModelMessages,
 	type InferUITools,
 	streamText,
-	tool,
 	type UIDataTypes,
 	type UIMessage,
 	validateUIMessages,
 } from "ai";
-import { z } from "zod";
 import { agent } from "../../../lib/agent";
 
 export const runtime = "nodejs";
@@ -36,35 +30,7 @@ class InvalidChatRequestError extends Error {
 	}
 }
 
-const tools = {
-	getFormSnapshot: tool({
-		description: "Capture the current state of form fields on the page.",
-		inputSchema: z.object({
-			instruction: z
-				.string()
-				.describe("What to look for in the current form state."),
-			document: z
-				.string()
-				.optional()
-				.describe("Additional context to guide the snapshot."),
-		}),
-		outputSchema: z.object({
-			fields: z.array(snapshotFieldSchema),
-		}),
-	}),
-	executeFormActions: tool({
-		description: "Execute fill, click, and select actions on form fields.",
-		inputSchema: z.object({
-			actions: z.array(browserToolActionSchema),
-			fields: z.array(snapshotFieldSchema),
-		}),
-		outputSchema: z.object({
-			report: executionReportSchema,
-		}),
-	}),
-} as const;
-
-type ChatUIMessage = UIMessage<never, UIDataTypes, InferUITools<typeof tools>>;
+type ChatUIMessage = UIMessage<never, UIDataTypes, InferUITools<BrowserTools>>;
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -111,7 +77,7 @@ async function parseChatMessages(
 	try {
 		return await validateUIMessages<ChatUIMessage>({
 			messages: body.messages,
-			tools,
+			tools: browserTools,
 		});
 	} catch {
 		throw new InvalidChatRequestError("Invalid `messages` payload.");
@@ -157,7 +123,7 @@ export async function POST(request: Request): Promise<Response> {
 				},
 			}),
 			messages: await convertToModelMessages(messages),
-			tools,
+			tools: browserTools,
 			providerOptions: {
 				giselle: {
 					sessionId,

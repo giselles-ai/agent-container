@@ -2,10 +2,13 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
-import { isToolUIPart, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import {
+  DefaultChatTransport,
+  isToolUIPart,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { createGiselleChatTransport } from "./_lib/giselle-chat-transport";
 
 const SUGGESTED_PROMPTS = [
   {
@@ -169,7 +172,7 @@ export default function Home() {
   });
 
   const { status, messages, error, sendMessage, addToolOutput } = useChat({
-    transport: createGiselleChatTransport({
+    transport: new DefaultChatTransport({
       api: "/chat",
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,

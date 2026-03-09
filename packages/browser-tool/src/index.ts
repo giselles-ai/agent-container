@@ -1,3 +1,4 @@
+export { type BrowserTools, browserTools } from "./tools";
 export type {
 	BrowserToolAction,
 	BrowserToolStatus,
