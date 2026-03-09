@@ -39,12 +39,28 @@ function getSnapshotFile(agent: AgentConfig): string {
 	return path.join(process.cwd(), ".next", "giselle", hash);
 }
 
+function hasRunRecently(): boolean {
+	const lockFile = path.join(process.cwd(), ".next", "giselle", ".lock");
+	try {
+		const ts = Number(fs.readFileSync(lockFile, "utf-8").trim());
+		if (Date.now() - ts < 2000) {
+			return true;
+		}
+	} catch {}
+	fs.mkdirSync(path.dirname(lockFile), { recursive: true });
+	fs.writeFileSync(lockFile, String(Date.now()));
+	return false;
+}
+
 export function withGiselleAgent(
 	nextConfig: NextConfig,
 	agent: AgentConfig,
 	options?: GiselleAgentPluginOptions,
 ): (phase: string) => Promise<NextConfig> {
 	return async () => {
+		if (hasRunRecently()) {
+			return nextConfig;
+		}
 		const baseUrl = resolveBaseUrl(options);
 		const snapshotFile = getSnapshotFile(agent);
 
