@@ -42,7 +42,7 @@ jobs:
         run: node scripts/publish-packages.mjs bump "${{ inputs.bump }}"
 
       - name: Build
-        run: pnpm run build
+        run: pnpm run build --filter "@giselles-ai/*"
 
       - name: Replace workspace:* with resolved versions
         run: node scripts/publish-packages.mjs resolve-workspace-deps
