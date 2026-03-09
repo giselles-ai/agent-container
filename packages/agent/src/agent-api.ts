@@ -82,6 +82,7 @@ export function createAgentApi(options: AgentApiOptions): {
 	> | null = null;
 	let snapshotCachePromise: Promise<SnapshotCache> | null = null;
 
+	const authPath = `${basePath}/auth`;
 	const runPath = `${basePath}/run`;
 	const buildPath = `${basePath}/build`;
 	const relayPrefix = `${basePath}/relay`;
@@ -174,9 +175,27 @@ export function createAgentApi(options: AgentApiOptions): {
 		}
 	}
 
+	async function handleAuth(request: Request): Promise<Response> {
+		try {
+			const hookResult = await options.hooks?.build?.before?.(request);
+			if (hookResult instanceof Response) {
+				return hookResult;
+			}
+			return Response.json({ ok: true });
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Authentication failed.";
+			return errorResponse(401, "UNAUTHORIZED", message);
+		}
+	}
+
 	function matchSubPath(request: Request): string {
 		const url = new URL(request.url);
 		const pathname = url.pathname;
+
+		if (pathname === authPath || pathname === `${authPath}/`) {
+			return "auth";
+		}
 
 		if (pathname === runPath || pathname === `${runPath}/`) {
 			return "run";
@@ -203,6 +222,9 @@ export function createAgentApi(options: AgentApiOptions): {
 		},
 		POST: async (request: Request): Promise<Response> => {
 			const sub = matchSubPath(request);
+			if (sub === "auth") {
+				return handleAuth(request);
+			}
 			if (sub === "run") {
 				return handleRun(request);
 			}

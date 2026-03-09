@@ -13,6 +13,7 @@ const { version: PKG_VERSION } = require("../../package.json");
 
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
 const green = (s: string) => `\x1b[32m${s}\x1b[39m`;
+const red = (s: string) => `\x1b[31m${s}\x1b[39m`;
 const magenta = (s: string) => `\x1b[35m${s}\x1b[39m`;
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 
@@ -61,17 +62,48 @@ export function withGiselleAgent(
 			};
 		}
 
-		const token = options?.token ?? process.env.GISELLE_AGENT_API_KEY;
-
-		if (!token) {
-			console.warn("[withGiselleAgent] Skipped snapshot build: missing token.");
-			return nextConfig;
-		}
-
 		console.log("");
 		console.log(`${magenta(bold(`✦ Giselle Agent ${PKG_VERSION}`))}`);
 		console.log(`${dim("- Base URL:")} ${baseUrl}`);
 		console.log("");
+
+		const token = options?.token ?? process.env.GISELLE_AGENT_API_KEY;
+
+		if (!token) {
+			console.log(`${red("✗")} Missing API key`);
+			console.log("");
+			console.log(
+				"  Create an account at https://studio.giselles.ai and generate",
+			);
+			console.log(
+				"  an API key, then set it as GISELLE_AGENT_API_KEY in your environment.",
+			);
+			console.log("");
+			throw new Error("Missing GISELLE_AGENT_API_KEY");
+		}
+
+		const authResponse = await fetch(`${baseUrl}/auth`, {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${token}`,
+				...options?.headers,
+			},
+		});
+
+		if (!authResponse.ok) {
+			console.log(`${red("✗")} Authentication failed`);
+			console.log("");
+			console.log(
+				"  Create an account at https://studio.giselles.ai and generate",
+			);
+			console.log(
+				"  an API key, then set it as GISELLE_AGENT_API_KEY in your environment.",
+			);
+			console.log("");
+			throw new Error("Authentication failed");
+		}
+
+		console.log(`${green("✓")} Authenticated`);
 
 		const start = performance.now();
 
