@@ -1,5 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
+import type { RedisClient } from "./redis";
+
 type BuildRequest = {
 	config_hash: string;
 	agent_type: "gemini" | "codex";
@@ -11,7 +13,44 @@ type BuildResponse = {
 	cached: boolean;
 };
 
-const snapshotCache = new Map<string, string>();
+const CACHE_KEY_PREFIX = "agent-build:snapshot:";
+const CACHE_TTL_SEC = 60 * 60 * 24;
+
+const memoryCache = new Map<string, string>();
+
+export interface SnapshotCache {
+	get(key: string): Promise<string | null>;
+	set(key: string, value: string): Promise<void>;
+}
+
+class MemorySnapshotCache implements SnapshotCache {
+	async get(key: string): Promise<string | null> {
+		return memoryCache.get(key) ?? null;
+	}
+	async set(key: string, value: string): Promise<void> {
+		memoryCache.set(key, value);
+	}
+}
+
+class RedisSnapshotCache implements SnapshotCache {
+	constructor(private readonly redis: RedisClient) {}
+
+	async get(key: string): Promise<string | null> {
+		return this.redis.get(`${CACHE_KEY_PREFIX}${key}`);
+	}
+	async set(key: string, value: string): Promise<void> {
+		await this.redis.set(
+			`${CACHE_KEY_PREFIX}${key}`,
+			value,
+			"EX",
+			CACHE_TTL_SEC,
+		);
+	}
+}
+
+export function createSnapshotCache(redis?: RedisClient): SnapshotCache {
+	return redis ? new RedisSnapshotCache(redis) : new MemorySnapshotCache();
+}
 
 function resolveBaseSnapshotId(configured?: string): string | undefined {
 	const envValue = process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID?.trim();
@@ -72,7 +111,9 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 export async function buildAgent(input: {
 	request: Request;
 	baseSnapshotId?: string;
+	cache?: SnapshotCache;
 }): Promise<Response> {
+	const cache = input.cache ?? new MemorySnapshotCache();
 	const body = await input.request.json().catch(() => null);
 	const parsed = parseBuildRequest(body);
 	if (!parsed) {
@@ -95,7 +136,7 @@ export async function buildAgent(input: {
 	}
 
 	const cacheKey = `${baseSnapshotId}:${parsed.config_hash}`;
-	const cached = snapshotCache.get(cacheKey);
+	const cached = await cache.get(cacheKey);
 	if (cached) {
 		console.log(
 			`[agent-build] cache hit: hash=${cacheKey} -> snapshot=${cached}`,
@@ -123,7 +164,7 @@ export async function buildAgent(input: {
 	const snapshot = await sandbox.snapshot();
 	console.log(`[agent-build] snapshot created: ${snapshot.snapshotId}`);
 
-	snapshotCache.set(cacheKey, snapshot.snapshotId);
+	await cache.set(cacheKey, snapshot.snapshotId);
 
 	const response: BuildResponse = {
 		snapshot_id: snapshot.snapshotId,

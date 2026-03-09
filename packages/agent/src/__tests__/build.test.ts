@@ -7,7 +7,7 @@ vi.mock("@vercel/sandbox", () => ({
 }));
 
 import { Sandbox } from "@vercel/sandbox";
-import { buildAgent } from "../build";
+import { buildAgent, type SnapshotCache } from "../build";
 
 const mockCreate = vi.mocked(Sandbox.create);
 
@@ -44,6 +44,16 @@ function createMockSandbox(overrides?: {
 			vi
 				.fn()
 				.mockResolvedValue({ snapshotId: overrides?.snapshotId ?? "snap_new" }),
+	};
+}
+
+function createMemoryCache(): SnapshotCache {
+	const map = new Map<string, string>();
+	return {
+		get: async (key: string) => map.get(key) ?? null,
+		set: async (key: string, value: string) => {
+			map.set(key, value);
+		},
 	};
 }
 
@@ -187,6 +197,7 @@ describe("buildAgent", () => {
 		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox({ snapshotId: "snap_cached" });
 		mockCreate.mockResolvedValue(mockSandbox);
+		const cache = createMemoryCache();
 
 		const body = {
 			config_hash: "cache_hash",
@@ -194,8 +205,8 @@ describe("buildAgent", () => {
 			files: [{ path: "/x", content: "1" }],
 		};
 
-		await buildAgent({ request: makeRequest(body) });
-		const res = await buildAgent({ request: makeRequest(body) });
+		await buildAgent({ request: makeRequest(body), cache });
+		const res = await buildAgent({ request: makeRequest(body), cache });
 		const result = (await res.json()) as {
 			snapshot_id: string;
 			cached: boolean;
@@ -210,6 +221,7 @@ describe("buildAgent", () => {
 		mockCreate
 			.mockResolvedValueOnce(createMockSandbox({ snapshotId: "snap_a" }))
 			.mockResolvedValueOnce(createMockSandbox({ snapshotId: "snap_b" }));
+		const cache = createMemoryCache();
 
 		const body = {
 			config_hash: "same_hash_different_base",
@@ -220,6 +232,7 @@ describe("buildAgent", () => {
 		const resA = await buildAgent({
 			request: makeRequest(body),
 			baseSnapshotId: "snap_a_base",
+			cache,
 		});
 		expect(await resA.json()).toMatchObject({
 			snapshot_id: "snap_a",
@@ -229,6 +242,7 @@ describe("buildAgent", () => {
 		const resB = await buildAgent({
 			request: makeRequest(body),
 			baseSnapshotId: "snap_b_base",
+			cache,
 		});
 		const result = (await resB.json()) as {
 			snapshot_id: string;

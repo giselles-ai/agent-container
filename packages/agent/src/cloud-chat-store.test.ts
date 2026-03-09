@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CloudChatSessionState } from "./cloud-chat-state";
-import { resolveCloudChatStateStore } from "./cloud-chat-store";
 
 function createMockRedisClient() {
 	return {
@@ -28,9 +27,12 @@ describe("resolveCloudChatStateStore", () => {
 		redis.set.mockResolvedValueOnce("OK");
 		redis.del.mockResolvedValueOnce(1);
 
-		const RedisCtor = vi.fn().mockImplementation(() => redis);
+		const RedisCtor = vi.fn().mockImplementation(function (this: unknown) {
+			return redis;
+		});
 		vi.doMock("ioredis", () => ({ default: RedisCtor }));
 
+		const { resolveCloudChatStateStore } = await import("./cloud-chat-store");
 		const store = await resolveCloudChatStateStore({
 			adapter: "redis",
 			url: "redis://custom",
@@ -56,9 +58,12 @@ describe("resolveCloudChatStateStore", () => {
 	it("falls back to process.env.REDIS_URL", async () => {
 		process.env.REDIS_URL = "redis://env";
 		const redis = createMockRedisClient();
-		const RedisCtor = vi.fn().mockImplementation(() => redis);
+		const RedisCtor = vi.fn().mockImplementation(function (this: unknown) {
+			return redis;
+		});
 		vi.doMock("ioredis", () => ({ default: RedisCtor }));
 
+		const { resolveCloudChatStateStore } = await import("./cloud-chat-store");
 		await resolveCloudChatStateStore({ adapter: "redis" });
 
 		expect(RedisCtor).toHaveBeenCalledWith("redis://env", {
@@ -68,9 +73,12 @@ describe("resolveCloudChatStateStore", () => {
 
 	it("throws a clear error when REDIS_URL is missing", async () => {
 		const redis = createMockRedisClient();
-		const RedisCtor = vi.fn().mockImplementation(() => redis);
+		const RedisCtor = vi.fn().mockImplementation(function (this: unknown) {
+			return redis;
+		});
 		vi.doMock("ioredis", () => ({ default: RedisCtor }));
 
+		const { resolveCloudChatStateStore } = await import("./cloud-chat-store");
 		await expect(
 			resolveCloudChatStateStore({ adapter: "redis" }),
 		).rejects.toThrow("Missing Redis URL. Set REDIS_URL or pass store.url.");
@@ -81,6 +89,7 @@ describe("resolveCloudChatStateStore", () => {
 			throw new Error("Cannot find package 'ioredis'");
 		});
 
+		const { resolveCloudChatStateStore } = await import("./cloud-chat-store");
 		await expect(
 			resolveCloudChatStateStore({
 				adapter: "redis",

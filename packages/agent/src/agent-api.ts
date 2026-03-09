@@ -3,7 +3,7 @@ import {
 	createRelaySession,
 } from "@giselles-ai/browser-tool/relay";
 import type { CreateAgentOptions } from "./agents/create-agent";
-import { buildAgent } from "./build";
+import { buildAgent, createSnapshotCache, type SnapshotCache } from "./build";
 import { runCloudChat } from "./cloud-chat";
 import {
 	type CloudChatRunRequest,
@@ -14,6 +14,7 @@ import {
 	type AgentApiStoreConfig,
 	resolveCloudChatStateStore,
 } from "./cloud-chat-store";
+import { createRedisClient } from "./redis";
 
 type BeforeHook = (
 	request: Request,
@@ -79,6 +80,7 @@ export function createAgentApi(options: AgentApiOptions): {
 	let storePromise: Promise<
 		import("./cloud-chat-state").CloudChatStateStore
 	> | null = null;
+	let snapshotCachePromise: Promise<SnapshotCache> | null = null;
 
 	const runPath = `${basePath}/run`;
 	const buildPath = `${basePath}/build`;
@@ -87,6 +89,14 @@ export function createAgentApi(options: AgentApiOptions): {
 	function getStore() {
 		storePromise ??= resolveCloudChatStateStore(options.store);
 		return storePromise;
+	}
+
+	function getSnapshotCache() {
+		snapshotCachePromise ??= (async () => {
+			const redis = await createRedisClient(options.store.url);
+			return createSnapshotCache(redis);
+		})();
+		return snapshotCachePromise;
 	}
 
 	async function handleBuild(request: Request): Promise<Response> {
@@ -105,6 +115,7 @@ export function createAgentApi(options: AgentApiOptions): {
 			return await buildAgent({
 				request,
 				baseSnapshotId,
+				cache: await getSnapshotCache(),
 			});
 		} catch (error) {
 			const message =
