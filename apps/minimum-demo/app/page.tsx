@@ -92,6 +92,7 @@ function SpreadsheetGrid({
         </thead>
         <tbody>
           {Array.from({ length: rows }).map((_, rowIndex) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: rows are a fixed-size grid with no reordering
             <tr key={`row-${rowIndex}`}>
               <td className="w-px whitespace-nowrap border border-white/10 bg-[#0d141c]">
                 <input
