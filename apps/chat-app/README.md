@@ -1,64 +1,64 @@
 # Chat App
 
-Giselle Agent SDKを使って、ChatGPTやClaudeのようなChat UIでCodexとチャットができるアプリケーションです。
+A chat application that lets you converse with Codex through a ChatGPT/Claude-like Chat UI, powered by the Giselle Agent SDK.
 
-## 機能
+## Features
 
-- **認証**: メールアドレス / パスワードによるアカウント作成・ログイン（`route06.co.jp` ドメインのみ）
-- **Chat UI**: ログイン後に2ペインのUIを表示
-  - 左ペイン: ナビゲーションバー（新規チャット作成、過去のチャット一覧、設定）
-  - メインペイン: Chat UI
+- **Authentication**: Account creation and sign-in via email/password (`route06.co.jp` domain only)
+- **Chat UI**: Two-pane UI after login
+  - Left pane: Navigation bar (new chat, chat history, settings)
+  - Main pane: Chat UI
 
-## 技術スタック
+## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **AI**: Giselle Agent SDK (`@giselles-ai/agent`, `@giselles-ai/giselle-provider`) + Vercel AI SDK
-- **認証**: better-auth
+- **Auth**: better-auth
 - **DB**: SQLite (libSQL) + Drizzle ORM
-- **スタイリング**: Tailwind CSS v4
+- **Styling**: Tailwind CSS v4
 
-## ディレクトリ構成
+## Directory Structure
 
 ```
 app/
-├── layout.tsx              # ルートレイアウト
-├── page.tsx                # リダイレクトハブ（→ /chats or /signin）
+├── layout.tsx              # Root layout
+├── page.tsx                # Redirect hub (→ /chats or /signin)
 ├── (auth)/
-│   ├── signin/page.tsx     # ログインページ
-│   └── signup/page.tsx     # アカウント作成ページ
+│   ├── signin/page.tsx     # Sign-in page
+│   └── signup/page.tsx     # Sign-up page
 ├── (main)/
-│   ├── layout.tsx          # 2ペインレイアウト（サイドバー + メイン）
+│   ├── layout.tsx          # Two-pane layout (sidebar + main)
 │   └── chats/
-│       ├── page.tsx        # 新規チャット画面
-│       └── [id]/page.tsx   # チャット詳細画面
+│       ├── page.tsx        # New chat screen
+│       └── [id]/page.tsx   # Chat detail screen
 ├── api/
-│   ├── auth/[...all]/route.ts  # better-auth APIハンドラ
-│   └── chat/route.ts       # Chat APIエンドポイント
-proxy.ts                    # Next.js 16 認証プロキシ
+│   ├── auth/[...all]/route.ts  # better-auth API handler
+│   └── chat/route.ts       # Chat API endpoint
+proxy.ts                    # Next.js 16 auth proxy
 db/
-├── client.ts               # Drizzle クライアント
-├── schemas/                # テーブル定義
-└── relations/              # リレーション定義
+├── client.ts               # Drizzle client
+├── schemas/                # Table definitions
+└── relations/              # Relation definitions
 lib/
-├── agent.ts                # Giselle Agent定義
-├── auth.ts                 # better-auth設定
-└── base-url.ts             # 環境に応じたBase URL解決
+├── agent.ts                # Giselle Agent definition
+├── auth.ts                 # better-auth configuration
+└── base-url.ts             # Environment-based base URL resolution
 ```
 
-## セットアップ
+## Setup
 
 ```bash
 pnpm install
 ```
 
-### 環境変数
+### Environment Variables
 
-| 変数名 | 説明 |
+| Variable | Description |
 |---|---|
-| `DATABASE_URL` | libSQL データベースURL |
-| `DATABASE_AUTH_TOKEN` | libSQL 認証トークン（リモートDB使用時） |
+| `DATABASE_URL` | libSQL database URL |
+| `DATABASE_AUTH_TOKEN` | libSQL auth token (for remote DB) |
 
-### 開発サーバー
+### Development Server
 
 ```bash
 pnpm dev

@@ -96,11 +96,11 @@ Phase 1 と Phase 2 は並列実行可能。Phase 3 は両方に依存。
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-auth-server.md](./phase-0-auth-server.md) | 🔲 TODO | better-auth サーバー設定、APIルートハンドラ、クライアントSDK |
-| 1 | [phase-1-auth-ui.md](./phase-1-auth-ui.md) | 🔲 TODO | Signin/Signup ページのTailwind UI実装 |
-| 2 | [phase-2-auth-protection.md](./phase-2-auth-protection.md) | 🔲 TODO | Next.js 16 proxy、ルートページリダイレクト、APIルート移動 |
-| 3 | [phase-3-two-pane-layout.md](./phase-3-two-pane-layout.md) | 🔲 TODO | サイドバー + メインの2ペインレイアウト |
-| 4 | [phase-4-chat-ui.md](./phase-4-chat-ui.md) | 🔲 TODO | Chat UI実装、メッセージ永続化、チャット一覧 |
+| 0 | [phase-0-auth-server.md](./phase-0-auth-server.md) | ✅ DONE | better-auth サーバー設定、APIルートハンドラ、クライアントSDK |
+| 1 | [phase-1-auth-ui.md](./phase-1-auth-ui.md) | ✅ DONE | Signin/Signup ページのTailwind UI実装 |
+| 2 | [phase-2-auth-protection.md](./phase-2-auth-protection.md) | ✅ DONE | Next.js 16 proxy、ルートページリダイレクト、APIルート移動 |
+| 3 | [phase-3-two-pane-layout.md](./phase-3-two-pane-layout.md) | ✅ DONE | サイドバー + メインの2ペインレイアウト |
+| 4 | [phase-4-chat-ui.md](./phase-4-chat-ui.md) | ✅ DONE | Chat UI実装、メッセージ永続化、チャット一覧 |
 
 > **How to work on this epic:** Read this file first to understand the full architecture.
 > Then check the status table above. Pick the first `🔲 TODO` task whose dependencies

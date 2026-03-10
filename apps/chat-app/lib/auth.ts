@@ -10,6 +10,9 @@ function createAuth() {
 			provider: "sqlite", // or "pg" or "mysql"
 		}),
 		baseURL,
+		emailAndPassword: {
+			enabled: true,
+		},
 		advanced: {
 			database: {
 				generateId: "serial",
