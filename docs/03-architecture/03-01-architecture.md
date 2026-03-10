@@ -230,7 +230,64 @@ The `CloudChatStateStore` interface (backed by Redis) persists everything the sy
 
 When a browser tool request arrives, the system **pauses** the NDJSON stream, saves the reader state and buffer position, and closes the HTTP response. When the tool result comes back in a new request, it **resumes** from exactly where it left off — reconnecting to the same sandbox and replaying the tool result to the CLI agent.
 
-Sandbox expiration is handled transparently. After each agent turn, a new snapshot is captured and its ID is persisted to the store alongside the sandbox ID. If a sandbox has expired when the next turn begins, the system recreates it from the last snapshot—preserving the agent's filesystem state while obtaining a fresh VM. This means applications only need to track a `sessionId` (the chat ID); the store handles all infrastructure state recovery automatically.
+Sandbox expiration is handled transparently. After each agent turn, a new snapshot is captured and its ID is persisted to the store alongside the sandbox ID. If a sandbox has expired when the next turn begins, the system recreates it from the last snapshot, preserving the agent's filesystem state while obtaining a fresh VM.
+
+This is the subtle but important design choice: the system does not treat "the sandbox" as a single piece of state. Instead, it splits runtime continuity into two layers:
+
+1. `sandboxId` points to the live VM and is the fast path when that VM still exists.
+2. `snapshotId` points to the latest durable filesystem image and is the recovery path when the VM is gone.
+
+That separation is what makes the architecture resilient. Vercel Sandbox instances are intentionally ephemeral, so a long-lived chat cannot rely on one VM surviving forever. But the agent mostly cares about its working directory, generated files, installed dependencies, and other artifacts on disk. By snapshotting after each turn, the system preserves the part of state that matters most to agent continuity, while allowing the compute container itself to be disposable.
+
+In practice, this gives you a nice operational property: a session behaves as if it owns a persistent machine, even though under the hood it only owns a sequence of short-lived machines linked together by snapshots. Applications therefore only need to remember a `sessionId` (the chat ID); the store reconstructs the rest of the execution environment on demand.
+
+You can think of the lifecycle like this:
+
+```text
+sessionId = chat_123
+
+Time
+  |
+  |  Turn 1 arrives with sessionId
+  |    Store lookup by sessionId
+  |      -> no sandboxId
+  |      -> no latest snapshot yet
+  |    create Sandbox from build snapshot
+  |      -> sandboxId = sbx_1
+  |    runCommand(...)
+  |    create snapshot after the turn
+  |      -> snapshotId = snap_1
+  |    save under sessionId
+  |      -> { sandboxId: sbx_1, snapshotId: snap_1 }
+  |
+  |  Turn 2 arrives with sessionId
+  |    Store lookup by sessionId
+  |      -> { sandboxId: sbx_1, snapshotId: snap_1 }
+  |    resume Sandbox sbx_1
+  |    runCommand(...)
+  |    create snapshot after the turn
+  |      -> snapshotId = snap_2
+  |    save under sessionId
+  |      -> { sandboxId: sbx_1, snapshotId: snap_2 }
+  |
+  |  ...time passes...
+  |    sbx_1 expires
+  |
+  |  Turn 3 arrives with sessionId
+  |    Store lookup by sessionId
+  |      -> { sandboxId: sbx_1, snapshotId: snap_2 }
+  |    resume Sandbox sbx_1
+  |      -> fails: sandbox expired
+  |    create Sandbox from latest snapshot snap_2
+  |      -> sandboxId = sbx_2
+  |    runCommand(...)
+  |    create snapshot after the turn
+  |      -> snapshotId = snap_3
+  |    save under sessionId
+  |      -> { sandboxId: sbx_2, snapshotId: snap_3 }
+  |
+  +--> the app still only knows sessionId
+```
 
 ---
 
