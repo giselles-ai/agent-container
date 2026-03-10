@@ -1,6 +1,6 @@
 {
 	"name": "@giselles-ai/agent",
-	"version": "0.1.23",
+	"version": "0.1.24",
 	"type": "module",
 	"sideEffects": false,
 	"license": "Apache-2.0",
