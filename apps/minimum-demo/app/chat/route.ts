@@ -24,6 +24,11 @@ export async function POST(request: Request): Promise<Response> {
   const result = streamText({
     model: giselle({
       agent,
+      snapshot: {
+        onCreated: (snapshotId) => {
+          console.log(`[snapshot] new snapshot created: ${snapshotId}`);
+        },
+      },
     }),
     messages: await convertToModelMessages(messages),
     tools: browserTools,

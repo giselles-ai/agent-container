@@ -39,6 +39,7 @@ describe("runChat", () => {
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});
 
 		const prepareSandbox = vi.fn(async () => undefined);
@@ -71,6 +72,13 @@ describe("runChat", () => {
 				snapshotId: "snapshot-test",
 			},
 		});
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).toContain('"snapshot_id":"snap_after_run"');
+		expect(body).toContain('"type":"stderr"');
+		expect(body).toContain("stderr-output");
+		expect(body.indexOf('"type":"snapshot"')).toBeGreaterThan(
+			body.indexOf("stderr-output"),
+		);
 		expect(prepareSandbox).toHaveBeenCalledTimes(1);
 		expect(createCommand).toHaveBeenCalledTimes(1);
 		expect(runCommand).toHaveBeenCalledTimes(1);
@@ -78,8 +86,48 @@ describe("runChat", () => {
 		expect(body.indexOf("assistant-output")).toBeGreaterThan(
 			body.indexOf('"type":"sandbox"'),
 		);
-		expect(body).toContain('"type":"stderr"');
-		expect(body).toContain("stderr-output");
+	});
+
+	it("emits snapshot event after command completes", async () => {
+		const runCommand = vi.fn(
+			async (input: {
+				stdout: { write: (text: string) => void };
+				stderr: { write: (text: string) => void };
+			}) => {
+				input.stdout.write("assistant-output");
+				input.stderr.write("stderr-output");
+			},
+		);
+		const snapshot = vi.fn(async () => ({ snapshotId: "snap_after_run" }));
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			runCommand,
+			snapshot,
+		});
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox: vi.fn(async () => undefined),
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+		const body = await response.text();
+
+		expect(snapshot).toHaveBeenCalledTimes(1);
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).toContain('"snapshot_id":"snap_after_run"');
+		expect(body.indexOf('"type":"snapshot"')).toBeGreaterThan(
+			body.indexOf("stderr-output"),
+		);
 	});
 
 	it("uses Sandbox.get when sandbox_id is provided", async () => {
@@ -87,6 +135,7 @@ describe("runChat", () => {
 		sandboxGet.mockResolvedValue({
 			sandboxId: "existing-sandbox",
 			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_from_existing" })),
 		});
 		const response = await runChat({
 			agent: {
@@ -152,6 +201,7 @@ describe("runChat", () => {
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});
 
 		const prepareSandbox = vi.fn(async () => undefined);
@@ -202,6 +252,7 @@ describe("runChat", () => {
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});
 
 		const prepareSandbox = vi.fn(async () => undefined);

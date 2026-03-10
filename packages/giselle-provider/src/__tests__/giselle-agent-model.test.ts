@@ -278,4 +278,40 @@ describe("GiselleAgentModel", () => {
 		).toBe(false);
 		expect(connectCloudApi).toHaveBeenCalledTimes(1);
 	});
+
+	it("invokes snapshot.onCreated when snapshot event is emitted", async () => {
+		const onCreated = vi.fn(async () => undefined);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: createNdjsonReader([
+				{
+					type: "snapshot",
+					snapshot_id: "snap_test",
+				},
+			]).reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			baseUrl: "https://studio.giselles.ai",
+			agent: {
+				agentType: "gemini",
+				snapshotId: "snap_tools",
+			},
+			snapshot: {
+				onCreated,
+			},
+			deps: { connectCloudApi },
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				sessionId: "chat-snapshot",
+				prompt: createPromptWithUser("Create snapshot"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(onCreated).toHaveBeenCalledWith("snap_test");
+		expect(onCreated).toHaveBeenCalledTimes(1);
+	});
 });

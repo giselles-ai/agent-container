@@ -16,6 +16,7 @@ export type MapResult = {
 	parts: LanguageModelV3StreamPart[];
 	sessionUpdate?: Record<string, unknown>;
 	relayRequest?: Record<string, unknown>;
+	snapshotId?: string;
 };
 
 function asString(value: unknown): string | undefined {
@@ -268,6 +269,17 @@ export function mapNdjsonEvent(
 			sessionUpdate: {
 				sandboxId,
 			},
+		};
+	}
+
+	if (event.type === "snapshot") {
+		const snapshotId = asString(event.snapshot_id);
+		if (!snapshotId) {
+			return { parts };
+		}
+		return {
+			parts,
+			snapshotId,
 		};
 	}
 

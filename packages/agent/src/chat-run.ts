@@ -170,6 +170,11 @@ export function runChat<TRequest extends BaseChatRequest>(
 						}),
 						signal: abortController.signal,
 					});
+					const snapshot = await sandbox.snapshot();
+					enqueueEvent({
+						type: "snapshot",
+						snapshot_id: snapshot.snapshotId,
+					});
 				} catch (error) {
 					if (abortController.signal.aborted) {
 						return;

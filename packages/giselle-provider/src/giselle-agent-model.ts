@@ -273,6 +273,14 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		for (const part of mapped.parts) {
 			input.controller.enqueue(part);
 		}
+
+		if (mapped.snapshotId && this.options.snapshot?.onCreated) {
+			try {
+				await this.options.snapshot.onCreated(mapped.snapshotId);
+			} catch (error) {
+				console.error("[giselle-provider] snapshot.onCreated error:", error);
+			}
+		}
 	}
 
 	private async connectCloudApi(

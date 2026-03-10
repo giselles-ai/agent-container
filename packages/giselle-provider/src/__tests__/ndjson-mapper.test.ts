@@ -129,6 +129,26 @@ describe("mapNdjsonEvent", () => {
 		});
 		expect(ctx.textBlockOpen).toBe(false);
 	});
+
+	it("maps snapshot event to snapshotId", () => {
+		const ctx = createMapperContext();
+
+		const result = mapNdjsonEvent(
+			{
+				type: "snapshot",
+				snapshot_id: "snap_new_123",
+			},
+			ctx,
+		);
+		expect(result.snapshotId).toBe("snap_new_123");
+	});
+
+	it("ignores snapshot event without snapshot_id", () => {
+		const ctx = createMapperContext();
+
+		const result = mapNdjsonEvent({ type: "snapshot" }, ctx);
+		expect(result.snapshotId).toBeUndefined();
+	});
 });
 
 describe("finishStream", () => {
