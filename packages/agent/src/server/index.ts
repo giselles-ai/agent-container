@@ -1,4 +1,3 @@
-export { Agent } from "../agent";
 export {
 	type AgentApiOptions,
 	type AgentApiStoreConfig,
