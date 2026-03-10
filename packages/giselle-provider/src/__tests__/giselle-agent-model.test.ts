@@ -279,8 +279,8 @@ describe("GiselleAgentModel", () => {
 		expect(connectCloudApi).toHaveBeenCalledTimes(1);
 	});
 
-	it("invokes snapshot.onCreated when snapshot event is emitted", async () => {
-		const onCreated = vi.fn(async () => undefined);
+	it("invokes on.snapshotCreated when snapshot event is emitted", async () => {
+		const snapshotCreated = vi.fn(async () => undefined);
 		const connectCloudApi = vi.fn(async () => ({
 			reader: createNdjsonReader([
 				{
@@ -297,9 +297,7 @@ describe("GiselleAgentModel", () => {
 				agentType: "gemini",
 				snapshotId: "snap_tools",
 			},
-			snapshot: {
-				onCreated,
-			},
+			on: { snapshotCreated },
 			deps: { connectCloudApi },
 		});
 
@@ -311,7 +309,76 @@ describe("GiselleAgentModel", () => {
 		);
 		await readAllParts(result.stream);
 
-		expect(onCreated).toHaveBeenCalledWith("snap_test");
-		expect(onCreated).toHaveBeenCalledTimes(1);
+		expect(snapshotCreated).toHaveBeenCalledWith("snap_test");
+		expect(snapshotCreated).toHaveBeenCalledTimes(1);
+	});
+
+	it("invokes on.sandboxCreated when sandbox event is emitted", async () => {
+		const sandboxCreated = vi.fn(async () => undefined);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: createNdjsonReader([
+				{
+					type: "sandbox",
+					sandbox_id: "sbx_123",
+				},
+			]).reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			baseUrl: "https://studio.giselles.ai",
+			agent: {
+				agentType: "gemini",
+				snapshotId: "snap_default",
+			},
+			on: { sandboxCreated },
+			deps: { connectCloudApi },
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				sessionId: "chat-sandbox",
+				prompt: createPromptWithUser("Run something"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(sandboxCreated).toHaveBeenCalledWith("sbx_123");
+		expect(sandboxCreated).toHaveBeenCalledTimes(1);
+	});
+
+	it("invokes on.sessionCreated when init event is emitted", async () => {
+		const sessionCreated = vi.fn(async () => undefined);
+		const connectCloudApi = vi.fn(async () => ({
+			reader: createNdjsonReader([
+				{
+					type: "init",
+					session_id: "session_abc",
+					modelId: "gemini-model",
+				},
+			]).reader,
+			response: new Response(null, { status: 200 }),
+		}));
+
+		const model = new GiselleAgentModel({
+			baseUrl: "https://studio.giselles.ai",
+			agent: {
+				agentType: "gemini",
+				snapshotId: "snap_default",
+			},
+			on: { sessionCreated },
+			deps: { connectCloudApi },
+		});
+
+		const result = await model.doStream(
+			createCallOptions({
+				sessionId: "chat-session",
+				prompt: createPromptWithUser("Start session"),
+			}),
+		);
+		await readAllParts(result.stream);
+
+		expect(sessionCreated).toHaveBeenCalledWith("session_abc");
+		expect(sessionCreated).toHaveBeenCalledTimes(1);
 	});
 });

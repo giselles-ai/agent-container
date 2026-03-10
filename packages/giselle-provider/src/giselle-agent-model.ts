@@ -274,12 +274,29 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			input.controller.enqueue(part);
 		}
 
-		if (mapped.snapshotId && this.options.snapshot?.onCreated) {
-			try {
-				await this.options.snapshot.onCreated(mapped.snapshotId);
-			} catch (error) {
-				console.error("[giselle-provider] snapshot.onCreated error:", error);
+		await this.invokeCallbacks(mapped);
+	}
+
+	private async invokeCallbacks(
+		mapped: ReturnType<typeof mapNdjsonEvent>,
+	): Promise<void> {
+		const on = this.options.on;
+		if (!on) {
+			return;
+		}
+
+		try {
+			if (mapped.snapshotId) {
+				await on.snapshotCreated?.(mapped.snapshotId);
 			}
+			if (mapped.sandboxId) {
+				await on.sandboxCreated?.(mapped.sandboxId);
+			}
+			if (mapped.sessionId) {
+				await on.sessionCreated?.(mapped.sessionId);
+			}
+		} catch (error) {
+			console.error("[giselle-provider] callback error:", error);
 		}
 	}
 

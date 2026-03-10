@@ -17,6 +17,8 @@ export type MapResult = {
 	sessionUpdate?: Record<string, unknown>;
 	relayRequest?: Record<string, unknown>;
 	snapshotId?: string;
+	sandboxId?: string;
+	sessionId?: string;
 };
 
 function asString(value: unknown): string | undefined {
@@ -252,6 +254,7 @@ export function mapNdjsonEvent(
 			sessionUpdate: {
 				geminiSessionId,
 			},
+			sessionId: geminiSessionId,
 		};
 	}
 
@@ -269,6 +272,7 @@ export function mapNdjsonEvent(
 			sessionUpdate: {
 				sandboxId,
 			},
+			sandboxId,
 		};
 	}
 

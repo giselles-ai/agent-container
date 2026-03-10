@@ -149,6 +149,26 @@ describe("mapNdjsonEvent", () => {
 		const result = mapNdjsonEvent({ type: "snapshot" }, ctx);
 		expect(result.snapshotId).toBeUndefined();
 	});
+
+	it("maps sandbox event to sandboxId", () => {
+		const ctx = createMapperContext();
+
+		const result = mapNdjsonEvent(
+			{ type: "sandbox", sandbox_id: "sbx_123" },
+			ctx,
+		);
+		expect(result.sandboxId).toBe("sbx_123");
+	});
+
+	it("maps init event to sessionId", () => {
+		const ctx = createMapperContext();
+
+		const result = mapNdjsonEvent(
+			{ type: "init", session_id: "session_abc", modelId: "gemini" },
+			ctx,
+		);
+		expect(result.sessionId).toBe("session_abc");
+	});
 });
 
 describe("finishStream", () => {
