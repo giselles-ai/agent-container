@@ -16,9 +16,6 @@ export type MapResult = {
 	parts: LanguageModelV3StreamPart[];
 	sessionUpdate?: Record<string, unknown>;
 	relayRequest?: Record<string, unknown>;
-	snapshotId?: string;
-	sandboxId?: string;
-	sessionId?: string;
 };
 
 function asString(value: unknown): string | undefined {
@@ -254,7 +251,6 @@ export function mapNdjsonEvent(
 			sessionUpdate: {
 				geminiSessionId,
 			},
-			sessionId: geminiSessionId,
 		};
 	}
 
@@ -272,19 +268,11 @@ export function mapNdjsonEvent(
 			sessionUpdate: {
 				sandboxId,
 			},
-			sandboxId,
 		};
 	}
 
 	if (event.type === "snapshot") {
-		const snapshotId = asString(event.snapshot_id);
-		if (!snapshotId) {
-			return { parts };
-		}
-		return {
-			parts,
-			snapshotId,
-		};
+		return { parts };
 	}
 
 	if (event.type === "relay.session") {

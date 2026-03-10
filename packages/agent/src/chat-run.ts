@@ -109,28 +109,57 @@ export function runChat<TRequest extends BaseChatRequest>(
 
 			void (async () => {
 				try {
-					const sandbox = parsed.sandbox_id
-						? await Sandbox.get({ sandboxId: parsed.sandbox_id })
-						: await (async () => {
-								const snapshotId =
-									parsed.snapshot_id?.trim() || input.agent.snapshotId?.trim();
-								if (!snapshotId) {
-									throw new Error(
-										"Agent must provide snapshotId when sandbox_id is not provided.",
-									);
-								}
+					const createFromSnapshot = async (
+						snapshotId: string,
+					): Promise<{
+						sandboxId: string;
+						runCommand: (input: {
+							cmd: string;
+							args: string[];
+							env: Record<string, string>;
+							stdout: Writable;
+							stderr: Writable;
+							signal: AbortSignal;
+						}) => Promise<void>;
+						snapshot: () => Promise<{ snapshotId: string }>;
+					}> => {
+						const created = await Sandbox.create({
+							source: {
+								type: "snapshot",
+								snapshotId,
+							},
+						});
+						console.log(
+							`[sandbox] created sandbox=${created.sandboxId} from snapshot=${snapshotId}`,
+						);
+						return created;
+					};
 
-								const created = await Sandbox.create({
-									source: {
-										type: "snapshot",
-										snapshotId,
-									},
-								});
+					const snapshotId =
+						parsed.snapshot_id?.trim() || input.agent.snapshotId?.trim();
+
+					const sandbox = await (async () => {
+						if (parsed.sandbox_id) {
+							try {
+								return await Sandbox.get({ sandboxId: parsed.sandbox_id });
+							} catch (error) {
+								if (!snapshotId) {
+									throw error;
+								}
 								console.log(
-									`[sandbox] created sandbox=${created.sandboxId} from snapshot=${snapshotId}`,
+									`[sandbox] sandbox=${parsed.sandbox_id} expired, recreating from snapshot=${snapshotId}`,
 								);
-								return created;
-							})();
+								return createFromSnapshot(snapshotId);
+							}
+						}
+
+						if (!snapshotId) {
+							throw new Error(
+								"Agent must provide snapshotId when sandbox_id is not provided.",
+							);
+						}
+						return createFromSnapshot(snapshotId);
+					})();
 
 					enqueueEvent({ type: "sandbox", sandbox_id: sandbox.sandboxId });
 					await input.agent.prepareSandbox({

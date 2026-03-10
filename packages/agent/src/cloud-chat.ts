@@ -240,6 +240,7 @@ export async function runCloudChat<
 			? { session_id: existing.agentSessionId }
 			: {}),
 		...(existing?.sandboxId ? { sandbox_id: existing.sandboxId } : {}),
+		...(existing?.snapshotId ? { snapshot_id: existing.snapshotId } : {}),
 		relay_session_id: relaySession.sessionId,
 		relay_token: relaySession.token,
 	} as TRequest;
@@ -376,6 +377,9 @@ async function resumeCloudChat<TRequest extends CloudChatRequest>(input: {
 			: {}),
 		...(input.existing.sandboxId
 			? { sandbox_id: input.existing.sandboxId }
+			: {}),
+		...(input.existing.snapshotId
+			? { snapshot_id: input.existing.snapshotId }
 			: {}),
 		relay_session_id: relaySession.sessionId,
 		relay_token: relaySession.token,

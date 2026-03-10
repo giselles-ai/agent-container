@@ -159,6 +159,50 @@ describe("runChat", () => {
 		expect(sandboxCreate).not.toHaveBeenCalled();
 	});
 
+	it("falls back to Sandbox.create when Sandbox.get fails and snapshot is available", async () => {
+		const runCommandFromGet = vi.fn(async () => undefined);
+		const runCommandFromCreate = vi.fn(async () => undefined);
+		const getError = new Error("sandbox expired");
+		sandboxGet.mockRejectedValue(getError);
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "recreated-sandbox",
+			runCommand: runCommandFromCreate,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_from_recreated" })),
+		});
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-fallback",
+				prepareSandbox: vi.fn(async () => undefined),
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+				sandbox_id: "expired-sandbox",
+			},
+		});
+		const body = await response.text();
+
+		expect(sandboxGet).toHaveBeenCalledWith({ sandboxId: "expired-sandbox" });
+		expect(sandboxCreate).toHaveBeenCalledWith({
+			source: {
+				type: "snapshot",
+				snapshotId: "snapshot-fallback",
+			},
+		});
+		expect(runCommandFromGet).not.toHaveBeenCalled();
+		expect(runCommandFromCreate).toHaveBeenCalledTimes(1);
+		expect(body).toContain('"type":"sandbox"');
+		expect(body).toContain('"sandbox_id":"recreated-sandbox"');
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).toContain('"snapshot_id":"snap_from_recreated"');
+	});
+
 	it("aborts immediately when signal is already aborted", async () => {
 		const prepareSandbox = vi.fn(async () => undefined);
 

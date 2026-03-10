@@ -54,9 +54,4 @@ export type GiselleProviderOptions = {
 	headers?: Record<string, string | undefined>;
 	agent: AgentRef;
 	deps?: Partial<GiselleProviderDeps>;
-	on?: {
-		snapshotCreated?: (snapshotId: string) => void | Promise<void>;
-		sandboxCreated?: (sandboxId: string) => void | Promise<void>;
-		sessionCreated?: (sessionId: string) => void | Promise<void>;
-	};
 };

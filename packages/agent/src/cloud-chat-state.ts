@@ -32,6 +32,7 @@ export type CloudChatSessionState = {
 	chatId: string;
 	agentSessionId?: string;
 	sandboxId?: string;
+	snapshotId?: string;
 	relay?: CloudRelaySession;
 	pendingTool?: PendingToolState | null;
 	updatedAt: number;
@@ -40,6 +41,7 @@ export type CloudChatSessionState = {
 export type CloudChatSessionPatch = {
 	agentSessionId?: string;
 	sandboxId?: string;
+	snapshotId?: string;
 	relay?: CloudRelaySession;
 	pendingTool?: PendingToolState | null;
 };
@@ -65,6 +67,10 @@ export function reduceCloudChatEvent(
 
 	if (event.type === "sandbox" && typeof event.sandbox_id === "string") {
 		return { sandboxId: event.sandbox_id };
+	}
+
+	if (event.type === "snapshot" && typeof event.snapshot_id === "string") {
+		return { snapshotId: event.snapshot_id };
 	}
 
 	if (
@@ -132,6 +138,7 @@ export function applyCloudChatPatch(input: {
 		chatId: input.chatId,
 		agentSessionId: input.patch?.agentSessionId ?? input.base?.agentSessionId,
 		sandboxId: input.patch?.sandboxId ?? input.base?.sandboxId,
+		snapshotId: input.patch?.snapshotId ?? input.base?.snapshotId,
 		relay: input.patch?.relay ?? input.base?.relay,
 		pendingTool:
 			input.patch?.pendingTool !== undefined

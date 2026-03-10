@@ -24,6 +24,21 @@ describe("cloud-chat-state", () => {
 		expect(patch).toEqual({ sandboxId: "sandbox-1" });
 	});
 
+	it("maps snapshot events to snapshotId patches", () => {
+		const patch = reduceCloudChatEvent({
+			type: "snapshot",
+			snapshot_id: "snap_abc123",
+		});
+
+		expect(patch).toEqual({ snapshotId: "snap_abc123" });
+	});
+
+	it("ignores snapshot events without snapshot_id", () => {
+		const patch = reduceCloudChatEvent({ type: "snapshot" });
+
+		expect(patch).toBeNull();
+	});
+
 	it("maps relay.session events to relay patches", () => {
 		const patch = reduceCloudChatEvent({
 			type: "relay.session",
@@ -96,6 +111,7 @@ describe("cloud-chat-state", () => {
 			chatId: "chat-123",
 			agentSessionId: "session-2",
 			sandboxId: "sandbox-1",
+			snapshotId: undefined,
 			relay: undefined,
 			pendingTool: undefined,
 			updatedAt: 1730000100,
@@ -127,6 +143,7 @@ describe("cloud-chat-state", () => {
 			chatId: "chat-456",
 			agentSessionId: undefined,
 			sandboxId: undefined,
+			snapshotId: undefined,
 			relay: undefined,
 			pendingTool: null,
 			updatedAt: 1730000200,
@@ -156,5 +173,42 @@ describe("cloud-chat-state", () => {
 			(patch as { pendingTool: { requestType: string } }).pendingTool
 				.requestType,
 		).toBe("snapshot_request");
+	});
+
+	it("preserves snapshotId when applying patches", () => {
+		const state = applyCloudChatPatch({
+			chatId: "chat-789",
+			now: 1730000300,
+			base: {
+				chatId: "chat-789",
+				sandboxId: "sandbox-1",
+				snapshotId: "snap_old",
+				updatedAt: 1720000000,
+			},
+			patch: {
+				snapshotId: "snap_new",
+			},
+		});
+
+		expect(state.snapshotId).toBe("snap_new");
+		expect(state.sandboxId).toBe("sandbox-1");
+	});
+
+	it("carries forward snapshotId from base when patch does not include it", () => {
+		const state = applyCloudChatPatch({
+			chatId: "chat-790",
+			now: 1730000400,
+			base: {
+				chatId: "chat-790",
+				snapshotId: "snap_existing",
+				updatedAt: 1720000000,
+			},
+			patch: {
+				sandboxId: "sandbox-new",
+			},
+		});
+
+		expect(state.snapshotId).toBe("snap_existing");
+		expect(state.sandboxId).toBe("sandbox-new");
 	});
 });

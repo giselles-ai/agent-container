@@ -218,7 +218,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 				buffer = parsed.rest;
 
 				for (const objectText of parsed.objects) {
-					await this.processNdjsonObject({
+					this.processNdjsonObject({
 						controller: input.controller,
 						context,
 						objectText,
@@ -228,7 +228,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 
 			const trailingBuffer = buffer.trim();
 			if (trailingBuffer.length > 0) {
-				await this.processNdjsonObject({
+				this.processNdjsonObject({
 					controller: input.controller,
 					context,
 					objectText: trailingBuffer,
@@ -255,11 +255,11 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		}
 	}
 
-	private async processNdjsonObject(input: {
+	private processNdjsonObject(input: {
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 		context: ReturnType<typeof createMapperContext>;
 		objectText: string;
-	}): Promise<void> {
+	}): void {
 		let event: Record<string, unknown>;
 		try {
 			event = JSON.parse(input.objectText) as Record<string, unknown>;
@@ -272,31 +272,6 @@ export class GiselleAgentModel implements LanguageModelV3 {
 		const mapped = mapNdjsonEvent(event, input.context);
 		for (const part of mapped.parts) {
 			input.controller.enqueue(part);
-		}
-
-		await this.invokeCallbacks(mapped);
-	}
-
-	private async invokeCallbacks(
-		mapped: ReturnType<typeof mapNdjsonEvent>,
-	): Promise<void> {
-		const on = this.options.on;
-		if (!on) {
-			return;
-		}
-
-		try {
-			if (mapped.snapshotId) {
-				await on.snapshotCreated?.(mapped.snapshotId);
-			}
-			if (mapped.sandboxId) {
-				await on.sandboxCreated?.(mapped.sandboxId);
-			}
-			if (mapped.sessionId) {
-				await on.sessionCreated?.(mapped.sessionId);
-			}
-		} catch (error) {
-			console.error("[giselle-provider] callback error:", error);
 		}
 	}
 

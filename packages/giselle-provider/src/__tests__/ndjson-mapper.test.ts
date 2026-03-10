@@ -130,7 +130,7 @@ describe("mapNdjsonEvent", () => {
 		expect(ctx.textBlockOpen).toBe(false);
 	});
 
-	it("maps snapshot event to snapshotId", () => {
+	it("maps snapshot event without error", () => {
 		const ctx = createMapperContext();
 
 		const result = mapNdjsonEvent(
@@ -140,34 +140,29 @@ describe("mapNdjsonEvent", () => {
 			},
 			ctx,
 		);
-		expect(result.snapshotId).toBe("snap_new_123");
+		expect(result.parts).toHaveLength(0);
 	});
 
-	it("ignores snapshot event without snapshot_id", () => {
-		const ctx = createMapperContext();
-
-		const result = mapNdjsonEvent({ type: "snapshot" }, ctx);
-		expect(result.snapshotId).toBeUndefined();
-	});
-
-	it("maps sandbox event to sandboxId", () => {
+	it("maps sandbox event to sessionUpdate", () => {
 		const ctx = createMapperContext();
 
 		const result = mapNdjsonEvent(
 			{ type: "sandbox", sandbox_id: "sbx_123" },
 			ctx,
 		);
-		expect(result.sandboxId).toBe("sbx_123");
+		expect(result.sessionUpdate).toEqual({ sandboxId: "sbx_123" });
 	});
 
-	it("maps init event to sessionId", () => {
+	it("maps init event to sessionUpdate", () => {
 		const ctx = createMapperContext();
 
 		const result = mapNdjsonEvent(
 			{ type: "init", session_id: "session_abc", modelId: "gemini" },
 			ctx,
 		);
-		expect(result.sessionId).toBe("session_abc");
+		expect(result.sessionUpdate).toEqual({
+			geminiSessionId: "session_abc",
+		});
 	});
 });
 

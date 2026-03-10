@@ -220,6 +220,7 @@ A multi-turn conversation with browser tools requires careful state management a
 | State | Stored In | Purpose |
 |---|---|---|
 | Sandbox ID | Redis | Resume the same VM across turns |
+| Snapshot ID | Redis | Recreate the sandbox if it has expired |
 | Agent session ID | Redis | Continue the CLI agent's session (Gemini's `--session_id`) |
 | Relay session | Redis | Maintain the SSE connection for browser tools |
 | Pending tool state | Redis | Track in-progress tool calls across request boundaries |
@@ -228,6 +229,8 @@ A multi-turn conversation with browser tools requires careful state management a
 The `CloudChatStateStore` interface (backed by Redis) persists everything the system needs to pause a conversation — even mid-tool-call — and resume it seamlessly on the next request.
 
 When a browser tool request arrives, the system **pauses** the NDJSON stream, saves the reader state and buffer position, and closes the HTTP response. When the tool result comes back in a new request, it **resumes** from exactly where it left off — reconnecting to the same sandbox and replaying the tool result to the CLI agent.
+
+Sandbox expiration is handled transparently. After each agent turn, a new snapshot is captured and its ID is persisted to the store alongside the sandbox ID. If a sandbox has expired when the next turn begins, the system recreates it from the last snapshot—preserving the agent's filesystem state while obtaining a fresh VM. This means applications only need to track a `sessionId` (the chat ID); the store handles all infrastructure state recovery automatically.
 
 ---
 
