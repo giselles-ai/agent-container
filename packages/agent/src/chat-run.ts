@@ -109,20 +109,7 @@ export function runChat<TRequest extends BaseChatRequest>(
 
 			void (async () => {
 				try {
-					const createFromSnapshot = async (
-						snapshotId: string,
-					): Promise<{
-						sandboxId: string;
-						runCommand: (input: {
-							cmd: string;
-							args: string[];
-							env: Record<string, string>;
-							stdout: Writable;
-							stderr: Writable;
-							signal: AbortSignal;
-						}) => Promise<void>;
-						snapshot: () => Promise<{ snapshotId: string }>;
-					}> => {
+					const createFromSnapshot = async (snapshotId: string) => {
 						const created = await Sandbox.create({
 							source: {
 								type: "snapshot",

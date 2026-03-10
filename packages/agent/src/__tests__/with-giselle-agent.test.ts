@@ -21,7 +21,7 @@ describe("withGiselleAgent", () => {
 		delete process.env.GISELLE_AGENT_API_KEY;
 
 		const factory = withGiselleAgent({ reactStrictMode: true }, {});
-		const config = await factory();
+		const config = await factory("phase-development-server");
 
 		expect(fetchSpy).not.toHaveBeenCalled();
 		expect(config).toEqual({ reactStrictMode: true });
@@ -42,7 +42,7 @@ describe("withGiselleAgent", () => {
 			{ reactStrictMode: true, env: { PRESET: "value" } },
 			{ agentType: "gemini", files: [{ path: "/x", content: "y" }] },
 		);
-		const config = await factory();
+		const config = await factory("phase-development-server");
 
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		const [url, init] = fetchSpy.mock.calls[0];
@@ -81,7 +81,7 @@ describe("withGiselleAgent", () => {
 			{},
 			{ baseUrl: "https://custom-api.example.com/" },
 		);
-		await factory();
+		await factory("phase-development-server");
 
 		const [url] = fetchSpy.mock.calls[0];
 		expect(url).toBe("https://custom-api.example.com/build");
@@ -98,7 +98,7 @@ describe("withGiselleAgent", () => {
 		);
 
 		const factory = withGiselleAgent({}, {});
-		await factory();
+		await factory("phase-development-server");
 
 		const [, init] = fetchSpy.mock.calls[0];
 		const body = JSON.parse(init?.body as string);
@@ -119,7 +119,7 @@ describe("withGiselleAgent", () => {
 			{},
 			{ agentMd: "test prompt", files: [{ path: "/a.txt", content: "A" }] },
 		);
-		await factory();
+		await factory("phase-development-server");
 
 		const [, init] = fetchSpy.mock.calls[0];
 		const body = JSON.parse(init?.body as string);
@@ -143,7 +143,9 @@ describe("withGiselleAgent", () => {
 		);
 
 		const factory = withGiselleAgent({}, {});
-		await expect(factory()).rejects.toThrow("Build failed (500)");
+		await expect(factory("phase-development-server")).rejects.toThrow(
+			"Build failed (500)",
+		);
 	});
 
 	it("preserves nextConfig and merges env", async () => {
@@ -163,7 +165,7 @@ describe("withGiselleAgent", () => {
 			},
 			{ agentType: "gemini" },
 		);
-		const config = await factory();
+		const config = await factory("phase-development-server");
 
 		expect(config.compiler).toEqual({ removeConsole: false });
 		expect(config.env).toEqual({
