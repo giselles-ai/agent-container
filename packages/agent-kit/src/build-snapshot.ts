@@ -261,7 +261,7 @@ const DEFAULT_LOCAL_INCLUDE_PATHS = [
 ];
 
 export async function buildSnapshot(options: BuildSnapshotOptions = {}) {
-	const sandboxRoot = options.sandboxRoot ?? "/vercel/sandbox";
+	const sandboxRoot = options.sandboxRoot ?? "/home/vercel-sandbox";
 	const runtime = options.runtime ?? "node24";
 	const timeoutMs = options.timeoutMs ?? 2_700_000;
 	const isLocal = options.local ?? false;

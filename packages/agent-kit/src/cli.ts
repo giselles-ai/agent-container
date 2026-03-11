@@ -22,7 +22,7 @@ Build-snapshot options:
   --local                  Copy local files instead of npm install (monorepo only)
   --repo-root <path>       Monorepo root directory (required with --local)
   --base-snapshot-id <id>  Reuse an existing base snapshot
-  --sandbox-root <path>    Sandbox working directory (default: /vercel/sandbox)
+  --sandbox-root <path>    Sandbox working directory (default: /home/vercel-sandbox)
   --runtime <runtime>      Sandbox runtime (default: node24)
   --timeout-ms <ms>        Sandbox timeout in ms (default: 2700000)
   --browser-tool-version <version>  Version of @giselles-ai/browser-tool to install
