@@ -34,11 +34,15 @@ function createMockSandbox(overrides?: {
 	snapshotId?: string;
 	writeSpy?: ReturnType<typeof vi.fn>;
 	snapshotSpy?: ReturnType<typeof vi.fn>;
+	runCommandSpy?: ReturnType<typeof vi.fn>;
 	// biome-ignore lint/suspicious/noExplicitAny: mock object doesn't need full Sandbox type
 }): any {
 	return {
 		sandboxId: "sb_123",
 		writeFiles: overrides?.writeSpy ?? vi.fn().mockResolvedValue(undefined),
+		runCommand:
+			overrides?.runCommandSpy ??
+			vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
 		snapshot:
 			overrides?.snapshotSpy ??
 			vi
@@ -304,5 +308,115 @@ describe("buildAgent", () => {
 				}),
 			}),
 		).rejects.toThrow("snapshot failed");
+	});
+
+	it("executes setup commands after file writes and before snapshot", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const callOrder: string[] = [];
+		const mockSandbox = createMockSandbox({
+			writeSpy: vi.fn().mockImplementation(() => {
+				callOrder.push("writeFiles");
+				return Promise.resolve();
+			}),
+			runCommandSpy: vi.fn().mockImplementation(() => {
+				callOrder.push("runCommand");
+				return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+			}),
+			snapshotSpy: vi.fn().mockImplementation(() => {
+				callOrder.push("snapshot");
+				return Promise.resolve({ snapshotId: "snap_setup" });
+			}),
+		});
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "setup_hash",
+				agent_type: "gemini",
+				files: [{ path: "/x.md", content: "hello" }],
+				setup_script: "npx opensrc vercel/ai\nnpm install -g tsx",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(callOrder).toEqual(["writeFiles", "runCommand", "snapshot"]);
+	});
+
+	it("skips setup when setup_script is null", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "no_setup_hash",
+				agent_type: "gemini",
+				files: [],
+				setup_script: null,
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(mockSandbox.runCommand).not.toHaveBeenCalled();
+	});
+
+	it("still works when setup field is omitted (backward compat)", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "no_setup_field_hash",
+				agent_type: "gemini",
+				files: [],
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(mockSandbox.runCommand).not.toHaveBeenCalled();
+	});
+
+	it("throws when setup script fails", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox({
+			runCommandSpy: vi.fn().mockResolvedValue({
+				exitCode: 127,
+				stdout: "",
+				stderr: "command not found",
+			}),
+		});
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		await expect(
+			buildAgent({
+				request: makeRequest({
+					config_hash: "fail_setup_hash",
+					agent_type: "gemini",
+					files: [],
+					setup_script: "bad-command",
+				}),
+			}),
+		).rejects.toThrow("Setup script failed (exit 127)");
+	});
+
+	it("executes setup script with bash -lc", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		await buildAgent({
+			request: makeRequest({
+				config_hash: "bash_hash",
+				agent_type: "gemini",
+				files: [],
+				setup_script: "npx opensrc vercel/ai",
+			}),
+		});
+
+		expect(mockSandbox.runCommand).toHaveBeenCalledWith("bash", [
+			"-lc",
+			"npx opensrc vercel/ai",
+		]);
 	});
 });

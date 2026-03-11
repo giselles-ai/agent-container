@@ -7,6 +7,7 @@ describe("defineAgent", () => {
 		const agent = defineAgent({});
 		expect(agent.agentType).toBe("gemini");
 		expect(agent.files).toEqual([]);
+		expect(agent.setup).toBeUndefined();
 		expect(agent.agentMd).toBeUndefined();
 	});
 
@@ -15,6 +16,7 @@ describe("defineAgent", () => {
 			agentType: "codex",
 			agentMd: "test prompt",
 			files: [{ path: "/test", content: "hello" }],
+			setup: { script: "npm install -g tsx" },
 		});
 		expect(agent.agentType).toBe("codex");
 		expect(agent.agentMd).toBe("test prompt");
@@ -23,6 +25,19 @@ describe("defineAgent", () => {
 			path: "/test",
 			content: "hello",
 		});
+		expect(agent.setup).toEqual({ script: "npm install -g tsx" });
+	});
+
+	it("leaves setup undefined when not provided", () => {
+		const agent = defineAgent({});
+		expect(agent.setup).toBeUndefined();
+	});
+
+	it("preserves provided setup script", () => {
+		const agent = defineAgent({
+			setup: { script: "npm install -g tsx" },
+		});
+		expect(agent.setup).toEqual({ script: "npm install -g tsx" });
 	});
 
 	it("throws when snapshotId is accessed without env", () => {

@@ -3,6 +3,11 @@ export type AgentFile = {
 	content: string;
 };
 
+export type AgentSetup = {
+	/** Shell script to run inside the sandbox during build. Executed as `bash -lc`. */
+	script: string;
+};
+
 export type AgentConfig = {
 	/** Agent type. Defaults to "gemini". */
 	agentType?: "gemini" | "codex";
@@ -10,12 +15,16 @@ export type AgentConfig = {
 	agentMd?: string;
 	/** Additional files to write into the sandbox. */
 	files?: AgentFile[];
+	/** Setup configuration for the sandbox build phase. */
+	setup?: AgentSetup;
 };
 
 export type DefinedAgent = {
 	readonly agentType: "gemini" | "codex";
 	readonly agentMd?: string;
 	readonly files: AgentFile[];
+	/** Setup configuration. Undefined when no setup is configured. */
+	readonly setup?: AgentSetup;
 	/** Snapshot ID resolved from env at runtime. Throws if not set. */
 	readonly snapshotId: string;
 };

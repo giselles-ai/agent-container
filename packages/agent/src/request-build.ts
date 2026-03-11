@@ -65,6 +65,7 @@ export async function requestBuild(
 		config_hash: configHash,
 		agent_type: agent.agentType ?? "gemini",
 		files,
+		setup_script: agent.setup?.script ?? null,
 	};
 	const requestHeaders = {
 		"content-type": "application/json",

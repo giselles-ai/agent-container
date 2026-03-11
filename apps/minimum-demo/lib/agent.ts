@@ -22,6 +22,6 @@ You are a helpful assistant embedded in a spreadsheet application. The user is c
 `;
 
 export const agent = defineAgent({
-  agentType: "gemini",
-  agentMd,
+	agentType: "gemini",
+	agentMd,
 });

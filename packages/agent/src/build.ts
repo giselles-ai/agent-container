@@ -6,6 +6,7 @@ type BuildRequest = {
 	config_hash: string;
 	agent_type: "gemini" | "codex";
 	files: Array<{ path: string; content: string }>;
+	setup_script: string | null;
 };
 
 type BuildResponse = {
@@ -69,6 +70,7 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 	const configHash = record.config_hash;
 	const agentType = record.agent_type;
 	const files = record.files;
+	const setupScript = record.setup_script;
 
 	if (typeof configHash !== "string" || !configHash.trim()) {
 		return null;
@@ -81,6 +83,7 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 	}
 
 	const parsedFiles: BuildRequest["files"] = [];
+	let parsedSetupScript: string | null = null;
 
 	for (const file of files) {
 		if (!file || typeof file !== "object" || Array.isArray(file)) {
@@ -101,10 +104,18 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 		});
 	}
 
+	if (setupScript !== undefined && setupScript !== null) {
+		if (typeof setupScript !== "string") {
+			return null;
+		}
+		parsedSetupScript = setupScript;
+	}
+
 	return {
 		config_hash: configHash.trim(),
 		agent_type: agentType,
 		files: parsedFiles,
+		setup_script: parsedSetupScript,
 	};
 }
 
@@ -159,6 +170,21 @@ export async function buildAgent(input: {
 				content: Buffer.from(file.content),
 			})),
 		);
+	}
+
+	if (parsed.setup_script) {
+		console.log("[agent-build] running setup script...");
+		const result = await sandbox.runCommand("bash", [
+			"-lc",
+			parsed.setup_script,
+		]);
+		if (result.exitCode !== 0) {
+			const stderr = typeof result.stderr === "string" ? result.stderr : "";
+			throw new Error(
+				`Setup script failed (exit ${result.exitCode}): ${stderr}`,
+			);
+		}
+		console.log("[agent-build] setup script completed");
 	}
 
 	const snapshot = await sandbox.snapshot();

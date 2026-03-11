@@ -43,4 +43,31 @@ describe("computeConfigHash", () => {
 		});
 		expect(a).not.toBe(b);
 	});
+
+	it("produces different hash when setup changes", () => {
+		const a = computeConfigHash({
+			setup: { script: "npm install -g tsx" },
+		});
+		const b = computeConfigHash({
+			setup: { script: "npm install -g jq" },
+		});
+		expect(a).not.toBe(b);
+	});
+
+	it("produces same hash for same setup", () => {
+		const config = {
+			setup: { script: "npx opensrc vercel/ai" },
+		};
+		const a = computeConfigHash(config);
+		const b = computeConfigHash(config);
+		expect(a).toBe(b);
+	});
+
+	it("produces different hash with setup vs without", () => {
+		const a = computeConfigHash({});
+		const b = computeConfigHash({
+			setup: { script: "echo hello" },
+		});
+		expect(a).not.toBe(b);
+	});
 });

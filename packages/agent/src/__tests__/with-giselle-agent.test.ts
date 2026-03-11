@@ -63,6 +63,7 @@ describe("withGiselleAgent", () => {
 			}),
 			agent_type: "gemini",
 			files: [{ path: "/x", content: "y" }],
+			setup_script: null,
 		});
 	});
 
@@ -131,6 +132,7 @@ describe("withGiselleAgent", () => {
 				content: "test prompt",
 			},
 		]);
+		expect(body.setup_script).toBeNull();
 	});
 
 	it("throws on build API failure", async () => {

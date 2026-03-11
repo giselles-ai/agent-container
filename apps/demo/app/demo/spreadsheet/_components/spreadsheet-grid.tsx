@@ -65,12 +65,8 @@ export function SpreadsheetGrid({
 				</thead>
 				<tbody>
 					{Array.from({ length: rows }).map((_, rowIndex) => (
-						<tr
-							key={`row-${
-								// biome-ignore lint/suspicious/noArrayIndexKey: fixed grid size, rows never reorder
-								rowIndex
-							}`}
-						>
+						// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
+						<tr key={`row-${rowIndex}`}>
 							<td className="w-px whitespace-nowrap border border-slate-700/50 bg-slate-900/40">
 								{(() => {
 									const rowHeaderId = `row-header-${rowIndex}`;

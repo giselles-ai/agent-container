@@ -111,6 +111,12 @@ Empty Sandbox (Node 24)
   ├─ Write ~/.gemini/settings.json     ◀─ Configures MCP server for browser tools
   ├─ Write ~/.codex/config.toml        ◀─ Same, for Codex
   │
+  ├─ Write AGENTS.md + user files      ◀─ From defineAgent({ agentMd, files })
+  │
+  ├─ Run setup script                  ◀─ From defineAgent({ setup: { script } })
+  │  e.g. npx opensrc vercel/ai
+  │       npm install -g tsx
+  │
   └─ snapshot()  →  snapshotId: "snap_abc123..."
 ```
 
@@ -304,8 +310,8 @@ withGiselleAgent(nextConfig, agent)
       ├─ Authenticate (POST /auth with API key)
       │
       ├─ Request build (POST /build with agent config)
-      │    └─ Cloud API creates sandbox, installs CLIs,
-      │       writes AGENTS.md, snapshots → returns snapshotId
+      │    └─ Cloud API creates sandbox, writes AGENTS.md + user files,
+      │       runs setup script, snapshots → returns snapshotId
       │
       ├─ Cache snapshotId to .next/giselle/<hash>
       │
@@ -313,7 +319,7 @@ withGiselleAgent(nextConfig, agent)
             └─ defineAgent() reads it at runtime
 ```
 
-After the first build, the snapshot ID is cached. Subsequent `next dev` starts skip the build entirely. The content hash is computed from `agentType`, `agentMd`, and `files` — so the snapshot is only rebuilt when your agent definition actually changes.
+After the first build, the snapshot ID is cached. Subsequent `next dev` starts skip the build entirely. The content hash is computed from `agentType`, `agentMd`, `files`, and `setup.script` — so the snapshot is only rebuilt when your agent definition actually changes.
 
 ---
 

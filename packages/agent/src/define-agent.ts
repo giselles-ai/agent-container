@@ -5,6 +5,7 @@ export function defineAgent(config: AgentConfig): DefinedAgent {
 		agentType: config.agentType ?? "gemini",
 		agentMd: config.agentMd,
 		files: config.files ?? [],
+		setup: config.setup,
 		get snapshotId(): string {
 			const id = process.env?.GISELLE_AGENT_SNAPSHOT_ID;
 			if (!id) {

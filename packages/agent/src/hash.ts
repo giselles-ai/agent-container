@@ -10,6 +10,7 @@ export function computeConfigHash(config: AgentConfig): string {
 			path: f.path,
 			content: f.content,
 		})),
+		setup: config.setup?.script ?? null,
 	});
 
 	return createHash("sha256").update(payload).digest("hex").slice(0, 16);

@@ -36,14 +36,14 @@ importers:
         specifier: 1.5.4
         version: 1.5.4(@better-auth/core@1.5.4(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@1.0.0-beta.16-ea816b6(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.0)(@opentelemetry/api@1.9.0)(@prisma/client@7.4.2(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/mssql@9.1.9(@azure/core-client@1.10.1))(mssql@11.0.1(@azure/core-client@1.10.1))(mysql2@3.15.3)(postgres@3.4.7)(prisma@7.4.2(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(valibot@1.2.0(typescript@5.9.3))(zod@4.3.6))
       '@giselles-ai/agent':
-        specifier: 0.1.23
-        version: 0.1.23(ai@6.0.68(zod@4.3.6))(ioredis@5.9.3)(next@16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 'workspace:'
+        version: link:../../packages/agent
       '@giselles-ai/browser-tool':
-        specifier: 0.1.23
-        version: 0.1.23(ai@6.0.68(zod@4.3.6))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 'workspace:'
+        version: link:../../packages/browser-tool
       '@giselles-ai/giselle-provider':
-        specifier: 0.1.23
-        version: 0.1.23
+        specifier: 'workspace:'
+        version: link:../../packages/giselle-provider
       '@libsql/client':
         specifier: 0.17.0
         version: 0.17.0
@@ -995,34 +995,6 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
-
-  '@giselles-ai/agent@0.1.23':
-    resolution: {integrity: sha512-kSeew2CaIa2ZsFd2Yp1+EIqazzK3T16YL1nIkxjo+ck7iNoC5G9jwrrRf5cPZqKKtADgtmVMd41uQnsBmQzMXA==}
-    peerDependencies:
-      ioredis: '>=5.0.0'
-      next: '>=15.0.0'
-    peerDependenciesMeta:
-      ioredis:
-        optional: true
-      next:
-        optional: true
-
-  '@giselles-ai/browser-tool@0.1.23':
-    resolution: {integrity: sha512-PggrZUezLfE2kAXEl1qmSE/xoUa+whzkls5+BWkrdLDpWWpfvST6PyeQVTGnbsYW4chj+xxRSdO8/dSg1gwK1A==}
-    peerDependencies:
-      ai: '>=4.0.0'
-      react: '>=19.0.0'
-      react-dom: '>=19.0.0'
-    peerDependenciesMeta:
-      ai:
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
-
-  '@giselles-ai/giselle-provider@0.1.23':
-    resolution: {integrity: sha512-7KMh9QqmCCAkBL89JeTpyhGqv/h+nIPTyE3OOwdcpGnA51OTG6IPHqBuLG6IsGrDWQacC3sqUu25A1zz1LTo8Q==}
 
   '@google-cloud/common@5.0.2':
     resolution: {integrity: sha512-V7bmBKYQyu0eVG2BFejuUjlBt+zrya6vtsKdY+JxMM/dNntPF41vZ9+LhOshEUH01zOHEqBSvI7Dad7ZS6aUeA==}
@@ -5891,43 +5863,6 @@ snapshots:
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@giselles-ai/agent@0.1.23(ai@6.0.68(zod@4.3.6))(ioredis@5.9.3)(next@16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      '@giselles-ai/browser-tool': 0.1.23(ai@6.0.68(zod@4.3.6))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@iarna/toml': 3.0.0
-      '@vercel/sandbox': 1.6.0
-      zod: 4.3.6
-    optionalDependencies:
-      ioredis: 5.9.3
-      next: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - ai
-      - bare-abort-controller
-      - react
-      - react-dom
-      - react-native-b4a
-      - supports-color
-
-  '@giselles-ai/browser-tool@0.1.23(ai@6.0.68(zod@4.3.6))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      '@modelcontextprotocol/sdk': 1.26.0(zod@4.3.6)
-      ioredis: 5.9.3
-      zod: 4.3.6
-    optionalDependencies:
-      ai: 6.0.68(zod@4.3.6)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - supports-color
-
-  '@giselles-ai/giselle-provider@0.1.23':
-    dependencies:
-      '@ai-sdk/provider': 3.0.7
-      '@ai-sdk/provider-utils': 4.0.13(zod@4.3.6)
-      zod: 4.3.6
-
   '@google-cloud/common@5.0.2':
     dependencies:
       '@google-cloud/projectify': 4.0.0
@@ -6020,7 +5955,7 @@ snapshots:
       '@google-cloud/logging': 11.2.1
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.0.1(@opentelemetry/api@1.9.0))
       '@google-cloud/opentelemetry-cloud-trace-exporter': 3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.0.1(@opentelemetry/api@1.9.0))
-      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))
+      '@google/genai': 1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
       '@iarna/toml': 2.2.5
       '@joshua.litt/get-ripgrep': 0.0.3
       '@modelcontextprotocol/sdk': 1.26.0(zod@3.25.76)
@@ -6091,7 +6026,7 @@ snapshots:
       - tree-sitter
       - utf-8-validate
 
-  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@3.25.76))':
+  '@google/genai@1.30.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))':
     dependencies:
       google-auth-library: 10.5.0
       ws: 8.19.0
@@ -6424,7 +6359,7 @@ snapshots:
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
       zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@4.3.6)
+      zod-to-json-schema: 3.25.1(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
@@ -10731,10 +10666,6 @@ snapshots:
   zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
       zod: 3.25.76
-
-  zod-to-json-schema@3.25.1(zod@4.3.6):
-    dependencies:
-      zod: 4.3.6
 
   zod@3.24.4: {}
 

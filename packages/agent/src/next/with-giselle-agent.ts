@@ -1,9 +1,9 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { NextConfig } from "next";
 
+import { computeConfigHash } from "../hash";
 import { requestBuild } from "../request-build";
 import type { AgentConfig } from "../types";
 import type { GiselleAgentPluginOptions } from "./types";
@@ -26,16 +26,7 @@ function resolveBaseUrl(options?: GiselleAgentPluginOptions): string {
 }
 
 function getSnapshotFile(agent: AgentConfig): string {
-	const key = {
-		agentType: agent.agentType,
-		agentMd: agent.agentMd,
-		files: agent.files,
-	};
-	const hash = crypto
-		.createHash("sha256")
-		.update(JSON.stringify(key))
-		.digest("hex")
-		.slice(0, 16);
+	const hash = computeConfigHash(agent);
 	return path.join(process.cwd(), ".next", "giselle", hash);
 }
 

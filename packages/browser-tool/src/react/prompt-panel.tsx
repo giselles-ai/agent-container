@@ -169,6 +169,7 @@ export function PromptPanel({
 						<ul className="mt-2 space-y-1">
 							{lastPlan.actions.map((action, index) => (
 								<li
+									// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 									key={`${action.fieldId}-${action.action}-${index}`}
 									className="rounded-md border border-slate-800 bg-slate-900/80 px-2 py-1 text-xs text-slate-200"
 								>
@@ -185,14 +186,8 @@ export function PromptPanel({
 							</p>
 							<ul className="mt-1 space-y-1 text-xs text-amber-100">
 								{combinedWarnings.map((warning, index) => (
-									<li
-										key={`${warning}-${
-											// biome-ignore lint/suspicious/noArrayIndexKey: wip
-											index
-										}`}
-									>
-										- {warning}
-									</li>
+									// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
+									<li key={`${warning}-${index}`}>- {warning}</li>
 								))}
 							</ul>
 						</div>

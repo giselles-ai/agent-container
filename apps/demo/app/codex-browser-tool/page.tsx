@@ -327,14 +327,8 @@ export default function CodexBrowserToolPage() {
 						) : (
 							<ul className="mt-2 space-y-1 text-xs text-amber-200">
 								{warnings.map((warning, index) => (
-									<li
-										key={`${warning}-${
-											// biome-ignore lint/suspicious/noArrayIndexKey: warnings can duplicate
-											index
-										}`}
-									>
-										- {warning}
-									</li>
+									// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
+									<li key={`${warning}-${index}`}>- {warning}</li>
 								))}
 							</ul>
 						)}

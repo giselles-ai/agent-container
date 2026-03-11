@@ -119,6 +119,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
 												if (part.type === "text") {
 													return (
 														<p
+															// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 															key={`${message.id}-${index}`}
 															className="whitespace-pre-wrap"
 														>
@@ -139,6 +140,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(
 											if (part.type === "text") {
 												return (
 													<Streamdown
+														// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 														key={`${message.id}-${index}`}
 														isAnimating={status === "streaming"}
 													>

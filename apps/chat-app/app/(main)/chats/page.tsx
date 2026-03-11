@@ -58,7 +58,7 @@ export default function NewChatPage() {
 									if (part.type === "text") {
 										return (
 											<p
-												// biome-ignore lint/suspicious/noArrayIndexKey: message parts have no unique id
+												// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 												key={`${message.id}-${i}`}
 												className="whitespace-pre-wrap text-sm"
 											>

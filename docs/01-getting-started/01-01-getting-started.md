@@ -57,10 +57,34 @@ export const agent = defineAgent({
   agentMd: `
 You are a helpful assistant.
   `,
+  setup: {
+    script: "npx opensrc vercel/ai",
+  },
 });
 ```
 
 `agentMd` is the system prompt written in Markdown — it gets loaded as the agent's `AGENTS.md` inside the sandbox. Write it like you're briefing a teammate: what's the context, what tools are available, and how should the agent work.
+
+### Customizing the sandbox environment
+
+You can run shell commands inside the sandbox at build time using `setup.script`. This is useful for pre-installing tools, fetching reference documentation, or cloning repositories:
+
+```ts
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd: `
+You are a Next.js expert. Reference documentation is available in opensrc/.
+  `,
+  setup: {
+    script: `
+npx opensrc vercel/ai
+npm install -g tsx
+    `,
+  },
+});
+```
+
+The setup script runs once during the build phase and is cached — it only re-runs when your agent definition changes.
 
 ---
 
@@ -214,6 +238,6 @@ Run `pnpm dev`, open your app, and start chatting. The agent will stream respons
 ## Next steps
 
 - **Customize the agent prompt** — Edit `agentMd` in `lib/agent.ts` to shape the agent's personality and workflow.
-- **Add files to the sandbox** — Pass a `files` array to `defineAgent()` to pre-load data or config into the agent's environment.
+- **Customize the sandbox environment** — Use `setup.script` to install tools, fetch docs, or set up dependencies in the agent's sandbox at build time. See the [`defineAgent` API reference](../02-api-reference/02-01-define-agent.md).
 - **Try Codex CLI** — Switch `agentType` to `"codex"` for an OpenAI-powered agent.
 - **Self-host** — Set up your own Vercel Sandbox and Redis instead of using the Cloud API. See the main [README](../README.md) for details.
