@@ -37,7 +37,7 @@
 	},
 	"dependencies": {
 		"@giselles-ai/agent": "workspace:*",
-		"@vercel/sandbox": "1.8.0",
+		"@vercel/sandbox": "1.8.1",
 		"tsx": "4.21.0"
 	},
 	"devDependencies": {

@@ -188,9 +188,12 @@ export function createGeminiAgent(
 			return {
 				cmd: "gemini",
 				args,
-				env: {
-					GEMINI_API_KEY: requiredEnv(env, "GEMINI_API_KEY"),
-				},
+				env: Object.fromEntries(
+					Object.entries({
+						...env,
+						GEMINI_API_KEY: requiredEnv(env, "GEMINI_API_KEY"),
+					}).filter((e): e is [string, string] => e[1] != null),
+				),
 			};
 		},
 	};

@@ -151,6 +151,7 @@ export function createAgentApi(options: AgentApiOptions): {
 					chat_id: parsed.data.chat_id,
 					agent_type: parsed.data.agent_type,
 					snapshot_id: parsed.data.snapshot_id,
+					env: parsed.data.env,
 					tool_results: parsed.data.tool_results as
 						| CloudToolResult[]
 						| undefined,
@@ -159,6 +160,10 @@ export function createAgentApi(options: AgentApiOptions): {
 					...agentOptions,
 					type: parsed.data.agent_type,
 					snapshotId: parsed.data.snapshot_id,
+					env: {
+						...parsed.data.env,
+						...agentOptions.env,
+					},
 				},
 				signal: request.signal,
 				store: await getStore(),

@@ -86,6 +86,27 @@ npm install -g tsx
 
 The setup script runs once during the build phase and is cached — it only re-runs when your agent definition changes.
 
+### Passing environment variables
+
+Use `env` to pass environment variables to the sandbox. These are available both during the setup script and when the agent runs:
+
+```ts
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd: "You are a helpful assistant.",
+  env: {
+    GITHUB_AUTH_TOKEN: process.env.GITHUB_AUTH_TOKEN!,
+  },
+  setup: {
+    script: `
+git clone https://github.com/owner/private-repo.git ~/project
+    `,
+  },
+});
+```
+
+Environment variables are passed securely to each command execution — they are never stored in the sandbox snapshot.
+
 ---
 
 ## Step 4 — Wire up `next.config.ts`

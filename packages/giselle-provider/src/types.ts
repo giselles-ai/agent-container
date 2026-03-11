@@ -11,6 +11,7 @@ export type ConnectCloudApiParams = {
 	endpoint: string;
 	chatId: string;
 	message: string;
+	env?: Record<string, string>;
 	document?: string;
 	toolResults?: CloudToolResult[];
 	agentType?: string;
@@ -42,6 +43,7 @@ export type GiselleProviderDeps = {
 export type AgentRef = {
 	readonly type?: string;
 	readonly agentType?: string;
+	readonly env?: Record<string, string>;
 	readonly snapshotId: string;
 };
 

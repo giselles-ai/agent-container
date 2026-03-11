@@ -114,8 +114,9 @@ Empty Sandbox (Node 24)
   ├─ Write AGENTS.md + user files      ◀─ From defineAgent({ agentMd, files })
   │
   ├─ Run setup script                  ◀─ From defineAgent({ setup: { script } })
-  │  e.g. npx opensrc vercel/ai
+  │  e.g. npx opensrc vercel/ai        ◀─ env vars from defineAgent({ env }) passed
   │       npm install -g tsx
+  │                                  to runCommand, not baked into snapshot
   │
   └─ snapshot()  →  snapshotId: "snap_abc123..."
 ```
@@ -319,7 +320,7 @@ withGiselleAgent(nextConfig, agent)
             └─ defineAgent() reads it at runtime
 ```
 
-After the first build, the snapshot ID is cached. Subsequent `next dev` starts skip the build entirely. The content hash is computed from `agentType`, `agentMd`, `files`, and `setup.script` — so the snapshot is only rebuilt when your agent definition actually changes.
+After the first build, the snapshot ID is cached. Subsequent `next dev` starts skip the build entirely. The content hash is computed from `agentType`, `agentMd`, `files`, `setup.script`, and `env` — so the snapshot is only rebuilt when your agent definition actually changes.
 
 ---
 

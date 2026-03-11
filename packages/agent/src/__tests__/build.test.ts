@@ -342,6 +342,90 @@ describe("buildAgent", () => {
 		expect(callOrder).toEqual(["writeFiles", "runCommand", "snapshot"]);
 	});
 
+	it("passes env to runCommand when setup_script and env are provided", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "setup_env_hash",
+				agent_type: "gemini",
+				files: [{ path: "/x.md", content: "hello" }],
+				setup_script: "npx opensrc vercel/ai",
+				env: {
+					FOO: "bar",
+					BAZ: "qux",
+				},
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(mockSandbox.runCommand).toHaveBeenCalledWith({
+			cmd: "bash",
+			args: ["-lc", "npx opensrc vercel/ai"],
+			env: {
+				FOO: "bar",
+				BAZ: "qux",
+			},
+		});
+	});
+
+	it("does not pass env when env is null", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "setup_no_env_hash",
+				agent_type: "gemini",
+				files: [{ path: "/x.md", content: "hello" }],
+				setup_script: "npx opensrc vercel/ai",
+				env: null,
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(mockSandbox.runCommand).toHaveBeenCalledWith({
+			cmd: "bash",
+			args: ["-lc", "npx opensrc vercel/ai"],
+		});
+	});
+
+	it("accepts request with env but no setup_script", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const mockSandbox = createMockSandbox();
+		mockCreate.mockResolvedValue(mockSandbox);
+
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "env_without_setup_hash",
+				agent_type: "gemini",
+				files: [{ path: "/x.md", content: "hello" }],
+				env: { FOO: "bar" },
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(mockSandbox.runCommand).not.toHaveBeenCalled();
+	});
+
+	it("returns 400 when env contains non-string values", async () => {
+		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
+		const res = await buildAgent({
+			request: makeRequest({
+				config_hash: "invalid_env_hash",
+				agent_type: "gemini",
+				files: [{ path: "/x.md", content: "hello" }],
+				env: { FOO: 123 },
+			}),
+		});
+
+		expect(res.status).toBe(400);
+		expect(mockCreate).not.toHaveBeenCalled();
+	});
+
 	it("skips setup when setup_script is null", async () => {
 		process.env.GISELLE_AGENT_SANDBOX_BASE_SNAPSHOT_ID = "snap_env";
 		const mockSandbox = createMockSandbox();
@@ -414,9 +498,9 @@ describe("buildAgent", () => {
 			}),
 		});
 
-		expect(mockSandbox.runCommand).toHaveBeenCalledWith("bash", [
-			"-lc",
-			"npx opensrc vercel/ai",
-		]);
+		expect(mockSandbox.runCommand).toHaveBeenCalledWith({
+			cmd: "bash",
+			args: ["-lc", "npx opensrc vercel/ai"],
+		});
 	});
 });

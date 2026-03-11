@@ -191,7 +191,12 @@ export function createCodexAgent(
 			return {
 				cmd: "codex",
 				args,
-				env: { CODEX_API_KEY: apiKey },
+				env: Object.fromEntries(
+					Object.entries({
+						...env,
+						CODEX_API_KEY: apiKey,
+					}).filter((e): e is [string, string] => e[1] != null),
+				),
 			};
 		},
 		createStdoutMapper() {

@@ -63,6 +63,9 @@ function createDefaultDeps(): GiselleProviderDeps {
 			if (params.toolResults !== undefined) {
 				body.tool_results = params.toolResults;
 			}
+			if (params.env !== undefined) {
+				body.env = params.env;
+			}
 
 			const response = await fetch(params.endpoint, {
 				method: "POST",
@@ -293,6 +296,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			toolResults: params.toolResults,
 			agentType: this.options.agent.agentType ?? this.options.agent.type,
 			snapshotId: this.options.agent.snapshotId,
+			env: this.options.agent.env,
 			headers: this.mergeCloudHeaders(options.headers),
 			signal: options.abortSignal,
 		});

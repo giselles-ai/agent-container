@@ -7,6 +7,7 @@ type BuildRequest = {
 	agent_type: "gemini" | "codex";
 	files: Array<{ path: string; content: string }>;
 	setup_script: string | null;
+	env: Record<string, string> | null;
 };
 
 type BuildResponse = {
@@ -71,6 +72,7 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 	const agentType = record.agent_type;
 	const files = record.files;
 	const setupScript = record.setup_script;
+	const rawEnv = record.env;
 
 	if (typeof configHash !== "string" || !configHash.trim()) {
 		return null;
@@ -84,6 +86,7 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 
 	const parsedFiles: BuildRequest["files"] = [];
 	let parsedSetupScript: string | null = null;
+	let parsedEnv: Record<string, string> | null = null;
 
 	for (const file of files) {
 		if (!file || typeof file !== "object" || Array.isArray(file)) {
@@ -111,11 +114,25 @@ function parseBuildRequest(body: unknown): BuildRequest | null {
 		parsedSetupScript = setupScript;
 	}
 
+	if (rawEnv !== undefined && rawEnv !== null) {
+		if (typeof rawEnv !== "object" || Array.isArray(rawEnv)) {
+			return null;
+		}
+		const envRecord = rawEnv as Record<string, unknown>;
+		for (const value of Object.values(envRecord)) {
+			if (typeof value !== "string") {
+				return null;
+			}
+		}
+		parsedEnv = envRecord as Record<string, string>;
+	}
+
 	return {
 		config_hash: configHash.trim(),
 		agent_type: agentType,
 		files: parsedFiles,
 		setup_script: parsedSetupScript,
+		env: parsedEnv,
 	};
 }
 
@@ -174,10 +191,11 @@ export async function buildAgent(input: {
 
 	if (parsed.setup_script) {
 		console.log("[agent-build] running setup script...");
-		const result = await sandbox.runCommand("bash", [
-			"-lc",
-			parsed.setup_script,
-		]);
+		const result = await sandbox.runCommand({
+			cmd: "bash",
+			args: ["-lc", parsed.setup_script],
+			...(parsed.env ? { env: parsed.env } : {}),
+		});
 		if (result.exitCode !== 0) {
 			const stderr = typeof result.stderr === "string" ? result.stderr : "";
 			throw new Error(

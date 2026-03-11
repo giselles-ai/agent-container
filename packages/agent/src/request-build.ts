@@ -66,6 +66,7 @@ export async function requestBuild(
 		agent_type: agent.agentType ?? "gemini",
 		files,
 		setup_script: agent.setup?.script ?? null,
+		env: agent.env ?? null,
 	};
 	const requestHeaders = {
 		"content-type": "application/json",

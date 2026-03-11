@@ -115,6 +115,7 @@ export const cloudChatRunRequestSchema = z.object({
 	message: z.string().min(1),
 	agent_type: z.enum(["gemini", "codex"]),
 	snapshot_id: z.string().min(1),
+	env: z.record(z.string()).optional(),
 	tool_results: z
 		.array(
 			z.object({

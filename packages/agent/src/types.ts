@@ -13,6 +13,8 @@ export type AgentConfig = {
 	agentType?: "gemini" | "codex";
 	/** Content for AGENTS.md in the sandbox. */
 	agentMd?: string;
+	/** Environment variables passed to the sandbox at build and run time. */
+	env?: Record<string, string>;
 	/** Additional files to write into the sandbox. */
 	files?: AgentFile[];
 	/** Setup configuration for the sandbox build phase. */
@@ -25,6 +27,8 @@ export type DefinedAgent = {
 	readonly files: AgentFile[];
 	/** Setup configuration. Undefined when no setup is configured. */
 	readonly setup?: AgentSetup;
+	/** Environment variables. */
+	readonly env: Record<string, string>;
 	/** Snapshot ID resolved from env at runtime. Throws if not set. */
 	readonly snapshotId: string;
 };

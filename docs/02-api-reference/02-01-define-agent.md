@@ -21,6 +21,7 @@ function defineAgent(config: AgentConfig): DefinedAgent
 | `agentType` | `"gemini" \| "codex"` | `"gemini"` | Which CLI agent to use in the sandbox. |
 | `agentMd` | `string` | — | System prompt loaded as `AGENTS.md` / `GEMINI.md` inside the sandbox. Write it like you're briefing a teammate. |
 | `files` | `AgentFile[]` | `[]` | Additional files to write into the sandbox at build time. |
+| `env` | `Record<string, string>` | `{}` | Environment variables passed to the sandbox at build time (setup script) and run time (CLI execution). Never baked into snapshots. |
 | `setup` | `AgentSetup` | — | Setup configuration for the sandbox build phase. |
 
 ### `AgentFile`
@@ -46,6 +47,7 @@ The return value of `defineAgent()`. Pass it to `withGiselleAgent()` and `gisell
 | `agentMd` | `string \| undefined` | The system prompt. |
 | `files` | `AgentFile[]` | Files to write into the sandbox. |
 | `setup` | `AgentSetup \| undefined` | Setup configuration, if provided. |
+| `env` | `Record<string, string>` | The resolved environment variables. |
 | `snapshotId` | `string` | The snapshot ID (resolved from `GISELLE_AGENT_SNAPSHOT_ID` env at runtime). Throws if not set. |
 
 ## Examples
@@ -136,6 +138,38 @@ export const agent = defineAgent({
     script: `
 npx opensrc vercel/ai
 npm install -g tsx jq
+    `,
+  },
+});
+```
+
+### With environment variables
+
+```ts
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd: "You are a helpful assistant with access to GitHub.",
+  env: {
+    GITHUB_AUTH_TOKEN: process.env.GITHUB_AUTH_TOKEN!,
+    MY_CUSTOM_VAR: "hello",
+  },
+});
+```
+
+### Environment variables + setup script
+
+```ts
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd: "You are a project contributor.",
+  env: {
+    GITHUB_AUTH_TOKEN: process.env.GITHUB_AUTH_TOKEN!,
+    NPM_TOKEN: process.env.NPM_TOKEN!,
+  },
+  setup: {
+    script: `
+git clone https://github.com/owner/private-repo.git ~/project
+cd ~/project && npm install
     `,
   },
 });

@@ -63,6 +63,44 @@ describe("computeConfigHash", () => {
 		expect(a).toBe(b);
 	});
 
+	it("produces different hash when env changes", () => {
+		const a = computeConfigHash({
+			env: {
+				FOO: "1",
+			},
+		});
+		const b = computeConfigHash({
+			env: {
+				FOO: "2",
+			},
+		});
+		expect(a).not.toBe(b);
+	});
+
+	it("produces same hash for same env", () => {
+		const config = {
+			env: {
+				FOO: "1",
+				BAR: "2",
+			},
+		};
+		const a = computeConfigHash(config);
+		const b = computeConfigHash(config);
+		expect(a).toBe(b);
+	});
+
+	it("produces different hash with env vs without", () => {
+		const a = computeConfigHash({});
+		const b = computeConfigHash({ env: { FOO: "bar" } });
+		expect(a).not.toBe(b);
+	});
+
+	it("produces same hash regardless of env key insertion order", () => {
+		const a = computeConfigHash({ env: { A: "1", B: "2" } });
+		const b = computeConfigHash({ env: { B: "2", A: "1" } });
+		expect(a).toBe(b);
+	});
+
 	it("produces different hash with setup vs without", () => {
 		const a = computeConfigHash({});
 		const b = computeConfigHash({

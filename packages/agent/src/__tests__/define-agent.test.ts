@@ -40,6 +40,20 @@ describe("defineAgent", () => {
 		expect(agent.setup).toEqual({ script: "npm install -g tsx" });
 	});
 
+	it("preserves provided env", () => {
+		const agent = defineAgent({
+			env: {
+				FOO: "bar",
+			},
+		});
+		expect(agent.env).toEqual({ FOO: "bar" });
+	});
+
+	it("defaults env to empty object", () => {
+		const agent = defineAgent({});
+		expect(agent.env).toEqual({});
+	});
+
 	it("throws when snapshotId is accessed without env", () => {
 		const agent = defineAgent({});
 		expect(() => agent.snapshotId).toThrow(
