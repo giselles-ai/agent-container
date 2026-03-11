@@ -5,7 +5,11 @@ export const agent = defineAgent({
 	agentType: "gemini",
 	agentMd,
 	env: {
-		hello: "world",
-		GITHUB_AUTH_TOKEN: "gpt-xxxx",
+		GH_TOKEN: process.env.GH_TOKEN,
+	},
+	setup: {
+		script: `
+		git clone https://x-access-token:\${GH_TOKEN}@github.com/r06-cdr/cdr.git
+		`,
 	},
 });
