@@ -10,6 +10,7 @@ const textBlockIdByContext = new WeakMap<NdjsonMapperContext, string>();
 export type NdjsonMapperContext = {
 	textBlockOpen: boolean;
 	lastAssistantContent: string;
+	pendingToolNames: Map<string, string>;
 };
 
 export type MapResult = {
@@ -166,6 +167,7 @@ export function createMapperContext(): NdjsonMapperContext {
 	return {
 		textBlockOpen: false,
 		lastAssistantContent: "",
+		pendingToolNames: new Map(),
 	};
 }
 
@@ -344,6 +346,45 @@ export function mapNdjsonEvent(
 			},
 			relayRequest: event,
 		};
+	}
+
+	if (event.type === "tool_use") {
+		closeTextBlock(context, parts);
+
+		const toolName = asString(event.tool_name) ?? "unknown";
+		const toolId = asString(event.tool_id) ?? crypto.randomUUID();
+		const params = event.parameters as Record<string, unknown> | undefined;
+
+		context.pendingToolNames.set(toolId, toolName);
+
+		parts.push({
+			type: "tool-call",
+			toolCallId: toolId,
+			toolName,
+			input: JSON.stringify(params ?? {}),
+			providerExecuted: true,
+		});
+		return { parts };
+	}
+
+	if (event.type === "tool_result") {
+		const toolId = asString(event.tool_id) ?? "";
+		const status = asString(event.status) ?? "success";
+		const output = asString(event.output) ?? "";
+		const toolName = context.pendingToolNames.get(toolId) ?? "unknown";
+		context.pendingToolNames.delete(toolId);
+
+		const truncated =
+			output.length > 500 ? `${output.slice(0, 500)}\n…` : output;
+
+		parts.push({
+			type: "tool-result",
+			toolCallId: toolId,
+			toolName,
+			result: truncated,
+			isError: status !== "success",
+		});
+		return { parts };
 	}
 
 	return { parts };

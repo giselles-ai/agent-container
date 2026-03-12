@@ -8,7 +8,7 @@ import {
 	type UIMessage,
 } from "ai";
 import { type FormEvent, useState } from "react";
-import { ChatMessage } from "../chat-message";
+import { ChatMessage, ToolInvocationDisplay } from "../chat-message";
 
 export function ChatDetail({
 	chatId,
@@ -58,6 +58,22 @@ export function ChatDetail({
 							}`}
 						>
 							{message.parts.map((part, i) => {
+								if (part.type === "dynamic-tool") {
+									return (
+										<ToolInvocationDisplay
+											// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
+											key={`${message.id}-${i}`}
+											toolName={part.toolName}
+											input={part.input as Record<string, unknown>}
+											state={part.state}
+											output={
+												part.state === "output-available"
+													? part.output
+													: undefined
+											}
+										/>
+									);
+								}
 								if (part.type === "text") {
 									return (
 										<ChatMessage
