@@ -14,7 +14,8 @@
 				"BLOB_READ_WRITE_TOKEN",
 				"SANDBOX_SNAPSHOT_ID",
 				"DATABASE_*",
-				"GH_TOKEN"
+				"GH_TOKEN",
+				"BETTER_AUTH_*"
 			]
 		},
 		"dev": {
