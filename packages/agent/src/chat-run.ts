@@ -128,7 +128,21 @@ export function runChat<TRequest extends BaseChatRequest>(
 					const sandbox = await (async () => {
 						if (parsed.sandbox_id) {
 							try {
-								return await Sandbox.get({ sandboxId: parsed.sandbox_id });
+								const existing = await Sandbox.get({
+									sandboxId: parsed.sandbox_id,
+								});
+								if (existing.status !== "running") {
+									if (!snapshotId) {
+										throw new Error(
+											`Sandbox ${parsed.sandbox_id} is ${existing.status}, not running`,
+										);
+									}
+									console.log(
+										`[sandbox] sandbox=${parsed.sandbox_id} status=${existing.status}, recreating from snapshot=${snapshotId}`,
+									);
+									return createFromSnapshot(snapshotId);
+								}
+								return existing;
 							} catch (error) {
 								if (!snapshotId) {
 									throw error;
