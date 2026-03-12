@@ -13,7 +13,8 @@
 				"GISELLE_*",
 				"BLOB_READ_WRITE_TOKEN",
 				"SANDBOX_SNAPSHOT_ID",
-				"DATABASE_*"
+				"DATABASE_*",
+				"GH_TOKEN"
 			]
 		},
 		"dev": {
