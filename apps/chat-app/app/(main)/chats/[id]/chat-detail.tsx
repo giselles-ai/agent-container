@@ -2,12 +2,15 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
+import { code } from "@streamdown/code";
 import {
 	DefaultChatTransport,
 	lastAssistantMessageIsCompleteWithToolCalls,
 	type UIMessage,
 } from "ai";
 import { type FormEvent, useState } from "react";
+import type { PluginConfig } from "streamdown";
+import { Streamdown } from "streamdown";
 
 export function ChatDetail({
 	chatId,
@@ -60,13 +63,16 @@ export function ChatDetail({
 							{message.parts.map((part, i) => {
 								if (part.type === "text") {
 									return (
-										<p
+										<Streamdown
 											// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 											key={`${message.id}-${i}`}
-											className="whitespace-pre-wrap text-sm"
+											plugins={{ code } as PluginConfig}
+											isAnimating={
+												status === "streaming" && message.role === "assistant"
+											}
 										>
 											{part.text}
-										</p>
+										</Streamdown>
 									);
 								}
 								return null;
