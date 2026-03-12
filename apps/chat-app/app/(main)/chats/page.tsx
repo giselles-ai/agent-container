@@ -7,6 +7,7 @@ import {
 	lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
 import { type FormEvent, useState } from "react";
+import { ChatMessage } from "./chat-message";
 
 export default function NewChatPage() {
 	const [input, setInput] = useState("");
@@ -57,13 +58,15 @@ export default function NewChatPage() {
 								{message.parts.map((part, i) => {
 									if (part.type === "text") {
 										return (
-											<p
+											<ChatMessage
 												// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 												key={`${message.id}-${i}`}
-												className="whitespace-pre-wrap text-sm"
-											>
-												{part.text}
-											</p>
+												id={`${message.id}-${i}`}
+												text={part.text}
+												isStreaming={
+													status === "streaming" && message.role === "assistant"
+												}
+											/>
 										);
 									}
 									return null;

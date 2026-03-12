@@ -2,15 +2,13 @@
 
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
-import { code } from "@streamdown/code";
 import {
 	DefaultChatTransport,
 	lastAssistantMessageIsCompleteWithToolCalls,
 	type UIMessage,
 } from "ai";
 import { type FormEvent, useState } from "react";
-import type { PluginConfig } from "streamdown";
-import { Streamdown } from "streamdown";
+import { ChatMessage } from "../chat-message";
 
 export function ChatDetail({
 	chatId,
@@ -32,7 +30,6 @@ export function ChatDetail({
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 		...browserTool,
 	});
-	console.log(messages, initialMessages);
 
 	browserTool.connect(addToolOutput);
 
@@ -63,16 +60,15 @@ export function ChatDetail({
 							{message.parts.map((part, i) => {
 								if (part.type === "text") {
 									return (
-										<Streamdown
+										<ChatMessage
 											// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
 											key={`${message.id}-${i}`}
-											plugins={{ code } as PluginConfig}
-											isAnimating={
+											id={`${message.id}-${i}`}
+											text={part.text}
+											isStreaming={
 												status === "streaming" && message.role === "assistant"
 											}
-										>
-											{part.text}
-										</Streamdown>
+										/>
 									);
 								}
 								return null;
