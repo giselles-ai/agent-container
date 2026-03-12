@@ -14,7 +14,7 @@ export type AgentConfig = {
 	/** Content for AGENTS.md in the sandbox. */
 	agentMd?: string;
 	/** Environment variables passed to the sandbox at build and run time. */
-	env?: Record<string, string>;
+	env?: Record<string, string | undefined>;
 	/** Additional files to write into the sandbox. */
 	files?: AgentFile[];
 	/** Setup configuration for the sandbox build phase. */
