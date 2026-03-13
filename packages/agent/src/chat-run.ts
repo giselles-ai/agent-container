@@ -34,6 +34,8 @@ export type RunChatInput<TRequest extends BaseChatRequest> = {
 	input: TRequest;
 };
 
+const COMMAND_TIMEOUT_EXTENSION_MS = 5 * 60 * 1000;
+
 function emitText(
 	controller: ReadableStreamDefaultController<Uint8Array>,
 	text: string,
@@ -170,6 +172,22 @@ export function runChat<TRequest extends BaseChatRequest>(
 					const command = input.agent.createCommand({
 						input: parsed,
 					});
+					console.info("[chat-run] starting sandbox command", {
+						sandboxId: sandbox.sandboxId,
+						cmd: command.cmd,
+						args: command.args,
+						envKeys: Object.keys(command.env ?? {}).sort(),
+						hasSessionId:
+							typeof parsed.session_id === "string" &&
+							parsed.session_id.length > 0,
+						hasSandboxId:
+							typeof parsed.sandbox_id === "string" &&
+							parsed.sandbox_id.length > 0,
+						hasSnapshotId:
+							typeof parsed.snapshot_id === "string" &&
+							parsed.snapshot_id.length > 0,
+					});
+					await sandbox.extendTimeout(COMMAND_TIMEOUT_EXTENSION_MS);
 
 					await sandbox.runCommand({
 						cmd: command.cmd,
@@ -194,6 +212,10 @@ export function runChat<TRequest extends BaseChatRequest>(
 							write(chunk, _encoding, callback) {
 								const text =
 									typeof chunk === "string" ? chunk : chunk.toString("utf8");
+								console.error("[chat-run] sandbox stderr", {
+									sandboxId: sandbox.sandboxId,
+									content: text,
+								});
 								enqueueEvent({ type: "stderr", content: text });
 								callback();
 							},

@@ -27,6 +27,7 @@ describe("runChat", () => {
 	});
 
 	it("streams sandbox event first and runs command from agent", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommand = vi.fn(
 			async (input: {
 				stdout: { write: (text: string) => void };
@@ -38,6 +39,7 @@ describe("runChat", () => {
 		);
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
+			extendTimeout,
 			runCommand,
 			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});
@@ -81,6 +83,7 @@ describe("runChat", () => {
 		);
 		expect(prepareSandbox).toHaveBeenCalledTimes(1);
 		expect(createCommand).toHaveBeenCalledTimes(1);
+		expect(extendTimeout).toHaveBeenCalledWith(300_000);
 		expect(runCommand).toHaveBeenCalledTimes(1);
 		expect(body).toContain('"type":"sandbox"');
 		expect(body.indexOf("assistant-output")).toBeGreaterThan(
@@ -89,6 +92,7 @@ describe("runChat", () => {
 	});
 
 	it("emits snapshot event after command completes", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommand = vi.fn(
 			async (input: {
 				stdout: { write: (text: string) => void };
@@ -101,6 +105,7 @@ describe("runChat", () => {
 		const snapshot = vi.fn(async () => ({ snapshotId: "snap_after_run" }));
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
+			extendTimeout,
 			runCommand,
 			snapshot,
 		});
@@ -123,6 +128,7 @@ describe("runChat", () => {
 		const body = await response.text();
 
 		expect(snapshot).toHaveBeenCalledTimes(1);
+		expect(extendTimeout).toHaveBeenCalledWith(300_000);
 		expect(body).toContain('"type":"snapshot"');
 		expect(body).toContain('"snapshot_id":"snap_after_run"');
 		expect(body.indexOf('"type":"snapshot"')).toBeGreaterThan(
@@ -131,9 +137,12 @@ describe("runChat", () => {
 	});
 
 	it("uses Sandbox.get when sandbox_id is provided", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommand = vi.fn(async () => undefined);
 		sandboxGet.mockResolvedValue({
 			sandboxId: "existing-sandbox",
+			status: "running",
+			extendTimeout,
 			runCommand,
 			snapshot: vi.fn(async () => ({ snapshotId: "snap_from_existing" })),
 		});
@@ -157,15 +166,18 @@ describe("runChat", () => {
 
 		expect(sandboxGet).toHaveBeenCalledWith({ sandboxId: "existing-sandbox" });
 		expect(sandboxCreate).not.toHaveBeenCalled();
+		expect(extendTimeout).toHaveBeenCalledWith(300_000);
 	});
 
 	it("falls back to Sandbox.create when Sandbox.get fails and snapshot is available", async () => {
 		const runCommandFromGet = vi.fn(async () => undefined);
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommandFromCreate = vi.fn(async () => undefined);
 		const getError = new Error("sandbox expired");
 		sandboxGet.mockRejectedValue(getError);
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "recreated-sandbox",
+			extendTimeout,
 			runCommand: runCommandFromCreate,
 			snapshot: vi.fn(async () => ({ snapshotId: "snap_from_recreated" })),
 		});
@@ -197,6 +209,7 @@ describe("runChat", () => {
 		});
 		expect(runCommandFromGet).not.toHaveBeenCalled();
 		expect(runCommandFromCreate).toHaveBeenCalledTimes(1);
+		expect(extendTimeout).toHaveBeenCalledWith(300_000);
 		expect(body).toContain('"type":"sandbox"');
 		expect(body).toContain('"sandbox_id":"recreated-sandbox"');
 		expect(body).toContain('"type":"snapshot"');
@@ -231,6 +244,7 @@ describe("runChat", () => {
 	});
 
 	it("uses agent-provided stdout mapper when present", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommand = vi.fn(
 			async (input: {
 				stdout: { write: (text: string) => void };
@@ -244,6 +258,7 @@ describe("runChat", () => {
 		);
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
+			extendTimeout,
 			runCommand,
 			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});
@@ -292,9 +307,11 @@ describe("runChat", () => {
 	});
 
 	it("flushes mapper output in finally", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
 		const runCommand = vi.fn(async () => undefined);
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
+			extendTimeout,
 			runCommand,
 			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
 		});

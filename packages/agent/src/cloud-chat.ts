@@ -172,6 +172,12 @@ function injectRelayUrl<TRequest extends BaseChatRequest>(
 	};
 }
 
+function usesBrowserTool<TRequest extends BaseChatRequest>(
+	agent: AgentParam<TRequest>,
+): boolean {
+	return isCreateAgentOptions(agent) && agent.tools?.browser !== undefined;
+}
+
 export async function runCloudChat<
 	TRequest extends CloudChatRequest & {
 		relay_session_id?: string;
@@ -200,7 +206,10 @@ export async function runCloudChat<
 		response: RelayResponse;
 	}) => Promise<void>;
 }): Promise<Response> {
-	const agentParam = injectRelayUrl(input.agent, input.relayUrl);
+	const browserToolEnabled = usesBrowserTool(input.agent);
+	const agentParam = browserToolEnabled
+		? injectRelayUrl(input.agent, input.relayUrl)
+		: input.agent;
 	const agent = resolveAgent(agentParam);
 	const now = input.now?.() ?? Date.now();
 	const createRelaySub =
@@ -225,15 +234,6 @@ export async function runCloudChat<
 		});
 	}
 
-	const relaySession = await input.createRelaySession();
-	const relaySubscription = await createRelaySub({
-		sessionId: relaySession.sessionId,
-		token: relaySession.token,
-	});
-	console.info("[cloud-chat] relay subscription ready", {
-		chatId: input.chatId,
-		relaySessionId: relaySession.sessionId,
-	});
 	const runtimeInput = {
 		...input.request,
 		...(existing?.agentSessionId
@@ -241,9 +241,25 @@ export async function runCloudChat<
 			: {}),
 		...(existing?.sandboxId ? { sandbox_id: existing.sandboxId } : {}),
 		...(existing?.snapshotId ? { snapshot_id: existing.snapshotId } : {}),
-		relay_session_id: relaySession.sessionId,
-		relay_token: relaySession.token,
 	} as TRequest;
+
+	let relaySession: RelaySessionFactoryResult | undefined;
+	let relaySubscription: RelayRequestSubscription | null = null;
+	if (browserToolEnabled) {
+		relaySession = await input.createRelaySession();
+		relaySubscription = await createRelaySub({
+			sessionId: relaySession.sessionId,
+			token: relaySession.token,
+		});
+		console.info("[cloud-chat] relay subscription ready", {
+			chatId: input.chatId,
+			relaySessionId: relaySession.sessionId,
+		});
+		Object.assign(runtimeInput, {
+			relay_session_id: relaySession.sessionId,
+			relay_token: relaySession.token,
+		});
+	}
 
 	let response: Response;
 	try {
@@ -253,7 +269,7 @@ export async function runCloudChat<
 			input: runtimeInput,
 		});
 	} catch (error) {
-		await relaySubscription.close().catch(() => undefined);
+		await relaySubscription?.close().catch(() => undefined);
 		throw error;
 	}
 	const managed = createManagedCloudResponseFromReader({
@@ -268,7 +284,7 @@ export async function runCloudChat<
 		relaySubscription,
 		relaySession,
 		relayUrl: input.relayUrl,
-		includeRelaySessionPrelude: true,
+		includeRelaySessionPrelude: browserToolEnabled,
 		initialBuffer: "",
 		initialTextBlockOpen: false,
 	});

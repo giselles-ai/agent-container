@@ -1,6 +1,7 @@
 import type { RelayRequest } from "@giselles-ai/browser-tool";
 import type { RelayRequestSubscription } from "@giselles-ai/browser-tool/relay";
 import { describe, expect, it, vi } from "vitest";
+import type { CreateAgentOptions } from "./agents/create-agent";
 import { runCloudChat } from "./cloud-chat";
 import { getLiveCloudConnection } from "./cloud-chat-live";
 import type {
@@ -108,6 +109,17 @@ function createRelayRequestSubscriptionFactory(
 }
 
 const dummyAgent = {} as never;
+const browserAgent = {
+	type: "gemini",
+	snapshotId: "snapshot-test",
+	env: {
+		SANDBOX_SNAPSHOT_ID: "snapshot-test",
+		GEMINI_API_KEY: "gemini-test-key",
+	},
+	tools: {
+		browser: {},
+	},
+} as const satisfies CreateAgentOptions;
 
 describe("runCloudChat", () => {
 	it("starts a new chat when no stored state exists", async () => {
@@ -149,12 +161,53 @@ describe("runCloudChat", () => {
 		)?.input;
 		expect(runtimeInput).toMatchObject({
 			message: "hello",
-			relay_session_id: "relay-1",
-			relay_token: "token-1",
 		});
 		expect(Object.hasOwn(runtimeInput ?? {}, "session_id")).toBe(false);
 		expect(Object.hasOwn(runtimeInput ?? {}, "sandbox_id")).toBe(false);
+		expect(Object.hasOwn(runtimeInput ?? {}, "relay_session_id")).toBe(false);
+		expect(Object.hasOwn(runtimeInput ?? {}, "relay_token")).toBe(false);
 		expect(store.load).toHaveBeenCalledWith("chat-new");
+		expect(createRelaySession).not.toHaveBeenCalled();
+	});
+
+	it("adds relay credentials when browser tool is enabled", async () => {
+		const store = createStore();
+		store.load.mockResolvedValueOnce(null);
+		const runChatImpl = vi.fn(async (_input: unknown) =>
+			createNdjsonResponse(["{}\n"]),
+		);
+		const createRelaySession = createRelaySessionFactory(
+			"relay-enabled",
+			"token-enabled",
+		);
+		const relaySubscription = createRelaySubscriptionMock();
+
+		await runCloudChat({
+			chatId: "chat-browser",
+			request: {
+				message: "hello",
+				chat_id: "chat-browser",
+				tool_results: [],
+			},
+			agent: browserAgent,
+			signal: new AbortController().signal,
+			store,
+			relayUrl: "https://relay.example.com",
+			createRelaySession,
+			runChatImpl,
+			createRelayRequestSubscription:
+				createRelayRequestSubscriptionFactory(relaySubscription),
+		});
+
+		const runtimeInput = (
+			runChatImpl.mock.calls[0]?.[0] as { input: TestRuntimeInput } | undefined
+		)?.input;
+		expect(runtimeInput).toMatchObject({
+			message: "hello",
+			relay_session_id: "relay-enabled",
+			relay_token: "token-enabled",
+		});
+		expect(createRelaySession).toHaveBeenCalledTimes(1);
 	});
 
 	it("reuses stored agentSessionId and sandboxId for follow-up requests", async () => {
@@ -178,7 +231,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-existing",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -222,7 +275,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-stream",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -272,7 +325,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-save",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -326,7 +379,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-pause",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -395,7 +448,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-hot",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -423,7 +476,7 @@ describe("runCloudChat", () => {
 					},
 				],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -513,7 +566,7 @@ describe("runCloudChat", () => {
 					},
 				],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",
@@ -531,7 +584,9 @@ describe("runCloudChat", () => {
 		expect(response.headers.get("X-Flow")).toBe("cold");
 		expect(body).toContain('"type":"message","content":"cold resumed message"');
 		expect(runChatImpl).toHaveBeenCalledWith({
-			agent: dummyAgent,
+			agent: expect.objectContaining({
+				snapshotId: "snapshot-test",
+			}),
 			signal: expect.any(AbortSignal),
 			input: {
 				message: "resume",
@@ -593,7 +648,7 @@ describe("runCloudChat", () => {
 					chat_id: "chat-missing",
 					tool_results: [],
 				},
-				agent: dummyAgent,
+				agent: browserAgent,
 				signal: new AbortController().signal,
 				store,
 				relayUrl: "https://relay.example.com",
@@ -630,7 +685,7 @@ describe("runCloudChat", () => {
 				chat_id: "chat-headers",
 				tool_results: [],
 			},
-			agent: dummyAgent,
+			agent: browserAgent,
 			signal: new AbortController().signal,
 			store,
 			relayUrl: "https://relay.example.com",

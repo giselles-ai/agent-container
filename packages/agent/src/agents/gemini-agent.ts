@@ -180,10 +180,19 @@ export function createGeminiAgent(
 				"stream-json",
 				"--approval-mode",
 				"yolo",
+				"--sandbox",
+				"false",
 			];
 			if (input.session_id) {
 				args.push("--resume", input.session_id);
 			}
+
+			console.info("[gemini-agent] createCommand", {
+				hasSessionId: Boolean(input.session_id),
+				hasSandboxId: Boolean(input.sandbox_id),
+				hasSnapshotId: Boolean(input.snapshot_id),
+				argCount: args.length,
+			});
 
 			return {
 				cmd: "gemini",

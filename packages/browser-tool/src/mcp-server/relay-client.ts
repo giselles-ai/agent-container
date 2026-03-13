@@ -124,14 +124,31 @@ export class RelayClient {
 		}
 
 		const body = await response.json().catch(() => null);
+		console.error("[relay-client] dispatch response", {
+			url: this.url,
+			status: response.status,
+			ok: response.ok,
+			body,
+		});
 
 		const failure = dispatchErrorSchema.safeParse(body);
 		if (failure.success) {
+			console.error("[relay-client] dispatch failure payload", {
+				url: this.url,
+				status: response.status,
+				errorCode: failure.data.errorCode,
+				message: failure.data.message,
+			});
 			throw new Error(`[${failure.data.errorCode}] ${failure.data.message}`);
 		}
 
 		const success = dispatchSuccessSchema.safeParse(body);
 		if (!success.success) {
+			console.error("[relay-client] dispatch invalid payload", {
+				url: this.url,
+				status: response.status,
+				body,
+			});
 			throw new Error(
 				[
 					"Relay dispatch returned an unexpected payload.",
@@ -143,6 +160,11 @@ export class RelayClient {
 		}
 
 		if (!response.ok) {
+			console.error("[relay-client] dispatch non-ok response", {
+				url: this.url,
+				status: response.status,
+				body,
+			});
 			throw new Error(`Relay dispatch failed with HTTP ${response.status}.`);
 		}
 

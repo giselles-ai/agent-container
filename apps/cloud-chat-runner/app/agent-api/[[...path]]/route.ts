@@ -17,19 +17,7 @@ function authHook(request: Request): Response | undefined {
 const api = createAgentApi({
 	basePath: "/agent-api",
 	store: { adapter: "redis" },
-	agent: {
-		tools: {
-			browser: {
-				relayClient: {
-					headers: {
-						"x-vercel-protection-bypass": process.env.VERCEL_PROTECTION_BYPASS,
-						"x-giselle-protection-bypass":
-							process.env.GISELLE_PROTECTION_BYPASS,
-					},
-				},
-			},
-		},
-	},
+	agent: {},
 	hooks: {
 		chat: { before: authHook },
 		build: { before: authHook },
