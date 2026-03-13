@@ -2,42 +2,61 @@ import { defineCatalog } from "@json-render/core";
 import { schema } from "@json-render/react/schema";
 import { z } from "zod";
 
+export const chartSeriesSchema = z.object({
+	name: z.string(),
+	values: z.array(z.number()),
+});
+
+export const barChartResolvedPropsSchema = z.object({
+	title: z.string().nullable().default(null),
+	labels: z.array(z.string()).default([]),
+	series: z.array(chartSeriesSchema).default([]),
+});
+
+export const lineChartResolvedPropsSchema = z.object({
+	title: z.string().nullable().default(null),
+	labels: z.array(z.string()).default([]),
+	series: z.array(chartSeriesSchema).default([]),
+});
+
+export const pieChartResolvedPropsSchema = z.object({
+	title: z.string().nullable().default(null),
+	labels: z.array(z.string()).default([]),
+	values: z.array(z.number()).default([]),
+});
+
+const barChartPropsSchema = z.object({
+	title: z.string().nullable(),
+	labels: z.array(z.string()),
+	series: z.array(chartSeriesSchema),
+});
+
+const lineChartPropsSchema = z.object({
+	title: z.string().nullable(),
+	labels: z.array(z.string()),
+	series: z.array(chartSeriesSchema),
+});
+
+const pieChartPropsSchema = z.object({
+	title: z.string().nullable(),
+	labels: z.array(z.string()),
+	values: z.array(z.number()),
+});
+
 export const catalog = defineCatalog(schema, {
 	components: {
 		BarChart: {
-			props: z.object({
-				title: z.string().nullable(),
-				labels: z.array(z.string()),
-				series: z.array(
-					z.object({
-						name: z.string(),
-						values: z.array(z.number()),
-					}),
-				),
-			}),
+			props: barChartPropsSchema,
 			description:
 				"Vertical bar chart. Use for comparing values across categories.",
 		},
 		LineChart: {
-			props: z.object({
-				title: z.string().nullable(),
-				labels: z.array(z.string()),
-				series: z.array(
-					z.object({
-						name: z.string(),
-						values: z.array(z.number()),
-					}),
-				),
-			}),
+			props: lineChartPropsSchema,
 			description:
 				"Line chart with data points. Use for showing trends over time.",
 		},
 		PieChart: {
-			props: z.object({
-				title: z.string().nullable(),
-				labels: z.array(z.string()),
-				values: z.array(z.number()),
-			}),
+			props: pieChartPropsSchema,
 			description:
 				"Pie chart showing proportions. Use for part-of-whole comparisons.",
 		},

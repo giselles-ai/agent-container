@@ -1,7 +1,12 @@
 "use client";
 
 import { defineRegistry } from "@json-render/react";
-import { catalog } from "./catalog";
+import {
+	barChartResolvedPropsSchema,
+	catalog,
+	lineChartResolvedPropsSchema,
+	pieChartResolvedPropsSchema,
+} from "./catalog";
 
 const DEFAULT_COLORS = [
 	"#6366f1",
@@ -14,49 +19,13 @@ const DEFAULT_COLORS = [
 	"#ec4899",
 ];
 
-function normalizeLabels(value: unknown): string[] {
-	if (!Array.isArray(value)) return [];
-	return value.filter((item): item is string => typeof item === "string");
-}
-
-function normalizeSeries(
-	value: unknown,
-): Array<{ name: string; values: number[] }> {
-	if (!Array.isArray(value)) return [];
-	return value
-		.map((item, index) => {
-			if (!item || typeof item !== "object") return null;
-			const record = item as Record<string, unknown>;
-			const values = Array.isArray(record.values)
-				? record.values.filter(
-						(entry): entry is number => typeof entry === "number",
-					)
-				: [];
-			return {
-				name:
-					typeof record.name === "string" && record.name.length > 0
-						? record.name
-						: `Series ${index + 1}`,
-				values,
-			};
-		})
-		.filter(
-			(item): item is { name: string; values: number[] } => item !== null,
-		);
-}
-
-function normalizeValues(value: unknown): number[] {
-	if (!Array.isArray(value)) return [];
-	return value.filter((item): item is number => typeof item === "number");
-}
-
 export const { registry } = defineRegistry(catalog, {
 	components: {
 		BarChart: ({ props }) => {
-			const title = typeof props.title === "string" ? props.title : null;
-			const labels = normalizeLabels(props.labels);
-			const series = normalizeSeries(props.series);
-			if (!labels?.length || !series?.length) return null;
+			const parsed = barChartResolvedPropsSchema.safeParse(props);
+			if (!parsed.success) return null;
+			const { title, labels, series } = parsed.data;
+			if (!labels.length || !series.length) return null;
 			const allValues = series.flatMap((s) => s.values);
 			const max = Math.max(...allValues, 1);
 			const isMulti = series.length > 1;
@@ -130,9 +99,9 @@ export const { registry } = defineRegistry(catalog, {
 		},
 
 		LineChart: ({ props }) => {
-			const title = typeof props.title === "string" ? props.title : null;
-			const labels = normalizeLabels(props.labels);
-			const series = normalizeSeries(props.series);
+			const parsed = lineChartResolvedPropsSchema.safeParse(props);
+			if (!parsed.success) return null;
+			const { title, labels, series } = parsed.data;
 			if (!labels.length || !series.length) return null;
 			const allValues = series.flatMap((s) => s.values);
 			const min = Math.min(...allValues);
@@ -236,9 +205,9 @@ export const { registry } = defineRegistry(catalog, {
 		},
 
 		PieChart: ({ props }) => {
-			const title = typeof props.title === "string" ? props.title : null;
-			const labels = normalizeLabels(props.labels);
-			const values = normalizeValues(props.values);
+			const parsed = pieChartResolvedPropsSchema.safeParse(props);
+			if (!parsed.success) return null;
+			const { title, labels, values } = parsed.data;
 			if (!labels.length || !values.length) return null;
 			const total = values.reduce((a, b) => a + b, 0) || 1;
 			const size = 160,
