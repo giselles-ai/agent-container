@@ -1,9 +1,13 @@
 import type { AgentConfig, DefinedAgent } from "./types";
 
 export function defineAgent(config: AgentConfig): DefinedAgent {
+	const catalogPrompt = config.catalog?.prompt({ mode: "inline" });
+	const agentMd = [config.agentMd, catalogPrompt].filter(Boolean).join("\n\n");
+
 	return {
 		agentType: config.agentType ?? "gemini",
-		agentMd: config.agentMd,
+		agentMd: agentMd || undefined,
+		catalog: config.catalog,
 		files: config.files ?? [],
 		env: config.env
 			? Object.fromEntries(

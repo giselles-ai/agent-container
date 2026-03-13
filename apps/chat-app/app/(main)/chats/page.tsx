@@ -3,11 +3,120 @@
 import { useChat } from "@ai-sdk/react";
 import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
 import {
+	Renderer,
+	StateProvider,
+	useJsonRenderMessage,
+	VisibilityProvider,
+} from "@json-render/react";
+import {
 	DefaultChatTransport,
 	lastAssistantMessageIsCompleteWithToolCalls,
+	type UIMessage,
 } from "ai";
 import { type FormEvent, useState } from "react";
+import { registry } from "@/lib/registry";
 import { ChatMessage, ToolInvocationDisplay } from "./chat-message";
+
+/**
+ * Build an ordered list of "segments" from message parts, preserving the
+ * interleaved order of text, tool-invocations and data-spec blocks.
+ *
+ * data-spec parts are cumulative JSON patches, so they always produce a
+ * single Spec — but we record *where* in the part sequence the first
+ * data-spec appeared so the rendered UI lands at the correct position
+ * relative to surrounding text.
+ */
+function useOrderedSegments(message: UIMessage, isStreaming: boolean) {
+	const { spec, hasSpec } = useJsonRenderMessage(
+		message.parts as Array<{ type: string }>,
+	);
+
+	const segments: Array<
+		| { kind: "text"; key: string; text: string; isStreaming: boolean }
+		| { kind: "tool"; key: string; part: UIMessage["parts"][number] }
+		| { kind: "spec"; key: string; spec: NonNullable<typeof spec> }
+	> = [];
+
+	let specInserted = false;
+
+	for (let i = 0; i < message.parts.length; i++) {
+		const part = message.parts[i];
+
+		if (part.type === "dynamic-tool") {
+			segments.push({ kind: "tool", key: `${message.id}-${i}`, part });
+		} else if (part.type === "text") {
+			segments.push({
+				kind: "text",
+				key: `${message.id}-${i}`,
+				text: part.text,
+				isStreaming: isStreaming && message.role === "assistant",
+			});
+		} else if (part.type === "data-spec" && !specInserted && hasSpec && spec) {
+			specInserted = true;
+			segments.push({
+				kind: "spec",
+				key: `${message.id}-spec`,
+				spec,
+			});
+		}
+	}
+
+	return segments;
+}
+
+function MessageBubble({
+	message,
+	isStreaming,
+}: {
+	message: UIMessage;
+	isStreaming: boolean;
+}) {
+	const segments = useOrderedSegments(message, isStreaming);
+
+	return (
+		<div
+			className={`rounded-lg px-4 py-3 ${
+				message.role === "user"
+					? "ml-12 bg-blue-600/20 text-blue-100"
+					: "mr-12 bg-gray-800 text-gray-200"
+			}`}
+		>
+			{segments.map((seg) => {
+				if (seg.kind === "tool") {
+					const part = seg.part as Extract<
+						UIMessage["parts"][number],
+						{ type: "dynamic-tool" }
+					>;
+					return (
+						<ToolInvocationDisplay
+							key={seg.key}
+							toolName={part.toolName}
+							input={part.input as Record<string, unknown>}
+							state={part.state}
+							output={
+								part.state === "output-available" ? part.output : undefined
+							}
+						/>
+					);
+				}
+				if (seg.kind === "text") {
+					return (
+						<ChatMessage
+							key={seg.key}
+							id={seg.key}
+							text={seg.text}
+							isStreaming={seg.isStreaming}
+						/>
+					);
+				}
+				if (seg.kind === "spec") {
+					return <Renderer key={seg.key} spec={seg.spec} registry={registry} />;
+				}
+				return null;
+			})}
+		</div>
+	);
+}
 
 export default function NewChatPage() {
 	const [input, setInput] = useState("");
@@ -38,59 +147,27 @@ export default function NewChatPage() {
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex-1 overflow-y-auto p-4">
-				{messages.length === 0 ? (
-					<div className="flex h-full items-center justify-center">
-						<p className="text-gray-500">
-							Type a message to start a conversation
-						</p>
-					</div>
-				) : (
-					<div className="mx-auto max-w-3xl space-y-4">
-						{messages.map((message) => (
-							<div
-								key={message.id}
-								className={`rounded-lg px-4 py-3 ${
-									message.role === "user"
-										? "ml-12 bg-blue-600/20 text-blue-100"
-										: "mr-12 bg-gray-800 text-gray-200"
-								}`}
-							>
-								{message.parts.map((part, i) => {
-									if (part.type === "dynamic-tool") {
-										return (
-											<ToolInvocationDisplay
-												// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
-												key={`${message.id}-${i}`}
-												toolName={part.toolName}
-												input={part.input as Record<string, unknown>}
-												state={part.state}
-												output={
-													part.state === "output-available"
-														? part.output
-														: undefined
-												}
-											/>
-										);
-									}
-									if (part.type === "text") {
-										return (
-											<ChatMessage
-												// biome-ignore lint/suspicious/noArrayIndexKey: render-only list, no reordering
-												key={`${message.id}-${i}`}
-												id={`${message.id}-${i}`}
-												text={part.text}
-												isStreaming={
-													status === "streaming" && message.role === "assistant"
-												}
-											/>
-										);
-									}
-									return null;
-								})}
+				<StateProvider initialState={{}}>
+					<VisibilityProvider>
+						{messages.length === 0 ? (
+							<div className="flex h-full items-center justify-center">
+								<p className="text-gray-500">
+									Type a message to start a conversation
+								</p>
 							</div>
-						))}
-					</div>
-				)}
+						) : (
+							<div className="mx-auto max-w-3xl space-y-4">
+								{messages.map((message) => (
+									<MessageBubble
+										key={message.id}
+										message={message}
+										isStreaming={status === "streaming"}
+									/>
+								))}
+							</div>
+						)}
+					</VisibilityProvider>
+				</StateProvider>
 
 				{error && (
 					<div className="mx-auto mt-4 max-w-3xl rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">

@@ -44,6 +44,12 @@ importers:
       '@giselles-ai/giselle-provider':
         specifier: 'workspace:'
         version: link:../../packages/giselle-provider
+      '@json-render/core':
+        specifier: 0.13.0
+        version: 0.13.0(zod@4.3.6)
+      '@json-render/react':
+        specifier: 0.13.0
+        version: 0.13.0(react@19.2.4)(zod@4.3.6)
       '@libsql/client':
         specifier: 0.17.0
         version: 0.17.0
@@ -71,6 +77,9 @@ importers:
       streamdown:
         specifier: ^2.4.0
         version: 2.4.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.6
@@ -292,6 +301,9 @@ importers:
       '@iarna/toml':
         specifier: 3.0.0
         version: 3.0.0
+      '@json-render/core':
+        specifier: 0.13.0
+        version: 0.13.0(zod@4.3.6)
       '@vercel/sandbox':
         specifier: 1.8.1
         version: 1.8.1
@@ -1280,6 +1292,16 @@ packages:
   '@js-temporal/polyfill@0.5.1':
     resolution: {integrity: sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ==}
     engines: {node: '>=12'}
+
+  '@json-render/core@0.13.0':
+    resolution: {integrity: sha512-CXmCsc8BHDRq45ScVd+qgvjTbwZHPVpVD05WnTqgDxqfY3LGXu5vxaQRSwYoEodg/DGcZq/4HSj4ipVvrzy3qQ==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@json-render/react@0.13.0':
+    resolution: {integrity: sha512-3uXRtQbw+Gq8S1lJHnxd40KW0o4gmUbp0MF/3xyxwrUTn6YiiZfNGT386pCaAhUq/3Jjn7vq1eKvUU3sDD5K7g==}
+    peerDependencies:
+      react: ^19.2.3
 
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
@@ -6275,6 +6297,17 @@ snapshots:
   '@js-temporal/polyfill@0.5.1':
     dependencies:
       jsbi: 4.3.2
+
+  '@json-render/core@0.13.0(zod@4.3.6)':
+    dependencies:
+      zod: 4.3.6
+
+  '@json-render/react@0.13.0(react@19.2.4)(zod@4.3.6)':
+    dependencies:
+      '@json-render/core': 0.13.0(zod@4.3.6)
+      react: 19.2.4
+    transitivePeerDependencies:
+      - zod
 
   '@keyv/serialize@1.1.1': {}
 

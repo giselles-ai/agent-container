@@ -1,9 +1,12 @@
 import { type BrowserTools, browserTools } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
+import { pipeJsonRender } from "@json-render/core";
 import {
 	consumeStream,
 	convertToModelMessages,
 	createIdGenerator,
+	createUIMessageStream,
+	createUIMessageStreamResponse,
 	type InferUITools,
 	streamText,
 	type UIMessage,
@@ -74,17 +77,16 @@ export async function POST(request: Request): Promise<Response> {
 		abortSignal: request.signal,
 	});
 
-	return result.toUIMessageStreamResponse({
-		headers: {
-			"x-giselle-session-id": sessionId,
-			"x-giselle-chat-id": chatRecord.publicId,
-		},
-		consumeSseStream: consumeStream,
+	const messageStreamOptions = {
 		generateMessageId: createIdGenerator({
 			prefix: "msg",
 			size: 16,
 		}),
-		onFinish: async ({ messages: generatedMessages }) => {
+		onFinish: async ({
+			messages: generatedMessages,
+		}: {
+			messages: UIMessage[];
+		}) => {
 			for (const generatedMessage of generatedMessages) {
 				await db
 					.insert(message)
@@ -95,6 +97,23 @@ export async function POST(request: Request): Promise<Response> {
 					})
 					.onConflictDoNothing();
 			}
+		},
+	};
+
+	const stream = createUIMessageStream({
+		execute: async ({ writer }) => {
+			writer.merge(
+				pipeJsonRender(result.toUIMessageStream(messageStreamOptions)),
+			);
+		},
+	});
+
+	return createUIMessageStreamResponse({
+		stream,
+		consumeSseStream: consumeStream,
+		headers: {
+			"x-giselle-session-id": sessionId,
+			"x-giselle-chat-id": chatRecord.publicId,
 		},
 	});
 }

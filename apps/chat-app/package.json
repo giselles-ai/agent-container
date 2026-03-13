@@ -16,6 +16,8 @@
 		"@giselles-ai/agent": "workspace:",
 		"@giselles-ai/browser-tool": "workspace:",
 		"@giselles-ai/giselle-provider": "workspace:",
+		"@json-render/core": "0.13.0",
+		"@json-render/react": "0.13.0",
 		"@libsql/client": "0.17.0",
 		"@streamdown/code": "^1.1.0",
 		"ai": "6.0.68",
@@ -24,7 +26,8 @@
 		"next": "16.1.6",
 		"react": "19.2.4",
 		"react-dom": "19.2.4",
-		"streamdown": "^2.4.0"
+		"streamdown": "^2.4.0",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.6",
