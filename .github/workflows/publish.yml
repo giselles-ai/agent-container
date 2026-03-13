@@ -16,6 +16,12 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      # Force GitHub-hosted JavaScript actions onto Node 24 ahead of the Node 20 deprecation:
+      # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+      # Keep this until pnpm/action-setup fully supports Node 24:
+      # https://github.com/pnpm/action-setup/issues/182
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     permissions:
       contents: write
       id-token: write
@@ -25,12 +31,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
