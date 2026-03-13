@@ -51,15 +51,44 @@ lib/
 pnpm install
 ```
 
+### Slack Setup
+
+1. Configure the Slack and Redis environment variables:
+   - `SLACK_BOT_TOKEN` (required)
+   - `SLACK_SIGNING_SECRET` (required)
+   - `REDIS_URL` (required)
+   - `SLACK_BOT_USERNAME` (optional)
+   - `SLACK_HISTORY_LIMIT` (optional, default `20`)
+2. Expose `POST /api/webhooks/slack`.
+3. Set Slack Event Subscriptions and Interactivity URLs to your deployed webhook URL.
+4. Invite the bot to a channel and mention it to subscribe the thread.
+5. Continue replying in-thread for multi-turn conversations.
+
 ### Environment Variables
 
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | libSQL database URL |
 | `DATABASE_AUTH_TOKEN` | libSQL auth token (for remote DB) |
+| `REDIS_URL` | Redis URL for Chat SDK state (`subscriptions`, locks, dedupe) |
+| `SLACK_BOT_TOKEN` | Slack bot token (`xoxb-...`) for single-workspace mode |
+| `SLACK_SIGNING_SECRET` | Slack webhook signing secret |
+| `SLACK_BOT_USERNAME` | Optional override for bot user name |
+| `SLACK_HISTORY_LIMIT` | Optional limit for Slack thread messages assembled into prompts |
+
+Current Slack integration streams text replies only.
+Slack conversation transcripts are not persisted to the app database.
 
 ### Development Server
 
 ```bash
 pnpm dev
 ```
+
+## Slack Verification
+
+| Check | Expected result |
+|---|---|
+| `GET /api/webhooks/slack` | returns `200` with active webhook response |
+| First Slack mention in a channel thread | bot subscribes and replies text-only |
+| Follow-up Slack reply in subscribed thread | `onSubscribedMessage` handles it |

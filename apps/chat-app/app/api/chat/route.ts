@@ -1,4 +1,3 @@
-import { giselle } from "@giselles-ai/giselle-provider";
 import { pipeJsonRender } from "@json-render/core";
 import {
 	consumeStream,
@@ -6,7 +5,6 @@ import {
 	createIdGenerator,
 	createUIMessageStream,
 	createUIMessageStreamResponse,
-	streamText,
 	type UIMessage,
 	validateUIMessages,
 } from "ai";
@@ -14,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db/client";
 import { chat, message } from "@/db/schema/app-schema";
-import { agent } from "@/lib/agent";
+import { runAgent } from "@/lib/agent-runtime";
 import { getAuth } from "@/lib/auth";
 
 export async function POST(request: Request): Promise<Response> {
@@ -60,14 +58,9 @@ export async function POST(request: Request): Promise<Response> {
 		});
 	}
 
-	const result = streamText({
-		model: giselle({ agent }),
+	const result = runAgent({
 		messages: await convertToModelMessages(messages),
-		providerOptions: {
-			giselle: {
-				sessionId,
-			},
-		},
+		sessionId,
 		abortSignal: request.signal,
 	});
 
