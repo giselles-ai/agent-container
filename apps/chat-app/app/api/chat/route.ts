@@ -101,10 +101,9 @@ export async function POST(request: Request): Promise<Response> {
 	};
 
 	const stream = createUIMessageStream({
+		...messageStreamOptions,
 		execute: async ({ writer }) => {
-			writer.merge(
-				pipeJsonRender(result.toUIMessageStream(messageStreamOptions)),
-			);
+			writer.merge(pipeJsonRender(result.toUIMessageStream()));
 		},
 	});
 
