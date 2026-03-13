@@ -15,7 +15,8 @@
 				"SANDBOX_SNAPSHOT_ID",
 				"DATABASE_*",
 				"GH_TOKEN",
-				"BETTER_AUTH_*"
+				"BETTER_AUTH_*",
+				"SLACK_*"
 			]
 		},
 		"dev": {
