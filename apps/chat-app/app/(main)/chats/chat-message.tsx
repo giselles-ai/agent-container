@@ -23,21 +23,21 @@ export function ToolInvocationDisplay({
 			: Object.values(input).find((v) => typeof v === "string");
 
 	return (
-		<div className="flex items-center gap-2 py-0.5 font-mono text-sm text-gray-400">
+		<div className="flex items-center gap-2 py-0.5 font-mono text-xs text-gray-500/80">
 			<span
 				className={
 					error
-						? "text-red-400"
+						? "text-red-400/80"
 						: done
-							? "text-green-400"
-							: "animate-pulse text-yellow-400"
+							? "text-emerald-400/80"
+							: "animate-pulse text-gray-500/70"
 				}
 			>
 				{error ? "✕" : done ? "✓" : "●"}
 			</span>
-			<span className="font-semibold text-gray-300">{toolName}</span>
+			<span className="font-medium text-gray-400/85">{toolName}</span>
 			{detail && (
-				<span className="truncate text-gray-500">{String(detail)}</span>
+				<span className="truncate text-gray-600/90">{String(detail)}</span>
 			)}
 		</div>
 	);

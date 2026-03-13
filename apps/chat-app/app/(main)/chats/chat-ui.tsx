@@ -1,7 +1,6 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
 import {
 	ActionProvider,
 	JSONUIProvider,
@@ -77,11 +76,11 @@ function MessageBubble({
 
 	return (
 		<div
-			className={`rounded-lg px-4 py-3 ${
+			className={
 				message.role === "user"
-					? "ml-12 bg-blue-600/20 text-blue-100"
-					: "mr-12 bg-gray-800 text-gray-200"
-			}`}
+					? "ml-12 rounded-lg bg-blue-600/20 px-4 py-3 text-blue-100"
+					: "mr-12 space-y-3 text-gray-200"
+			}
 		>
 			{segments.map((seg) => {
 				if (seg.kind === "tool") {
@@ -89,6 +88,7 @@ function MessageBubble({
 						UIMessage["parts"][number],
 						{ type: "dynamic-tool" }
 					>;
+					console.log({ part, seg });
 					return (
 						<ToolInvocationDisplay
 							key={seg.key}
@@ -137,22 +137,18 @@ export function ChatUI({
 }) {
 	const [input, setInput] = useState("");
 
-	const browserTool = useBrowserToolHandler();
 	const chatOptions = {
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
 		}),
 		sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-		...browserTool,
 		...(chatId ? { id: chatId } : {}),
 		...(initialMessages ? { messages: initialMessages } : {}),
 	};
 
-	const { status, messages, error, sendMessage, addToolOutput } = useChat({
+	const { status, messages, error, sendMessage } = useChat({
 		...chatOptions,
 	});
-
-	browserTool.connect(addToolOutput);
 
 	const isBusy = status === "submitted" || status === "streaming";
 

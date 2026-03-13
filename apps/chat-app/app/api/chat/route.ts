@@ -1,4 +1,3 @@
-import { type BrowserTools, browserTools } from "@giselles-ai/browser-tool";
 import { giselle } from "@giselles-ai/giselle-provider";
 import { pipeJsonRender } from "@json-render/core";
 import {
@@ -7,7 +6,6 @@ import {
 	createIdGenerator,
 	createUIMessageStream,
 	createUIMessageStreamResponse,
-	type InferUITools,
 	streamText,
 	type UIMessage,
 	validateUIMessages,
@@ -49,11 +47,8 @@ export async function POST(request: Request): Promise<Response> {
 		chatRecord = inserted[0];
 	}
 
-	const messages = await validateUIMessages<
-		UIMessage<never, never, InferUITools<BrowserTools>>
-	>({
+	const messages = await validateUIMessages({
 		messages: body.messages,
-		tools: browserTools,
 	});
 
 	const lastUserMessage = messages.filter((m) => m.role === "user").at(-1);
@@ -68,7 +63,6 @@ export async function POST(request: Request): Promise<Response> {
 	const result = streamText({
 		model: giselle({ agent }),
 		messages: await convertToModelMessages(messages),
-		tools: browserTools,
 		providerOptions: {
 			giselle: {
 				sessionId,

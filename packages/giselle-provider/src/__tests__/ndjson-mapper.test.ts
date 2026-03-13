@@ -164,6 +164,52 @@ describe("mapNdjsonEvent", () => {
 			geminiSessionId: "session_abc",
 		});
 	});
+
+	it("maps provider-executed tool events as dynamic tool parts", () => {
+		const ctx = createMapperContext();
+
+		const useResult = mapNdjsonEvent(
+			{
+				type: "tool_use",
+				tool_name: "list_directory",
+				tool_id: "tool-1",
+				parameters: { dir_path: "cdr/cdr" },
+			},
+			ctx,
+		);
+
+		expect(useResult.parts).toEqual([
+			{
+				type: "tool-call",
+				toolCallId: "tool-1",
+				toolName: "list_directory",
+				input: JSON.stringify({ dir_path: "cdr/cdr" }),
+				providerExecuted: true,
+				dynamic: true,
+			},
+		]);
+
+		const resultResult = mapNdjsonEvent(
+			{
+				type: "tool_result",
+				tool_id: "tool-1",
+				status: "success",
+				output: "Listed 1048 item(s).",
+			},
+			ctx,
+		);
+
+		expect(resultResult.parts).toEqual([
+			{
+				type: "tool-result",
+				toolCallId: "tool-1",
+				toolName: "list_directory",
+				result: "Listed 1048 item(s).",
+				isError: false,
+				dynamic: true,
+			},
+		]);
+	});
 });
 
 describe("finishStream", () => {

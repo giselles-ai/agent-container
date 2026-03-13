@@ -363,6 +363,7 @@ export function mapNdjsonEvent(
 			toolName,
 			input: JSON.stringify(params ?? {}),
 			providerExecuted: true,
+			dynamic: true,
 		});
 		return { parts };
 	}
@@ -383,6 +384,7 @@ export function mapNdjsonEvent(
 			toolName,
 			result: truncated,
 			isError: status !== "success",
+			dynamic: true,
 		});
 		return { parts };
 	}
