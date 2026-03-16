@@ -212,7 +212,10 @@ describe("mapNdjsonEvent", () => {
 	});
 
 	it("maps artifact events into dynamic artifact tool parts", () => {
-		const ctx = createMapperContext();
+		const ctx = createMapperContext({
+			chatId: "chat-1",
+			artifactBaseUrl: "https://studio.giselles.ai/agent-api",
+		});
 
 		const result = mapNdjsonEvent(
 			{
@@ -234,17 +237,20 @@ describe("mapNdjsonEvent", () => {
 				size_bytes: 1824,
 				mime_type: "text/markdown; charset=utf-8",
 				label: "report.md",
+				download_url:
+					"https://studio.giselles.ai/agent-api/files?chat_id=chat-1&path=.%2Fartifacts%2Freport.md&download=1",
 			}),
 		});
 		expect(result.parts[1]).toMatchObject({
 			type: "tool-result",
 			toolName: "artifact",
 			result: {
-				type: "artifact",
 				path: "./artifacts/report.md",
 				size_bytes: 1824,
 				mime_type: "text/markdown; charset=utf-8",
 				label: "report.md",
+				download_url:
+					"https://studio.giselles.ai/agent-api/files?chat_id=chat-1&path=.%2Fartifacts%2Freport.md&download=1",
 			},
 			isError: false,
 		});

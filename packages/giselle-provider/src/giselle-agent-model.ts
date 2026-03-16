@@ -96,6 +96,10 @@ function buildCloudEndpoint(baseUrl: string): string {
 	return `${trimTrailingSlash(baseUrl)}/run`;
 }
 
+function buildArtifactBaseUrl(baseUrl: string): string {
+	return trimTrailingSlash(baseUrl);
+}
+
 export class GiselleAgentModel implements LanguageModelV3 {
 	readonly modelId = "giselle-agent";
 	readonly provider = "giselle";
@@ -182,6 +186,7 @@ export class GiselleAgentModel implements LanguageModelV3 {
 			await this.consumeNdjsonStream({
 				controller: input.controller,
 				connection,
+				chatId: input.chatId,
 			});
 		} catch (error) {
 			try {
@@ -204,8 +209,16 @@ export class GiselleAgentModel implements LanguageModelV3 {
 	private async consumeNdjsonStream(input: {
 		controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>;
 		connection: CloudConnection;
+		chatId: string;
 	}): Promise<void> {
-		const context = createMapperContext();
+		const context = createMapperContext({
+			chatId: input.chatId,
+			artifactBaseUrl: buildArtifactBaseUrl(
+				this.options.baseUrl ??
+					process.env.GISELLE_AGENT_BASE_URL ??
+					"https://studio.giselles.ai/agent-api",
+			),
+		});
 		const decoder = new TextDecoder();
 		let buffer = "";
 

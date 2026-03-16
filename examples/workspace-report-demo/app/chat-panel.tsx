@@ -17,6 +17,7 @@ type Artifact = {
 	label: string;
 	sizeBytes?: number;
 	mimeType?: string;
+	downloadUrl?: string;
 	messageId: string;
 };
 
@@ -71,12 +72,14 @@ function isArtifactToolPart(part: unknown): part is {
 		size_bytes?: number;
 		mime_type?: string;
 		label?: string;
+		download_url?: string;
 	};
 	result?: {
 		path?: string;
 		size_bytes?: number;
 		mime_type?: string;
 		label?: string;
+		download_url?: string;
 	};
 } {
 	if (!part || typeof part !== "object") {
@@ -136,6 +139,7 @@ function getArtifactsFromMessages(
 						"artifact",
 					sizeBytes: artifactData?.size_bytes,
 					mimeType: artifactData?.mime_type,
+					downloadUrl: artifactData?.download_url,
 				};
 			})
 			.filter((artifact) => artifact.path.length > 0);
@@ -376,16 +380,14 @@ export function ChatPanel({
 																: ""}
 														</p>
 													</div>
-													<a
-														href={`/agent-api/files?chat_id=${encodeURIComponent(
-															sessionId,
-														)}&path=${encodeURIComponent(
-															artifact.path,
-														)}&download=1`}
-														className="rounded-full border border-[#7db7ff]/24 bg-[#101f31] px-3 py-2 text-xs text-[#d9e7f8] transition hover:border-[#7db7ff]/55 hover:bg-[#13263b]"
-													>
-														Download {fileName}
-													</a>
+													{artifact.downloadUrl ? (
+														<a
+															href={artifact.downloadUrl}
+															className="rounded-full border border-[#7db7ff]/24 bg-[#101f31] px-3 py-2 text-xs text-[#d9e7f8] transition hover:border-[#7db7ff]/55 hover:bg-[#13263b]"
+														>
+															Download {fileName}
+														</a>
+													) : null}
 												</div>
 											</article>
 										);

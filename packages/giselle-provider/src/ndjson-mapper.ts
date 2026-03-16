@@ -11,6 +11,8 @@ export type NdjsonMapperContext = {
 	textBlockOpen: boolean;
 	lastAssistantContent: string;
 	pendingToolNames: Map<string, string>;
+	chatId?: string;
+	artifactBaseUrl?: string;
 };
 
 export type MapResult = {
@@ -163,11 +165,32 @@ export function extractJsonObjects(buffer: string): {
 	return { objects, rest: "" };
 }
 
-export function createMapperContext(): NdjsonMapperContext {
+function buildArtifactDownloadUrl(input: {
+	artifactBaseUrl?: string;
+	chatId?: string;
+	path?: string;
+}): string | undefined {
+	if (!input.artifactBaseUrl || !input.chatId || !input.path) {
+		return undefined;
+	}
+
+	const url = new URL(`${input.artifactBaseUrl.replace(/\/+$/, "")}/files`);
+	url.searchParams.set("chat_id", input.chatId);
+	url.searchParams.set("path", input.path);
+	url.searchParams.set("download", "1");
+	return url.toString();
+}
+
+export function createMapperContext(input?: {
+	chatId?: string;
+	artifactBaseUrl?: string;
+}): NdjsonMapperContext {
 	return {
 		textBlockOpen: false,
 		lastAssistantContent: "",
 		pendingToolNames: new Map(),
+		chatId: input?.chatId,
+		artifactBaseUrl: input?.artifactBaseUrl,
 	};
 }
 
@@ -405,6 +428,11 @@ export function mapNdjsonEvent(
 			size_bytes: Number.isNaN(artifactSize) ? undefined : artifactSize,
 			mime_type: artifactMimeType,
 			label: artifactLabel,
+			download_url: buildArtifactDownloadUrl({
+				artifactBaseUrl: context.artifactBaseUrl,
+				chatId: context.chatId,
+				path: artifactPath,
+			}),
 		};
 		parts.push({
 			type: "tool-call",
