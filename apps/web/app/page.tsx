@@ -2,7 +2,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { ButtonLink } from "../components/button-link";
 
-const todayCapabilities = [
+const buildTargets = [
+	{
+		title: "Inbox-style agent apps",
+		copy: "Give teams one place to receive requests, watch work progress, and act on results without leaving your product.",
+	},
+	{
+		title: "Tool-using chat surfaces",
+		copy: "Move from plain chat to agents that browse, run commands, and complete tasks in the flow of conversation.",
+	},
+	{
+		title: "Browser-assisted workflows",
+		copy: "Handle repetitive operational work by letting the agent inspect pages, fill forms, and report back with context.",
+	},
+	{
+		title: "Structured app responses",
+		copy: "Return progress, artifacts, and action-ready UI that your frontend can render directly.",
+	},
+] satisfies Array<{
+	title: string;
+	copy: string;
+}>;
+
+const coreCapabilities = [
 	{
 		title: "Ship it as part of your app",
 		copy: "Create the runtime at build time, then deploy it on Vercel with the rest of your product.",
@@ -31,6 +53,22 @@ const todayCapabilities = [
 	title: string;
 	copy: string;
 }>;
+
+const integrations = [
+	"Next.js",
+	"Vercel Sandbox",
+	"AI SDK",
+	"Codex CLI",
+	"Gemini CLI",
+	"Slack",
+] as const;
+
+const quickStart = [
+	"Install the SDK and runtime packages.",
+	"Wrap your Next.js app with the Giselle agent plugin.",
+	"Define an agent with tools, workspace, and UI output.",
+	"Deploy the app to Vercel and run the same agent surface on web or Slack.",
+] as const;
 
 export default function HomePage() {
 	return (
@@ -67,16 +105,16 @@ export default function HomePage() {
 						</h1>
 
 						<p className="fade-up fade-up-delay-2 mt-5 max-w-3xl leading-7 text-muted">
-							Keeps internal requests moving, reports up to date, and
-							follow-up from getting lost between tools. All from the same
-							conversation in your app, on the web, or in Slack.
+							Build agents that chat, use tools, and return UI inside your
+							Vercel app. Run the same runtime across the web, internal
+							workflows, and Slack.
 						</p>
 						<div className="mt-9 flex flex-wrap items-center gap-3">
 							<ButtonLink href="/docs" variant="solid">
 								Get started
 							</ButtonLink>
 							<ButtonLink
-								href="https://nextjs.org/docs"
+								href="https://github.com/giselles-ai/agent-container"
 								target="_blank"
 								rel="noreferrer"
 								variant="default"
@@ -88,17 +126,47 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section id="today" className="px-5 py-20">
-				<div className="mx-auto max-w-7xl">
-					<div className="flex justify-center gap-4 text-center text-xl">
-						<p className="font-bold text-text">What It Does</p>
-						<p className="text-muted">
-							Everything you need to build agents that can take on real
-							operational work, not just answer in chat.
-						</p>
+			<section className="px-5 pb-8 sm:px-8">
+				<div className="mx-auto max-w-6xl border-t border-white/10 pt-10">
+					<div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+						<div>
+							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
+								What You Can Build
+							</p>
+						</div>
+						<div className="grid gap-8 sm:grid-cols-2">
+							{buildTargets.map((item) => (
+								<div key={item.title}>
+									<h2 className="text-xl font-semibold tracking-[-0.02em] text-text">
+										{item.title}
+									</h2>
+									<p className="mt-3 max-w-xl text-[15px] leading-7 text-muted">
+										{item.copy}
+									</p>
+								</div>
+							))}
+						</div>
 					</div>
-					<div className="mt-10 grid gap-x-0 gap-y-0 grid-cols-2 grid-cols-3">
-						{todayCapabilities.map((item) => {
+				</div>
+			</section>
+
+			<section id="today" className="px-5 py-12 sm:px-8 sm:py-16">
+				<div className="mx-auto max-w-7xl">
+					<div className="grid gap-6 border-t border-white/10 pt-10 lg:grid-cols-[220px_minmax(0,1fr)]">
+						<div>
+							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
+								Core Capabilities
+							</p>
+						</div>
+						<div className="max-w-3xl">
+							<p className="text-[15px] leading-7 text-muted">
+								Everything you need to build agents that can take on real
+								operational work, not just answer in chat.
+							</p>
+						</div>
+					</div>
+					<div className="mt-10 grid gap-x-0 gap-y-0 md:grid-cols-2 xl:grid-cols-3">
+						{coreCapabilities.map((item) => {
 							return (
 								<div
 									key={item.title}
@@ -113,6 +181,52 @@ export default function HomePage() {
 								</div>
 							);
 						})}
+					</div>
+				</div>
+			</section>
+
+			<section className="px-5 py-10 sm:px-8 sm:py-14">
+				<div className="mx-auto max-w-6xl border-t border-white/10 pt-10">
+					<div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+						<div>
+							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
+								Works With
+							</p>
+						</div>
+						<div className="flex flex-wrap gap-x-6 gap-y-3 text-lg tracking-[-0.02em] text-text sm:text-xl">
+							{integrations.map((item) => (
+								<p key={item} className="text-text">
+									{item}
+								</p>
+							))}
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section className="px-5 pb-24 pt-10 sm:px-8 sm:pb-32 sm:pt-14">
+				<div className="mx-auto max-w-6xl border-t border-white/10 pt-10">
+					<div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
+						<div>
+							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
+								Quick Start
+							</p>
+						</div>
+						<div className="grid gap-6 md:grid-cols-2">
+							{quickStart.map((item, index) => (
+								<div
+									key={item}
+									className="border-t border-white/10 py-5 md:first:border-t md:[&:nth-child(2)]:border-t"
+								>
+									<p className="font-mono text-[11px] uppercase tracking-[0.28em] text-muted">
+										0{index + 1}
+									</p>
+									<p className="mt-3 max-w-xl text-[15px] leading-7 text-text">
+										{item}
+									</p>
+								</div>
+							))}
+						</div>
 					</div>
 				</div>
 			</section>
