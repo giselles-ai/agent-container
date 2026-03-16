@@ -95,7 +95,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  examples/chat-app:
+  examples/agent-inbox:
     dependencies:
       '@ai-sdk/react':
         specifier: 3.0.118
@@ -244,7 +244,7 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
 
-  examples/minimum-demo:
+  examples/embedded-browser-agent:
     dependencies:
       '@ai-sdk/react':
         specifier: 3.0.70
