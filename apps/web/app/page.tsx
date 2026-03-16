@@ -74,7 +74,7 @@ export default function HomePage() {
 	return (
 		<main className="min-h-screen">
 			<header className="sticky top-0 z-20">
-				<div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+				<div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
 					<Link href="/" className="flex items-end gap-2.5">
 						<Image
 							src="/giselle-logo.svg"
@@ -95,7 +95,7 @@ export default function HomePage() {
 			</header>
 
 			<section className="px-5 pb-20 pt-14 sm:px-8 sm:pt-20">
-				<div className="mx-auto max-w-5xl text-center">
+				<div className="mx-auto max-w-6xl text-center">
 					<div className="flex flex-col items-center">
 						{/*<p className="fade-up font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
 							Giselle Sandbox Agent API
@@ -151,7 +151,7 @@ export default function HomePage() {
 			</section>
 
 			<section id="today" className="px-5 py-12 sm:px-8 sm:py-16">
-				<div className="mx-auto max-w-7xl">
+				<div className="mx-auto max-w-6xl">
 					<div className="grid gap-6 border-t border-white/10 pt-10 lg:grid-cols-[220px_minmax(0,1fr)]">
 						<div>
 							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
