@@ -135,7 +135,7 @@ export default function DocsPage() {
 										{item.status}
 									</span>
 								</div>
-								<p className="mt-4 text-sm leading-6 text-[var(--muted)] sm:mt-0">
+								<p className="mt-4 text-sm leading-6 text-muted sm:mt-0">
 									{item.detail}
 								</p>
 							</div>
@@ -163,7 +163,7 @@ export default function DocsPage() {
 									<h3 className="mt-3 text-xl tracking-tight text-white">
 										{item.name}
 									</h3>
-									<p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+									<p className="mt-3 text-sm leading-6 text-muted">
 										{item.detail}
 									</p>
 								</div>
@@ -180,7 +180,7 @@ export default function DocsPage() {
 								<h3 className="mt-4 text-2xl tracking-tight text-white">
 									Show the agent taking action.
 								</h3>
-								<p className="mt-4 max-w-md text-sm leading-6 text-[var(--muted)]">
+								<p className="mt-4 max-w-md text-sm leading-6 text-muted">
 									Recommended clip: request arrives, tool activity streams,
 									browser action happens, structured result lands.
 								</p>
@@ -196,7 +196,7 @@ export default function DocsPage() {
 										<h3 className="text-lg tracking-tight text-white">
 											{item.title}
 										</h3>
-										<p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+										<p className="mt-2 text-sm leading-6 text-muted">
 											{item.description}
 										</p>
 									</div>
@@ -213,7 +213,7 @@ export default function DocsPage() {
 					<h2 className="mt-4 text-3xl tracking-tight text-white">
 						Keep the claim specific.
 					</h2>
-					<ul className="mt-5 space-y-3 text-sm leading-6 text-[var(--muted)]">
+					<ul className="mt-5 space-y-3 text-sm leading-6 text-muted">
 						<li>
 							Say `OpenClaw-like` or `OpenClaw-style`, not `OpenClaw on Vercel`.
 						</li>

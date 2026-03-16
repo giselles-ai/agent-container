@@ -91,7 +91,7 @@ function Placeholder({
 					</p>
 					<h3 className="mt-3 text-2xl tracking-tight text-white">{title}</h3>
 				</div>
-				<p className="max-w-md text-sm leading-6 text-[var(--muted)]">
+				<p className="max-w-md text-sm leading-6 text-muted">
 					{description}
 				</p>
 			</div>
@@ -155,7 +155,7 @@ export function SurfaceTabs() {
 								</pre>
 							</div>
 						) : null}
-						<p className="mt-5 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+						<p className="mt-5 max-w-2xl text-sm leading-6 text-muted">
 							{activeTab.noteBody}
 						</p>
 					</div>
