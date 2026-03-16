@@ -4,20 +4,20 @@ import { ButtonLink } from "../components/button-link";
 
 const buildTargets = [
 	{
-		title: "Inbox-style agent apps",
-		copy: "Give teams one place to receive requests, watch work progress, and act on results without leaving your product.",
+		title: "Inspectable OpenClaw-like apps",
+		copy: "Ship the kind of tool-using agent experience people already recognize, but as an app they can inspect and understand on Vercel.",
 	},
 	{
-		title: "Tool-using chat surfaces",
-		copy: "Move from plain chat to agents that browse, run commands, and complete tasks in the flow of conversation.",
+		title: "Agents with a real workspace",
+		copy: "Keep files, revisions, and artifacts inside Vercel Sandbox so the agent's work does not disappear into a chat thread.",
 	},
 	{
-		title: "Browser-assisted workflows",
-		copy: "Handle repetitive operational work by letting the agent inspect pages, fill forms, and report back with context.",
+		title: "Build-and-update by diff",
+		copy: "Start with /build-agent-skill, extend with /update-agent-skill, and let people learn the system by reading the changes.",
 	},
 	{
-		title: "Structured app responses",
-		copy: "Return progress, artifacts, and action-ready UI that your frontend can render directly.",
+		title: "Safe-to-try agent surfaces",
+		copy: "Let users try browser actions, CLI-native tools, and structured UI in a familiar Vercel app instead of trusting an unknown local setup.",
 	},
 ] satisfies Array<{
 	title: string;
@@ -66,8 +66,8 @@ const integrations = [
 const quickStart = [
 	"Install the SDK and runtime packages.",
 	"Wrap your Next.js app with the Giselle agent plugin.",
-	"Define an agent with tools, workspace, and UI output.",
-	"Deploy the app to Vercel and run the same agent surface on web or Slack.",
+	"Use /build-agent-skill to define an agent with tools, workspace, and UI output.",
+	"Use /update-agent-skill to evolve it, then deploy the same agent surface on web or Slack.",
 ] as const;
 
 export default function HomePage() {
@@ -101,12 +101,13 @@ export default function HomePage() {
 							Giselle Sandbox Agent API
 						</p>*/}
 						<h1 className="fade-up fade-up-delay mt-5 max-w-4xl text-4xl leading-[0.95] tracking-[-0.05em] text-text sm:text-7xl">
-							Build OpenClaw-like agent experiences on Vercel
+							Build inspectable OpenClaw-like agents on Vercel
 						</h1>
 
 						<p className="fade-up fade-up-delay-2 mt-5 max-w-3xl leading-7 text-muted">
 							Build agents that chat, use tools, and return UI inside your
-							Vercel app. Run the same runtime across the web, internal
+							Vercel app, with a real workspace people can inspect, update,
+							and trust. Run the same runtime across the web, internal
 							workflows, and Slack.
 						</p>
 						<div className="mt-9 flex flex-wrap items-center gap-3">
