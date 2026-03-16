@@ -4,27 +4,27 @@ import { ButtonLink } from "../components/button-link";
 
 const todayCapabilities = [
 	{
-		title: "Build as Next.js app",
+		title: "Ship it as part of your app",
 		copy: "Create the runtime at build time, then deploy it on Vercel with the rest of your product.",
 	},
 	{
-		title: "Cloud workspace",
+		title: "Give the agent a real workspace",
 		copy: "Files, artifacts, and revisions live inside Vercel Sandbox instead of disappearing into a chat thread.",
 	},
 	{
-		title: "Power of CLI",
+		title: "Bring CLI-native agents to the web",
 		copy: "Bridge agent runtimes like Codex CLI or Gemini CLI into a Vercel-native app surface.",
 	},
 	{
-		title: "Embed in real product",
+		title: "Work inside your product",
 		copy: "Drive browser actions in real product flows, not just in a detached demo tab.",
 	},
 	{
-		title: "Return UI, not just text",
+		title: "Return UI people can act on",
 		copy: "Stream structured payloads so your app can render state, actions, and artifacts directly.",
 	},
 	{
-		title: "Not just web",
+		title: "Stay with the same agent everywhere",
 		copy: "Keep one runtime across inbox-style chat, team workflows, and other chat-native surfaces.",
 	},
 ] satisfies Array<{
@@ -67,9 +67,9 @@ export default function HomePage() {
 						</h1>
 
 						<p className="fade-up fade-up-delay-2 mt-5 max-w-3xl leading-7 text-muted">
-							Read and revise files, generate reports and JSON artifacts, drive
-							browser actions inside your app, render structured UI, and
-							continue the same agent from web chat or Slack
+							Keeps internal requests moving, reports up to date, and
+							follow-up from getting lost between tools. All from the same
+							conversation in your app, on the web, or in Slack.
 						</p>
 						<div className="mt-9 flex flex-wrap items-center gap-3">
 							<ButtonLink href="/docs" variant="solid">
@@ -93,7 +93,8 @@ export default function HomePage() {
 					<div className="flex justify-center gap-4 text-center text-xl">
 						<p className="font-bold text-text">What It Does</p>
 						<p className="text-muted">
-							Everything you need to build great Agents on top of the Vercel.
+							Everything you need to build agents that can take on real
+							operational work, not just answer in chat.
 						</p>
 					</div>
 					<div className="mt-10 grid gap-x-0 gap-y-0 grid-cols-2 grid-cols-3">
