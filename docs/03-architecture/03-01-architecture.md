@@ -121,6 +121,11 @@ Empty Sandbox (Node 24)
   └─ snapshot()  →  snapshotId: "snap_abc123..."
 ```
 
+Two kinds of files are involved in that build:
+
+- **Files from `defineAgent({ files })`** are written into absolute paths in the sandbox before snapshotting. This is how you include workspace inputs or reference docs when the agent is built.
+- **Prompt files** are also materialized during build. `agentMd` is written to the CLI-specific locations (`~/.codex/AGENTS.md` and `~/.gemini/GEMINI.md`) so the selected agent starts with the same instructions.
+
 The key insight: **snapshot building is expensive** (installing CLIs, compiling native modules) but it only happens once. After that, creating a new sandbox from the snapshot takes seconds.
 
 ### How a Conversation Runs
@@ -129,7 +134,7 @@ When the Cloud API receives a `/run` request:
 
 1. **Resume or create**: If the session has an existing `sandboxId`, the same sandbox is resumed (the agent keeps its filesystem state between turns). Otherwise, a new sandbox is created from the snapshot.
 
-2. **Prepare**: The agent's `AGENTS.md` (your system prompt) and any additional files are written into the sandbox filesystem.
+2. **Prepare**: Runtime-only configuration is patched into the sandbox as needed (for example browser-tool relay credentials), while the prompt files and build-time files come from the snapshot built earlier.
 
 3. **Execute**: The CLI command runs — for example:
    ```
@@ -151,6 +156,11 @@ This statefulness is what makes multi-turn conversations work. The agent remembe
 
 ## Layer 2b: Artifact discovery and downloads
 
+The runtime distinguishes between two file categories:
+
+- **Inputs / working files** can live anywhere in the sandbox, including files injected via `defineAgent({ files })`.
+- **User-facing outputs** must be written under `./artifacts/`.
+
 After each successful command execution, the runtime scans `./artifacts/` and emits one `artifact` event per discovered file:
 
 ```json
@@ -163,6 +173,16 @@ After each successful command execution, the runtime scans `./artifacts/` and em
 ```
 
 The provider maps those events to structured tool parts, so UI clients can render download cards without parsing plain text.
+
+In `@giselles-ai/giselle-provider`, the NDJSON mapper turns each `artifact` event into a dynamic AI SDK tool call/result pair named `artifact`. The payload includes:
+
+- `path`
+- `size_bytes`
+- `mime_type`
+- `label`
+- `download_url`
+
+That means the application can treat downloadable files like any other streamed UI part instead of scraping assistant text for paths.
 
 `/agent-api/files` serves concrete artifacts by session:
 

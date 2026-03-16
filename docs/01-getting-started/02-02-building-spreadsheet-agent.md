@@ -69,6 +69,31 @@ The agent runs inside a cloud sandbox — it has no idea what your UI looks like
 
 Think of this as an `AGENTS.md` for a human contractor who can only interact with your page through tools.
 
+### Optional: Include files when building the agent
+
+This spreadsheet tutorial is browser-tool-first, so the agent can work without any extra files. But `defineAgent()` also lets you include files in the sandbox when the agent is built. Use that when the agent should start with templates, reference documents, or workspace inputs.
+
+```ts
+import { defineAgent } from "@giselles-ai/agent";
+
+export const agent = defineAgent({
+  agentType: "gemini",
+  agentMd,
+  files: [
+    {
+      path: "/home/vercel-sandbox/workspace/columns.md",
+      content: `Keep the spreadsheet focused on: language, package manager, type system, and primary use case.`,
+    },
+  ],
+});
+```
+
+- **`files`** are written into the sandbox at build time, before the snapshot is created.
+- Use them for **inputs** the agent should read, such as instructions, examples, or reference data.
+- Use `./artifacts/` for **outputs** the user should review or download.
+
+For example, a spreadsheet agent could export a CSV summary like `./artifacts/comparison.csv` after it finishes filling the grid. The runtime scans `./artifacts/` after each turn, and the provider can surface those files to your UI as downloadable artifacts.
+
 ---
 
 ## 2. Configure Next.js
@@ -138,6 +163,7 @@ A few things to note:
 
 - **`browserTools`** registers two tools the agent can call: `getFormSnapshot` (read the page) and `executeFormActions` (click, fill, select elements). These are passed both to `streamText` (so the model knows about them) and to `validateUIMessages` (so tool results from the client are validated).
 - **`sessionId`** ties a conversation to a persistent sandbox session. The agent remembers context across turns.
+- **Files written by the agent** persist in that sandbox session too, so generated `./artifacts/` outputs can be revised on later turns.
 - **`consumeSseStream`** is a workaround that ensures the server-sent event stream is fully consumed even when the client disconnects.
 
 ---
