@@ -389,6 +389,44 @@ export function mapNdjsonEvent(
 		return { parts };
 	}
 
+	if (event.type === "artifact") {
+		closeTextBlock(context, parts);
+
+		const artifactPath = asString(event.path);
+		const artifactSize =
+			typeof event.size_bytes === "number"
+				? event.size_bytes
+				: Number.parseInt(asString(event.size_bytes) ?? "", 10);
+		const artifactMimeType = asString(event.mime_type);
+		const artifactLabel = asString((event as Record<string, unknown>).label);
+		const artifactId = crypto.randomUUID();
+		const artifactResult = {
+			path: artifactPath,
+			size_bytes: Number.isNaN(artifactSize) ? undefined : artifactSize,
+			mime_type: artifactMimeType,
+			label: artifactLabel,
+		};
+		parts.push({
+			type: "tool-call",
+			toolCallId: artifactId,
+			toolName: "artifact",
+			input: JSON.stringify(artifactResult),
+			providerExecuted: true,
+			dynamic: true,
+		});
+		parts.push({
+			type: "tool-result",
+			toolCallId: artifactId,
+			toolName: "artifact",
+			result: artifactResult,
+			isError: false,
+			dynamic: true,
+		});
+		return {
+			parts,
+		};
+	}
+
 	return { parts };
 }
 

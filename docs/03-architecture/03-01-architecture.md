@@ -149,6 +149,46 @@ Turn 3:  load sandboxId → resume sandbox → run CLI → save state
 
 This statefulness is what makes multi-turn conversations work. The agent remembers what files it wrote, what commands it ran, and what it was working on.
 
+## Layer 2b: Artifact discovery and downloads
+
+After each successful command execution, the runtime scans `./artifacts/` and emits one `artifact` event per discovered file:
+
+```json
+{
+  "type": "artifact",
+  "path": "./artifacts/report.md",
+  "size_bytes": 1824,
+  "mime_type": "text/markdown; charset=utf-8"
+}
+```
+
+The provider maps those events to structured tool parts, so UI clients can render download cards without parsing plain text.
+
+`/agent-api/files` serves concrete artifacts by session:
+
+```text
+GET /agent-api/files?chat_id=<chatId>&path=./artifacts/report.md
+```
+
+If the live sandbox is unavailable, the endpoint recreates it from the latest snapshot before reading the file.
+
+```mermaid
+sequenceDiagram
+    participant Client as Demo UI
+    participant Provider as giselle-provider
+    participant AgentAPI as /agent-api
+    participant Sandbox as Vercel Sandbox
+    Client->>Provider: stream chat message
+    Provider->>AgentAPI: POST /run
+    AgentAPI->>Sandbox: execute command
+    Sandbox->>Sandbox: write files under ./artifacts/
+    AgentAPI->>Provider: NDJSON artifact events
+    Provider->>Client: tool-result parts (artifact)
+    Client->>AgentAPI: GET /files?chat_id=chatId&path=./artifacts/report.md&download=1
+    AgentAPI->>Sandbox: resolve live/recreated sandbox
+    AgentAPI->>Client: file bytes + headers
+```
+
 ---
 
 ## Layer 3: Browser Tools — Crossing the Sandbox Boundary

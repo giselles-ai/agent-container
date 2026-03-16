@@ -20,6 +20,49 @@ const requestSchema = z.object({
 	sandbox_id: z.string().min(1).optional(),
 });
 
+type MockRunCommandInput = {
+	cmd: string;
+	args?: string[];
+	stdout?: {
+		write: (text: string) => void;
+	};
+	stderr?: {
+		write: (text: string) => void;
+	};
+};
+
+const makeRunCommandMock = (
+	options: {
+		onFindArtifacts?: () => string;
+		onAgentStdout?: string;
+		onAgentStderr?: string;
+		onAgentCommand?: (input: MockRunCommandInput) => void;
+	} = {},
+) =>
+	vi.fn(async (input: MockRunCommandInput) => {
+		const command = `${input.cmd} ${input.args?.join(" ") ?? ""}`.trim();
+		if (command.startsWith("find")) {
+			return {
+				exitCode: 0,
+				stdout: async () => options.onFindArtifacts?.() ?? "",
+				stderr: async () => "",
+			};
+		}
+
+		if (options.onAgentCommand) {
+			options.onAgentCommand(input);
+		} else {
+			input.stdout?.write?.(options.onAgentStdout ?? "");
+			input.stderr?.write?.(options.onAgentStderr ?? "");
+		}
+
+		return {
+			exitCode: 0,
+			stdout: async () => "",
+			stderr: async () => "",
+		};
+	});
+
 describe("runChat", () => {
 	beforeEach(() => {
 		sandboxCreate.mockReset();
@@ -28,15 +71,10 @@ describe("runChat", () => {
 
 	it("streams sandbox event first and runs command from agent", async () => {
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommand = vi.fn(
-			async (input: {
-				stdout: { write: (text: string) => void };
-				stderr: { write: (text: string) => void };
-			}) => {
-				input.stdout.write("assistant-output");
-				input.stderr.write("stderr-output");
-			},
-		);
+		const runCommand = makeRunCommandMock({
+			onAgentStdout: "assistant-output",
+			onAgentStderr: "stderr-output",
+		});
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			extendTimeout,
@@ -84,7 +122,7 @@ describe("runChat", () => {
 		expect(prepareSandbox).toHaveBeenCalledTimes(1);
 		expect(createCommand).toHaveBeenCalledTimes(1);
 		expect(extendTimeout).toHaveBeenCalledWith(300_000);
-		expect(runCommand).toHaveBeenCalledTimes(1);
+		expect(runCommand).toHaveBeenCalledTimes(3);
 		expect(body).toContain('"type":"sandbox"');
 		expect(body.indexOf("assistant-output")).toBeGreaterThan(
 			body.indexOf('"type":"sandbox"'),
@@ -93,15 +131,10 @@ describe("runChat", () => {
 
 	it("emits snapshot event after command completes", async () => {
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommand = vi.fn(
-			async (input: {
-				stdout: { write: (text: string) => void };
-				stderr: { write: (text: string) => void };
-			}) => {
-				input.stdout.write("assistant-output");
-				input.stderr.write("stderr-output");
-			},
-		);
+		const runCommand = makeRunCommandMock({
+			onAgentStdout: "assistant-output",
+			onAgentStderr: "stderr-output",
+		});
 		const snapshot = vi.fn(async () => ({ snapshotId: "snap_after_run" }));
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
@@ -134,11 +167,13 @@ describe("runChat", () => {
 		expect(body.indexOf('"type":"snapshot"')).toBeGreaterThan(
 			body.indexOf("stderr-output"),
 		);
+		expect(body).not.toContain('"type":"artifact"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
 	});
 
 	it("uses Sandbox.get when sandbox_id is provided", async () => {
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommand = vi.fn(async () => undefined);
+		const runCommand = makeRunCommandMock();
 		sandboxGet.mockResolvedValue({
 			sandboxId: "existing-sandbox",
 			status: "running",
@@ -167,12 +202,16 @@ describe("runChat", () => {
 		expect(sandboxGet).toHaveBeenCalledWith({ sandboxId: "existing-sandbox" });
 		expect(sandboxCreate).not.toHaveBeenCalled();
 		expect(extendTimeout).toHaveBeenCalledWith(300_000);
+		expect(runCommand).toHaveBeenCalledTimes(3);
 	});
 
 	it("falls back to Sandbox.create when Sandbox.get fails and snapshot is available", async () => {
 		const runCommandFromGet = vi.fn(async () => undefined);
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommandFromCreate = vi.fn(async () => undefined);
+		const runCommandFromCreate = makeRunCommandMock({
+			onAgentStdout: "",
+			onAgentStderr: "",
+		});
 		const getError = new Error("sandbox expired");
 		sandboxGet.mockRejectedValue(getError);
 		sandboxCreate.mockResolvedValue({
@@ -208,12 +247,13 @@ describe("runChat", () => {
 			},
 		});
 		expect(runCommandFromGet).not.toHaveBeenCalled();
-		expect(runCommandFromCreate).toHaveBeenCalledTimes(1);
+		expect(runCommandFromCreate).toHaveBeenCalledTimes(3);
 		expect(extendTimeout).toHaveBeenCalledWith(300_000);
 		expect(body).toContain('"type":"sandbox"');
 		expect(body).toContain('"sandbox_id":"recreated-sandbox"');
 		expect(body).toContain('"type":"snapshot"');
 		expect(body).toContain('"snapshot_id":"snap_from_recreated"');
+		expect(body).not.toContain('"type":"artifact"');
 	});
 
 	it("aborts immediately when signal is already aborted", async () => {
@@ -245,17 +285,14 @@ describe("runChat", () => {
 
 	it("uses agent-provided stdout mapper when present", async () => {
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommand = vi.fn(
-			async (input: {
-				stdout: { write: (text: string) => void };
-				stderr: { write: (text: string) => void };
-			}) => {
-				input.stdout.write(
+		const runCommand = makeRunCommandMock({
+			onAgentCommand: (input) => {
+				input.stdout?.write?.(
 					'{"type":"session.created","id":"session-1","model":"codex-small"}\n',
 				);
-				input.stdout.write("ignored raw output");
+				input.stdout?.write?.("ignored raw output");
 			},
-		);
+		});
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			extendTimeout,
@@ -304,11 +341,16 @@ describe("runChat", () => {
 		expect(body.indexOf('"type":"sandbox"')).toBeLessThan(
 			body.indexOf('"type":"init"'),
 		);
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).not.toContain('"type":"artifact"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
 	});
 
 	it("flushes mapper output in finally", async () => {
 		const extendTimeout = vi.fn(async () => undefined);
-		const runCommand = vi.fn(async () => undefined);
+		const runCommand = makeRunCommandMock({
+			onAgentStdout: "assistant-output",
+		});
 		sandboxCreate.mockResolvedValue({
 			sandboxId: "sandbox-1",
 			extendTimeout,
@@ -344,5 +386,131 @@ describe("runChat", () => {
 		expect(flush).toHaveBeenCalledTimes(1);
 		expect(body).toContain('"type":"message"');
 		expect(body).toContain('"content":"final"');
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).not.toContain('"type":"artifact"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
+	});
+
+	it("does not emit artifact events when artifacts directory is missing", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
+		const runCommand = makeRunCommandMock({
+			onAgentStdout: "assistant-output",
+		});
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			extendTimeout,
+			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
+		});
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox: vi.fn(async () => undefined),
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+		const body = await response.text();
+
+		expect(body).toContain('"type":"snapshot"');
+		expect(body).not.toContain('"type":"artifact"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
+	});
+
+	it("emits artifact events from ./artifacts", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
+		const runCommand = makeRunCommandMock({
+			onFindArtifacts: () =>
+				`${"./artifacts/report.md"}\t${1824}\n${"./artifacts/highlights.json"}\t${512}\n`,
+			onAgentStdout: "assistant-output",
+		});
+		const snapshot = vi.fn(async () => ({ snapshotId: "snap_after_run" }));
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			extendTimeout,
+			runCommand,
+			snapshot,
+		});
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox: vi.fn(async () => undefined),
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+		const body = await response.text();
+
+		const snapshotIndex = body.indexOf('"type":"snapshot"');
+		const firstArtifactIndex = body.indexOf('"type":"artifact"');
+		const secondArtifactIndex = body.indexOf(
+			'"path":"./artifacts/highlights.json"',
+		);
+
+		expect(snapshot).toHaveBeenCalledTimes(1);
+		expect(snapshotIndex).toBeGreaterThan(-1);
+		expect(firstArtifactIndex).toBeGreaterThan(-1);
+		expect(firstArtifactIndex).toBeLessThan(snapshotIndex);
+		expect(secondArtifactIndex).toBeGreaterThan(firstArtifactIndex);
+		expect(body).toContain('"path":"./artifacts/report.md"');
+		expect(body).toContain('"size_bytes":1824');
+		expect(body).toContain('"mime_type":"text/markdown; charset=utf-8"');
+		expect(body).toContain('"path":"./artifacts/highlights.json"');
+		expect(body).toContain('"size_bytes":512');
+		expect(body).toContain('"mime_type":"application/json; charset=utf-8"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
+	});
+
+	it("supports nested artifact paths and preserves event ordering", async () => {
+		const extendTimeout = vi.fn(async () => undefined);
+		const runCommand = makeRunCommandMock({
+			onFindArtifacts: () => `${"./artifacts/sections/summary.md"}\t${1024}\n`,
+			onAgentStdout: "assistant-output",
+		});
+		sandboxCreate.mockResolvedValue({
+			sandboxId: "sandbox-1",
+			extendTimeout,
+			runCommand,
+			snapshot: vi.fn(async () => ({ snapshotId: "snap_after_run" })),
+		});
+
+		const response = await runChat({
+			agent: {
+				requestSchema,
+				snapshotId: "snapshot-test",
+				prepareSandbox: vi.fn(async () => undefined),
+				createCommand: vi.fn(() => ({
+					cmd: "agent-cmd",
+					args: [],
+				})),
+			},
+			signal: new AbortController().signal,
+			input: {
+				message: "hello",
+			},
+		});
+		const body = await response.text();
+
+		expect(body).toContain('"type":"artifact"');
+		expect(body).toContain('"path":"./artifacts/sections/summary.md"');
+		expect(body).toContain('"size_bytes":1024');
+		expect(body).toContain('"mime_type":"text/markdown; charset=utf-8"');
+		expect(runCommand).toHaveBeenCalledTimes(3);
 	});
 });

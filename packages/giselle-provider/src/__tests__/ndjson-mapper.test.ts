@@ -210,6 +210,117 @@ describe("mapNdjsonEvent", () => {
 			},
 		]);
 	});
+
+	it("maps artifact events into dynamic artifact tool parts", () => {
+		const ctx = createMapperContext();
+
+		const result = mapNdjsonEvent(
+			{
+				type: "artifact",
+				path: "./artifacts/report.md",
+				size_bytes: 1824,
+				mime_type: "text/markdown; charset=utf-8",
+				label: "report.md",
+			},
+			ctx,
+		);
+
+		expect(result.parts).toHaveLength(2);
+		expect(result.parts[0]).toMatchObject({
+			type: "tool-call",
+			toolName: "artifact",
+			input: JSON.stringify({
+				path: "./artifacts/report.md",
+				size_bytes: 1824,
+				mime_type: "text/markdown; charset=utf-8",
+				label: "report.md",
+			}),
+		});
+		expect(result.parts[1]).toMatchObject({
+			type: "tool-result",
+			toolName: "artifact",
+			result: {
+				type: "artifact",
+				path: "./artifacts/report.md",
+				size_bytes: 1824,
+				mime_type: "text/markdown; charset=utf-8",
+				label: "report.md",
+			},
+			isError: false,
+		});
+	});
+
+	it("maps multiple artifact events in order", () => {
+		const ctx = createMapperContext();
+
+		const r1 = mapNdjsonEvent(
+			{
+				type: "artifact",
+				path: "./artifacts/first.md",
+				size_bytes: 10,
+				mime_type: "text/markdown; charset=utf-8",
+			},
+			ctx,
+		);
+		const r2 = mapNdjsonEvent(
+			{
+				type: "artifact",
+				path: "./artifacts/second.json",
+				size_bytes: 20,
+				mime_type: "application/json; charset=utf-8",
+			},
+			ctx,
+		);
+
+		expect(r1.parts).toHaveLength(2);
+		expect(r2.parts).toHaveLength(2);
+		expect(JSON.parse((r1.parts[0] as { input: string }).input).path).toBe(
+			"./artifacts/first.md",
+		);
+		expect(JSON.parse((r2.parts[0] as { input: string }).input).path).toBe(
+			"./artifacts/second.json",
+		);
+	});
+
+	it("maps artifact events between text and snapshot events", () => {
+		const ctx = createMapperContext();
+
+		const text = mapNdjsonEvent(
+			{
+				type: "message",
+				role: "assistant",
+				content: "done",
+				delta: false,
+			},
+			ctx,
+		);
+		const artifact = mapNdjsonEvent(
+			{
+				type: "artifact",
+				path: "./artifacts/report.md",
+				size_bytes: 999,
+				mime_type: "text/markdown; charset=utf-8",
+			},
+			ctx,
+		);
+		const snapshot = mapNdjsonEvent(
+			{
+				type: "snapshot",
+			},
+			ctx,
+		);
+
+		expect(text.parts.length).toBe(3);
+		expect(artifact.parts.length).toBe(2);
+		expect(snapshot.parts).toHaveLength(0);
+		expect(text.parts[text.parts.length - 1]).toMatchObject({
+			type: "text-end",
+		});
+		expect(artifact.parts[0]).toMatchObject({
+			type: "tool-call",
+			toolName: "artifact",
+		});
+	});
 });
 
 describe("finishStream", () => {

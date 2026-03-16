@@ -2,6 +2,12 @@
 
 Next.js demo that shows how `defineAgent({ files })` can seed a sandbox workspace with inputs that an agent reads and turns into report artifacts.
 
+The demo follows the default artifact convention:
+
+- seed files and runtime context live under `./workspace/`
+- user-facing deliverables are written to `./artifacts/`
+- artifacts are downloaded through `GET /agent-api/files`
+
 ## Setup
 
 1. Start the runner on port `3001`.

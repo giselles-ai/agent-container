@@ -39,7 +39,8 @@ const surfaceTabs: SurfaceTab[] = [
 	{
 		label: "Automate the app you already built",
 		kicker: "Product-embedded automation",
-		title: "Add agent control points to your own UI and keep the boundaries in code.",
+		title:
+			"Add agent control points to your own UI and keep the boundaries in code.",
 		description:
 			"Placeholder for a clip showing a real product form or internal tool being driven through stable browser-tool ids.",
 		code: `<input

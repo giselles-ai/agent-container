@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { SyntheticEvent } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type WorkspacePreview = {
 	path: string;
@@ -12,10 +12,12 @@ type WorkspacePreview = {
 	content: string;
 };
 
-type GeneratedArtifact = {
+type Artifact = {
 	path: string;
-	title: string;
-	description: string;
+	label: string;
+	sizeBytes?: number;
+	mimeType?: string;
+	messageId: string;
 };
 
 const suggestedPrompts = [
@@ -60,16 +62,96 @@ function getMessageText(parts: unknown): string {
 		.join("\n");
 }
 
+function isArtifactToolPart(part: unknown): part is {
+	type: "dynamic-tool" | "tool-result";
+	toolName: string;
+	state?: string;
+	output?: {
+		path?: string;
+		size_bytes?: number;
+		mime_type?: string;
+		label?: string;
+	};
+	result?: {
+		path?: string;
+		size_bytes?: number;
+		mime_type?: string;
+		label?: string;
+	};
+} {
+	if (!part || typeof part !== "object") {
+		return false;
+	}
+
+	const candidate = part as {
+		type?: string;
+		toolName?: string;
+		state?: string;
+		output?: unknown;
+		result?: unknown;
+	};
+	if (candidate.toolName !== "artifact") {
+		return false;
+	}
+
+	if (candidate.type === "tool-result") {
+		return (
+			!!candidate.result &&
+			typeof candidate.result === "object" &&
+			typeof (candidate.result as { path?: string }).path === "string"
+		);
+	}
+
+	if (candidate.type === "dynamic-tool") {
+		return (
+			candidate.state === "output-available" &&
+			!!candidate.output &&
+			typeof candidate.output === "object" &&
+			typeof (candidate.output as { path?: string }).path === "string"
+		);
+	}
+
+	return false;
+}
+
+function getArtifactsFromMessages(
+	messages: Array<{ id: string; parts?: readonly unknown[] }>,
+): Artifact[] {
+	return messages.flatMap((message) => {
+		if (!Array.isArray(message.parts)) {
+			return [];
+		}
+
+		return message.parts
+			.filter(isArtifactToolPart)
+			.map((part) => {
+				const artifactData = "output" in part ? part.output : part.result;
+				return {
+					messageId: message.id,
+					path: artifactData?.path ?? "",
+					label:
+						artifactData?.label ??
+						artifactData?.path?.split("/").at(-1) ??
+						artifactData?.path ??
+						"artifact",
+					sizeBytes: artifactData?.size_bytes,
+					mimeType: artifactData?.mime_type,
+				};
+			})
+			.filter((artifact) => artifact.path.length > 0);
+	});
+}
+
 export function ChatPanel({
 	workspaceInputPreviews,
-	generatedArtifacts,
 }: {
 	workspaceInputPreviews: WorkspacePreview[];
-	generatedArtifacts: GeneratedArtifact[];
 }) {
 	const [input, setInput] = useState("");
+	const [sessionId] = useState(() => crypto.randomUUID());
 
 	const { status, messages, error, sendMessage } = useChat({
+		id: sessionId,
 		transport: new DefaultChatTransport({
 			api: "/chat",
 		}),
@@ -78,6 +160,18 @@ export function ChatPanel({
 		},
 	});
 
+	const artifacts = useMemo(
+		() =>
+			Array.from(
+				new Map(
+					getArtifactsFromMessages(messages).map((artifact) => [
+						`${artifact.messageId}:${artifact.path}`,
+						artifact,
+					]),
+				).values(),
+			),
+		[messages],
+	);
 	const isBusy = status === "submitted" || status === "streaming";
 
 	async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
@@ -107,10 +201,10 @@ export function ChatPanel({
 						Seed the sandbox with files. Let the agent turn them into artifacts.
 					</h1>
 					<p className="mt-4 max-w-3xl text-sm leading-7 text-[#98acc2] sm:text-base">
-						This demo exists to make the filesystem story concrete. The agent
-						starts with a real cloud-side workspace, reads seeded files, writes
-						report outputs back into that workspace, and can revise those
-						artifacts on later turns.
+						This demo makes the filesystem flow concrete. The agent starts with
+						a real cloud-side workspace, reads seeded files, writes deliverable
+						outputs into <code>./artifacts/</code>, and revises those files on
+						subsequent turns.
 					</p>
 					<div className="mt-6 grid gap-3 sm:grid-cols-3">
 						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
@@ -121,10 +215,10 @@ export function ChatPanel({
 						</div>
 						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
 							<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
-								Generated outputs
+								Discovered artifacts
 							</p>
 							<p className="mt-2 text-2xl font-semibold text-white">
-								2 artifacts
+								{artifacts.length}
 							</p>
 						</div>
 						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
@@ -213,8 +307,8 @@ export function ChatPanel({
 						/>
 						<div className="flex items-center justify-between gap-3">
 							<p className="text-xs text-[#7f93aa]">
-								The agent should mention `./workspace/output/report.md` and
-								`./workspace/output/highlights.json` in its reply.
+								The agent should write user-facing outputs to
+								<code>./artifacts/</code> and mention discovered file paths.
 							</p>
 							<button
 								type="submit"
@@ -253,6 +347,52 @@ export function ChatPanel({
 								</div>
 							);
 						})}
+						{artifacts.length > 0 ? (
+							<div className="rounded-[24px] border border-[#7db7ff]/20 bg-[#102036] p-4">
+								<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
+									Discovered artifacts
+								</p>
+								<div className="mt-4 space-y-3">
+									{artifacts.map((artifact) => {
+										const fileName =
+											artifact.path.split("/").at(-1) ?? artifact.path;
+
+										return (
+											<article
+												key={`${artifact.messageId}:${artifact.path}`}
+												className="rounded-[20px] border border-white/8 bg-[#0f1824] p-4"
+											>
+												<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+													<div>
+														<p className="text-sm font-medium text-white">
+															{artifact.label}
+														</p>
+														<p className="mt-1 text-xs text-[#7f95ad]">
+															{artifact.sizeBytes === undefined
+																? "Size unknown"
+																: `${artifact.sizeBytes.toLocaleString()} bytes`}
+															{artifact.mimeType
+																? ` • ${artifact.mimeType}`
+																: ""}
+														</p>
+													</div>
+													<a
+														href={`/agent-api/files?chat_id=${encodeURIComponent(
+															sessionId,
+														)}&path=${encodeURIComponent(
+															artifact.path,
+														)}&download=1`}
+														className="rounded-full border border-[#7db7ff]/24 bg-[#101f31] px-3 py-2 text-xs text-[#d9e7f8] transition hover:border-[#7db7ff]/55 hover:bg-[#13263b]"
+													>
+														Download {fileName}
+													</a>
+												</div>
+											</article>
+										);
+									})}
+								</div>
+							</div>
+						) : null}
 						{error ? (
 							<div className="rounded-[24px] border border-[#ff7a7a]/20 bg-[#321416] p-4 text-sm leading-6 text-[#ffc9c9]">
 								{error.message}
@@ -263,33 +403,15 @@ export function ChatPanel({
 
 				<div className="rounded-[32px] border border-white/10 bg-[#0b121c]/84 p-6">
 					<p className="text-[11px] uppercase tracking-[0.32em] text-[#7db7ff]">
-						Expected artifacts
+						Session outputs
 					</p>
 					<h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-						Files the agent should create or update
+						Artifact links come from runtime-discovered events
 					</h2>
-					<div className="mt-5 space-y-3">
-						{generatedArtifacts.map((file) => (
-							<div
-								key={file.path}
-								className="rounded-[22px] border border-white/8 bg-[#0f1824] p-4"
-							>
-								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-									<div>
-										<h3 className="text-base font-medium text-white">
-											{file.title}
-										</h3>
-										<p className="mt-1 text-sm leading-6 text-[#8ea2b8]">
-											{file.description}
-										</p>
-									</div>
-									<code className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[#d8e6f8]">
-										{file.path}
-									</code>
-								</div>
-							</div>
-						))}
-					</div>
+					<p className="mt-3 text-sm leading-6 text-[#8ea2b8]">
+						Files written to <code>./artifacts/</code> are exposed via the Agent
+						API download endpoint using this chat session ID.
+					</p>
 				</div>
 			</section>
 		</>

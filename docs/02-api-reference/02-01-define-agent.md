@@ -19,7 +19,7 @@ function defineAgent(config: AgentConfig): DefinedAgent
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `agentType` | `"gemini" \| "codex"` | `"gemini"` | Which CLI agent to use in the sandbox. |
-| `agentMd` | `string` | — | System prompt loaded as `AGENTS.md` / `GEMINI.md` inside the sandbox. Write it like you're briefing a teammate. |
+| `agentMd` | `string` | — | System prompt loaded as `AGENTS.md` / `GEMINI.md` inside the sandbox. The SDK layers an internal `./artifacts/` convention for user-facing outputs. |
 | `files` | `AgentFile[]` | `[]` | Additional files to write into the sandbox at build time. |
 | `env` | `Record<string, string>` | `{}` | Environment variables passed to the sandbox at build time (setup script) and run time (CLI execution). Never baked into snapshots. |
 | `setup` | `AgentSetup` | — | Setup configuration for the sandbox build phase. |
@@ -50,6 +50,12 @@ The return value of `defineAgent()`. Pass it to `withGiselleAgent()` and `gisell
 | `env` | `Record<string, string>` | The resolved environment variables. |
 | `snapshotId` | `string` | The snapshot ID (resolved from `GISELLE_AGENT_SNAPSHOT_ID` env at runtime). Throws if not set. |
 
+## Internal artifact convention
+
+`defineAgent()` does not expose new artifact-specific options. It appends a built-in convention to the system prompt that user-facing outputs should be written under `./artifacts/`.
+
+At runtime, the agent stream includes discovered artifact metadata (`path`, `size_bytes`, `mime_type`) after each turn from the runtime `./artifacts/` scan. That metadata is then surfaced through the provider mapping.
+
 ## Examples
 
 ### Minimal
@@ -69,6 +75,7 @@ export const agent = defineAgent({
   agentMd: `
 You are a Next.js expert. Reference documentation is available in opensrc/.
 Always consult it before answering.
+Write user-facing outputs to ./artifacts/.
   `,
   setup: {
     script: `

@@ -86,6 +86,23 @@ npm install -g tsx
 
 The setup script runs once during the build phase and is cached — it only re-runs when your agent definition changes.
 
+## Artifact output convention
+
+Seeded files can be placed anywhere in the sandbox, typically under `./workspace/`.
+User-facing deliverables should be written to `./artifacts/`:
+
+- Keep support files, logs, and scratch data outside `./artifacts/`.
+- Write reports, exports, and files you want to surface to users inside `./artifacts/`.
+- Ask the agent to mention generated artifact paths in its final reply.
+
+Downloads come from the Agent API:
+
+```text
+GET /agent-api/files?chat_id=<chat_id>&path=<artifact_path>
+```
+
+This is what the workspace report demo uses to render downloadable cards in the UI.
+
 ### Passing environment variables
 
 Use `env` to pass environment variables to the sandbox. These are available both during the setup script and when the agent runs:

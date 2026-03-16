@@ -5,20 +5,17 @@ const capabilityCards = [
 	{
 		eyebrow: "Today",
 		title: "Cloud workspace, local workflow",
-		copy:
-			"Each agent runs in an isolated sandbox workspace with its own filesystem, so the local computer mental model can move into a cloud product.",
+		copy: "Each agent runs in an isolated sandbox workspace with its own filesystem, so the local computer mental model can move into a cloud product.",
 	},
 	{
 		eyebrow: "Today",
 		title: "Code-embedded browser actions",
-		copy:
-			"Instrument existing product UIs with stable ids and let agents act inside the boundaries you define in code.",
+		copy: "Instrument existing product UIs with stable ids and let agents act inside the boundaries you define in code.",
 	},
 	{
 		eyebrow: "Today",
 		title: "Sandboxed agent runtimes",
-		copy:
-			"Run Gemini CLI or Codex CLI in Vercel Sandbox and expose them as a model interface your app already understands.",
+		copy: "Run Gemini CLI or Codex CLI in Vercel Sandbox and expose them as a model interface your app already understands.",
 	},
 ];
 
@@ -61,7 +58,9 @@ export default function HomePage() {
 							GA
 						</div>
 						<div>
-							<p className="text-sm font-medium text-white">Giselle Agent SDK</p>
+							<p className="text-sm font-medium text-white">
+								Giselle Agent SDK
+							</p>
 							<p className="text-xs text-[var(--muted)]">
 								Vercel-native agent UX
 							</p>
@@ -135,7 +134,7 @@ export default function HomePage() {
 									</p>
 								</div>
 								<div className="rounded-full border border-[#8df6c9]/30 bg-[#15372b]/70 px-3 py-1 text-xs text-[#bdfadd]">
-								+ workspace filesystem
+									+ workspace filesystem
 								</div>
 							</div>
 							<div className="mt-5 space-y-3">
@@ -153,7 +152,9 @@ export default function HomePage() {
 										<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#102036] font-mono text-sm text-[#cfe1ff]">
 											{index + 1}
 										</div>
-										<p className="text-sm leading-6 text-[var(--text)]">{step}</p>
+										<p className="text-sm leading-6 text-[var(--text)]">
+											{step}
+										</p>
 									</div>
 								))}
 							</div>
@@ -183,8 +184,8 @@ export default function HomePage() {
 							More than a chatbot, less than a reinvention.
 						</h2>
 						<p className="mt-5 text-base leading-7 text-[var(--muted)] sm:text-lg">
-							The point is not to mimic another product pixel-by-pixel. It is
-							to make that class of UX natural inside the stack Vercel teams
+							The point is not to mimic another product pixel-by-pixel. It is to
+							make that class of UX natural inside the stack Vercel teams
 							already use, while preserving the feeling that the agent has a
 							real workspace behind it.
 						</p>
@@ -220,8 +221,8 @@ export default function HomePage() {
 						</div>
 						<p className="max-w-xl text-sm leading-6 text-[var(--muted)] sm:text-base">
 							The point is range. The same stack can power a chat-native agent
-							surface, structured UI responses, product-embedded automation,
-							and cross-channel continuity from one runtime.
+							surface, structured UI responses, product-embedded automation, and
+							cross-channel continuity from one runtime.
 						</p>
 					</div>
 					<div className="mt-10">
@@ -282,7 +283,9 @@ export default function HomePage() {
 					<div className="grid gap-5 lg:grid-cols-3">
 						{docLinks.map((item) => (
 							<div key={item.title} className="panel rounded-[28px] p-6">
-								<h3 className="text-xl tracking-tight text-white">{item.title}</h3>
+								<h3 className="text-xl tracking-tight text-white">
+									{item.title}
+								</h3>
 								<p className="mt-4 text-sm leading-6 text-[var(--muted)]">
 									{item.body}
 								</p>

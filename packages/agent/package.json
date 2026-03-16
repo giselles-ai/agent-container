@@ -38,9 +38,10 @@
 	},
 	"dependencies": {
 		"@giselles-ai/browser-tool": "workspace:*",
+		"@iarna/toml": "3.0.0",
 		"@json-render/core": "0.13.0",
 		"@vercel/sandbox": "1.8.1",
-		"@iarna/toml": "3.0.0",
+		"sandbox": "2.5.5",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {

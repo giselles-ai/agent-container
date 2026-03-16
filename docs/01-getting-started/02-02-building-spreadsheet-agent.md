@@ -4,6 +4,10 @@ In this tutorial you'll build a spreadsheet app where an AI agent can **read, re
 
 This is a great way to see browser tools in action: the agent snapshots your page, finds the inputs, and fills them one by one.
 
+For an output-centric example using downloadable `./artifacts/` files, see
+`examples/workspace-report-demo`. It demonstrates file-scanning and download links
+from `/agent-api/files` instead of hardcoded paths.
+
 > **Prerequisites:** Make sure you've completed the [Getting Started](./getting-started.md) guide — you should have packages installed and your API key set up.
 
 ---

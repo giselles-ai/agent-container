@@ -40,28 +40,11 @@ export default function Home() {
 			),
 		},
 	];
-	const generatedArtifacts = [
-		{
-			path: "./workspace/output/report.md",
-			title: "Markdown report",
-			description:
-				"Human-readable weekly report created inside the sandbox workspace.",
-		},
-		{
-			path: "./workspace/output/highlights.json",
-			title: "Highlights JSON",
-			description:
-				"Machine-readable summary suitable for downstream UI or automation.",
-		},
-	];
 
 	return (
 		<main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
 			<div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-				<ChatPanel
-					workspaceInputPreviews={workspaceInputPreviews}
-					generatedArtifacts={generatedArtifacts}
-				/>
+				<ChatPanel workspaceInputPreviews={workspaceInputPreviews} />
 			</div>
 		</main>
 	);

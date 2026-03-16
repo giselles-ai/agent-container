@@ -1,7 +1,9 @@
+import { basename } from "node:path";
 import {
 	createRelayHandler,
 	createRelaySession,
 } from "@giselles-ai/browser-tool/relay";
+import { Sandbox } from "@vercel/sandbox";
 import type { CreateAgentOptions } from "./agents/create-agent";
 import { buildAgent, createSnapshotCache, type SnapshotCache } from "./build";
 import { runCloudChat } from "./cloud-chat";
@@ -70,6 +72,93 @@ function resolveRelayUrl(basePath: string, request: Request): string {
 	return new URL(`${basePath}/relay`, request.url).toString();
 }
 
+function createArtifactError(
+	status: number,
+	path: string,
+	message: string,
+): Response {
+	return errorResponse(status, "FILE_ERROR", `${path}: ${message}`);
+}
+
+function getArtifactMimeType(path: string): string {
+	const extension = path.split(".").pop()?.toLowerCase();
+	switch (extension) {
+		case "md":
+			return "text/markdown; charset=utf-8";
+		case "json":
+			return "application/json; charset=utf-8";
+		case "csv":
+			return "text/csv; charset=utf-8";
+		case "txt":
+			return "text/plain; charset=utf-8";
+		default:
+			return "application/octet-stream";
+	}
+}
+
+export async function resolveReadableSandbox(input: {
+	sandboxId?: string;
+	snapshotId?: string;
+}): Promise<Sandbox> {
+	const createFromSnapshot = async (snapshotId: string) =>
+		Sandbox.create({
+			source: {
+				type: "snapshot",
+				snapshotId,
+			},
+		});
+
+	if (input.sandboxId) {
+		try {
+			const existing = await Sandbox.get({ sandboxId: input.sandboxId });
+			if (existing.status === "running") {
+				return existing;
+			}
+
+			if (!input.snapshotId) {
+				throw new Error(
+					`Sandbox ${input.sandboxId} is ${existing.status}, not running`,
+				);
+			}
+
+			console.log(
+				`[agent-api] sandbox=${input.sandboxId} status=${existing.status}, recreating from snapshot=${input.snapshotId}`,
+			);
+			return createFromSnapshot(input.snapshotId);
+		} catch (error) {
+			if (!input.snapshotId) {
+				throw error;
+			}
+
+			console.log(
+				`[agent-api] sandbox=${input.sandboxId} expired, recreating from snapshot=${input.snapshotId}`,
+			);
+			return createFromSnapshot(input.snapshotId);
+		}
+	}
+
+	if (!input.snapshotId) {
+		throw new Error("No sandbox_id or snapshot_id available for file read");
+	}
+
+	return createFromSnapshot(input.snapshotId);
+}
+
+function createDownloadHeaders(
+	path: string,
+	options: {
+		download?: string | null;
+	},
+): Record<string, string> {
+	const filename = basename(path);
+	const mode = options.download === "1" ? "attachment" : "inline";
+	return {
+		"Content-Type": getArtifactMimeType(path),
+		"Content-Disposition": `${mode}; filename="${filename}"`,
+		"Cache-Control": "private, no-store",
+	};
+}
+
 export function createAgentApi(options: AgentApiOptions): {
 	GET: (request: Request) => Promise<Response>;
 	POST: (request: Request) => Promise<Response>;
@@ -126,6 +215,52 @@ export function createAgentApi(options: AgentApiOptions): {
 			console.error(`POST ${buildPath} failed`, error);
 			return errorResponse(500, "INTERNAL_ERROR", message);
 		}
+	}
+
+	async function handleFiles(request: Request): Promise<Response> {
+		const url = new URL(request.url);
+		const chatId = url.searchParams.get("chat_id")?.trim();
+		const path = url.searchParams.get("path")?.trim();
+		const download = url.searchParams.get("download")?.trim();
+
+		if (!chatId || !path) {
+			return createArtifactError(400, "query", "chat_id and path are required");
+		}
+
+		if (!path.startsWith("./artifacts/") || path.includes("..")) {
+			return createArtifactError(400, "path", "path must be under ./artifacts");
+		}
+
+		const store = await getStore();
+		const chatState = await store.load(chatId);
+		if (!chatState) {
+			return createArtifactError(404, "chat_id", "chat session not found");
+		}
+
+		let sandbox: Sandbox;
+		try {
+			sandbox = await resolveReadableSandbox({
+				sandboxId: chatState.sandboxId,
+				snapshotId: chatState.snapshotId,
+			});
+		} catch (error) {
+			return createArtifactError(
+				400,
+				"sandbox",
+				error instanceof Error ? error.message : "failed to resolve sandbox",
+			);
+		}
+
+		const fileBuffer = await sandbox.readFileToBuffer({
+			path,
+		});
+		if (!fileBuffer) {
+			return createArtifactError(404, "path", "file not found");
+		}
+
+		return new Response(new Uint8Array(fileBuffer), {
+			headers: createDownloadHeaders(path, { download }),
+		});
 	}
 
 	async function handleRun(request: Request): Promise<Response> {
@@ -197,6 +332,7 @@ export function createAgentApi(options: AgentApiOptions): {
 	function matchSubPath(request: Request): string {
 		const url = new URL(request.url);
 		const pathname = url.pathname;
+		const filesPath = `${basePath}/files`;
 
 		if (pathname === authPath || pathname === `${authPath}/`) {
 			return "auth";
@@ -208,6 +344,10 @@ export function createAgentApi(options: AgentApiOptions): {
 
 		if (pathname === buildPath || pathname === `${buildPath}/`) {
 			return "build";
+		}
+
+		if (pathname === filesPath || pathname === `${filesPath}/`) {
+			return "files";
 		}
 
 		if (pathname === relayPrefix || pathname.startsWith(`${relayPrefix}/`)) {
@@ -222,6 +362,9 @@ export function createAgentApi(options: AgentApiOptions): {
 			const sub = matchSubPath(request);
 			if (sub === "relay") {
 				return relay.GET(request);
+			}
+			if (sub === "files") {
+				return handleFiles(request);
 			}
 			return errorResponse(404, "NOT_FOUND", "Not found.");
 		},
@@ -245,6 +388,9 @@ export function createAgentApi(options: AgentApiOptions): {
 			const sub = matchSubPath(request);
 			if (sub === "relay") {
 				return relay.OPTIONS(request);
+			}
+			if (sub === "files") {
+				return new Response(null, { status: 204 });
 			}
 			return new Response(null, { status: 204 });
 		},

@@ -106,9 +106,9 @@ export default function DocsPage() {
 					<p className="text-lg leading-8 text-[#dbe8fb]">
 						This site borrows the structure of an OpenClaw-style landing page:
 						hero promise first, proof second, capability grid third. The claim
-						here is narrower and more developer-facing: you can build that
-						class of agent UX on Vercel, with this stack, and give the agent a
-						real cloud-side workspace to operate in.
+						here is narrower and more developer-facing: you can build that class
+						of agent UX on Vercel, with this stack, and give the agent a real
+						cloud-side workspace to operate in.
 					</p>
 				</div>
 
@@ -127,7 +127,9 @@ export default function DocsPage() {
 								key={item.name}
 								className="panel rounded-[26px] px-6 py-5 sm:grid sm:grid-cols-[1.2fr_160px_1.4fr] sm:items-start sm:gap-6"
 							>
-								<h3 className="text-xl tracking-tight text-white">{item.name}</h3>
+								<h3 className="text-xl tracking-tight text-white">
+									{item.name}
+								</h3>
 								<div className="mt-3 sm:mt-0">
 									<span className="rounded-full border border-[#8df6c9]/20 bg-[#15372b]/50 px-3 py-1 text-xs font-medium text-[#c1fbe1]">
 										{item.status}
@@ -213,8 +215,7 @@ export default function DocsPage() {
 					</h2>
 					<ul className="mt-5 space-y-3 text-sm leading-6 text-[var(--muted)]">
 						<li>
-							Say `OpenClaw-like` or `OpenClaw-style`, not `OpenClaw on
-							Vercel`.
+							Say `OpenClaw-like` or `OpenClaw-style`, not `OpenClaw on Vercel`.
 						</li>
 						<li>
 							Lead with the product surface: agents that chat, act, and return

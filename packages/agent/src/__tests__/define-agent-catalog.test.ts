@@ -13,12 +13,14 @@ describe("defineAgent with catalog", () => {
 			catalog: fakeCatalog,
 		});
 		expect(agent.agentMd).toContain("You are a helper.");
+		expect(agent.agentMd).toContain("## Artifact Convention");
 		expect(agent.agentMd).toContain("[catalog:inline]");
 	});
 
 	it("works without catalog", () => {
 		const agent = defineAgent({ agentMd: "Base prompt." });
-		expect(agent.agentMd).toBe("Base prompt.");
+		expect(agent.agentMd).toContain("Base prompt.");
+		expect(agent.agentMd).toContain("## Artifact Convention");
 		expect(agent.catalog).toBeUndefined();
 	});
 
@@ -27,6 +29,7 @@ describe("defineAgent with catalog", () => {
 			prompt: () => "[catalog-prompt]",
 		};
 		const agent = defineAgent({ catalog: fakeCatalog });
-		expect(agent.agentMd).toBe("[catalog-prompt]");
+		expect(agent.agentMd).toContain("## Artifact Convention");
+		expect(agent.agentMd).toContain("[catalog-prompt]");
 	});
 });

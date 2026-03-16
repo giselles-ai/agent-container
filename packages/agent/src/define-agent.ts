@@ -1,8 +1,21 @@
 import type { AgentConfig, DefinedAgent } from "./types";
 
+function createInternalArtifactPrompt(): string {
+	return `
+## Artifact Convention
+- Files intended for user review or download must be written under ./artifacts/.
+- Temporary files, logs, caches, and intermediate data should stay outside ./artifacts/.
+- Before finishing, inspect ./artifacts/ and mention only files that actually exist there.
+- Mention created artifact paths in the assistant response for fallback visibility.
+`.trim();
+}
+
 export function defineAgent(config: AgentConfig): DefinedAgent {
 	const catalogPrompt = config.catalog?.prompt({ mode: "inline" });
-	const agentMd = [config.agentMd, catalogPrompt].filter(Boolean).join("\n\n");
+	const internalPrompt = createInternalArtifactPrompt();
+	const agentMd = [config.agentMd, internalPrompt, catalogPrompt]
+		.filter(Boolean)
+		.join("\n\n");
 
 	return {
 		agentType: config.agentType ?? "gemini",

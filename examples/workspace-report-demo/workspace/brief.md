@@ -3,8 +3,8 @@
 Create a concise weekly report for the Revra team.
 
 ## Required outputs
-- Write the main report to /workspace/output/report.md
-- Write a machine-readable summary to /workspace/output/highlights.json
+- Write the main report to ./artifacts/report.md
+- Write a machine-readable summary to ./artifacts/highlights.json
 
 ## Audience
 - CEO wants a fast status read
