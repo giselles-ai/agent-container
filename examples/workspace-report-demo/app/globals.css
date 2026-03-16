@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+	color-scheme: dark;
+}
+
+html {
+	background:
+		radial-gradient(
+			circle at top left,
+			rgba(84, 173, 255, 0.14),
+			transparent 28%
+		),
+		radial-gradient(
+			circle at bottom right,
+			rgba(111, 240, 190, 0.12),
+			transparent 30%
+		),
+		linear-gradient(180deg, #081019 0%, #0d1420 100%);
+}
+
+body {
+	min-height: 100vh;
+	color: #edf3fb;
+}
+
+pre {
+	white-space: pre-wrap;
+	word-break: break-word;
+}

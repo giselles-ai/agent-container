@@ -1,0 +1,17 @@
+[
+	{
+		"name": "Northwind Health",
+		"status": "expanding",
+		"note": "Requested rollout for 120 more seats after a successful pilot."
+	},
+	{
+		"name": "Aster Retail",
+		"status": "at-risk",
+		"note": "Support backlog increased and renewal timing is uncertain."
+	},
+	{
+		"name": "Pinecone Logistics",
+		"status": "stable",
+		"note": "Usage steady. Waiting on procurement approval for the analytics add-on."
+	}
+]

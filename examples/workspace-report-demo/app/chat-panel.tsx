@@ -1,0 +1,297 @@
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import type { SyntheticEvent } from "react";
+import { useState } from "react";
+
+type WorkspacePreview = {
+	path: string;
+	title: string;
+	description: string;
+	content: string;
+};
+
+type GeneratedArtifact = {
+	path: string;
+	title: string;
+	description: string;
+};
+
+const suggestedPrompts = [
+	{
+		label: "Draft the weekly report",
+		prompt:
+			"Read the workspace files and create the weekly report plus highlights JSON.",
+	},
+	{
+		label: "Revise for CEO",
+		prompt:
+			"Update the existing report to make the executive summary tighter and more board-ready.",
+	},
+	{
+		label: "Focus on risk",
+		prompt:
+			"Revise the report to emphasize churn risk, support issues, and concrete follow-up actions.",
+	},
+] as const;
+
+function getMessageText(parts: unknown): string {
+	if (!Array.isArray(parts)) {
+		return "";
+	}
+
+	return parts
+		.map((part) => {
+			if (
+				part &&
+				typeof part === "object" &&
+				"type" in part &&
+				part.type === "text" &&
+				"text" in part &&
+				typeof part.text === "string"
+			) {
+				return part.text;
+			}
+
+			return "";
+		})
+		.filter(Boolean)
+		.join("\n");
+}
+
+export function ChatPanel({
+	workspaceInputPreviews,
+	generatedArtifacts,
+}: {
+	workspaceInputPreviews: WorkspacePreview[];
+	generatedArtifacts: GeneratedArtifact[];
+}) {
+	const [input, setInput] = useState("");
+
+	const { status, messages, error, sendMessage } = useChat({
+		transport: new DefaultChatTransport({
+			api: "/chat",
+		}),
+		onError: (chatError) => {
+			console.error("Chat error", chatError);
+		},
+	});
+
+	const isBusy = status === "submitted" || status === "streaming";
+
+	async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+		event.preventDefault();
+
+		const trimmed = input.trim();
+		if (!trimmed || isBusy) {
+			return;
+		}
+
+		try {
+			await sendMessage({ text: trimmed });
+			setInput("");
+		} catch {
+			// useChat exposes the error state.
+		}
+	}
+
+	return (
+		<>
+			<section className="space-y-6">
+				<div className="rounded-[32px] border border-white/10 bg-[#0c1520]/88 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.35)] backdrop-blur">
+					<p className="text-[11px] uppercase tracking-[0.32em] text-[#7ee9cf]">
+						Workspace Report Demo
+					</p>
+					<h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+						Seed the sandbox with files. Let the agent turn them into artifacts.
+					</h1>
+					<p className="mt-4 max-w-3xl text-sm leading-7 text-[#98acc2] sm:text-base">
+						This demo exists to make the filesystem story concrete. The agent
+						starts with a real cloud-side workspace, reads seeded files, writes
+						report outputs back into that workspace, and can revise those
+						artifacts on later turns.
+					</p>
+					<div className="mt-6 grid gap-3 sm:grid-cols-3">
+						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
+							<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
+								Seeded inputs
+							</p>
+							<p className="mt-2 text-2xl font-semibold text-white">4 files</p>
+						</div>
+						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
+							<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
+								Generated outputs
+							</p>
+							<p className="mt-2 text-2xl font-semibold text-white">
+								2 artifacts
+							</p>
+						</div>
+						<div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
+							<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
+								Runtime
+							</p>
+							<p className="mt-2 text-2xl font-semibold text-white">{status}</p>
+						</div>
+					</div>
+				</div>
+
+				<div className="rounded-[32px] border border-white/10 bg-[#0b121c]/84 p-6">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+						<div>
+							<p className="text-[11px] uppercase tracking-[0.32em] text-[#7db7ff]">
+								Workspace seed
+							</p>
+							<h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+								Files present before the first message
+							</h2>
+						</div>
+						<p className="max-w-xl text-sm leading-6 text-[#8ea2b8]">
+							These files live in the repo and are copied into the sandbox
+							snapshot via <code>{"defineAgent({ files })"}</code>.
+						</p>
+					</div>
+					<div className="mt-6 space-y-4">
+						{workspaceInputPreviews.map((file) => (
+							<article
+								key={file.path}
+								className="rounded-[24px] border border-white/8 bg-[#0f1824] p-5"
+							>
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+									<div>
+										<h3 className="text-lg font-medium text-white">
+											{file.title}
+										</h3>
+										<p className="mt-1 text-sm text-[#90a5bb]">
+											{file.description}
+										</p>
+									</div>
+									<code className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[#d8e6f8]">
+										{file.path}
+									</code>
+								</div>
+								<pre className="mt-4 overflow-x-auto rounded-[20px] border border-white/8 bg-[#09111a] p-4 text-sm leading-6 text-[#d9e4f2]">
+									{file.content}
+								</pre>
+							</article>
+						))}
+					</div>
+				</div>
+			</section>
+
+			<section className="space-y-6">
+				<div className="rounded-[32px] border border-white/10 bg-[#0c1520]/88 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.28)] backdrop-blur">
+					<p className="text-[11px] uppercase tracking-[0.32em] text-[#7ee9cf]">
+						Agent console
+					</p>
+					<h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+						Ask for the report, then ask for a revision
+					</h2>
+					<p className="mt-3 text-sm leading-6 text-[#8ea2b8]">
+						A good second prompt is a revision request. That demonstrates that
+						the agent is working against a persistent workspace, not a blank
+						chat context every turn.
+					</p>
+					<div className="mt-5 flex flex-wrap gap-2">
+						{suggestedPrompts.map((item) => (
+							<button
+								key={item.label}
+								type="button"
+								onClick={() => setInput(item.prompt)}
+								className="rounded-full border border-[#7db7ff]/24 bg-[#101f31] px-3 py-2 text-xs text-[#d9e7f8] transition hover:border-[#7db7ff]/55 hover:bg-[#13263b]"
+							>
+								{item.label}
+							</button>
+						))}
+					</div>
+					<form onSubmit={handleSubmit} className="mt-5 space-y-3">
+						<textarea
+							value={input}
+							onChange={(event) => setInput(event.target.value)}
+							placeholder="Read the workspace files and create the report artifacts."
+							className="min-h-32 w-full rounded-[24px] border border-white/10 bg-[#09111a] px-4 py-4 text-sm leading-6 text-white outline-none transition focus:border-[#7db7ff]/55"
+						/>
+						<div className="flex items-center justify-between gap-3">
+							<p className="text-xs text-[#7f93aa]">
+								The agent should mention `./workspace/output/report.md` and
+								`./workspace/output/highlights.json` in its reply.
+							</p>
+							<button
+								type="submit"
+								disabled={isBusy}
+								className="rounded-full bg-[#7ee9cf] px-4 py-2 text-sm font-medium text-[#07111b] transition hover:bg-[#9ef1db] disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								{isBusy ? "Working..." : "Send"}
+							</button>
+						</div>
+					</form>
+					<div className="mt-6 space-y-3">
+						{messages.length === 0 ? (
+							<div className="rounded-[24px] border border-dashed border-white/10 bg-white/3 p-5 text-sm leading-6 text-[#8ea2b8]">
+								No messages yet. Start with "Draft the weekly report" to make
+								the filesystem workflow visible.
+							</div>
+						) : null}
+						{messages.map((message) => {
+							const text = getMessageText(message.parts);
+
+							return (
+								<div
+									key={message.id}
+									className={`rounded-[24px] border p-4 ${
+										message.role === "user"
+											? "border-[#7db7ff]/18 bg-[#102036]"
+											: "border-white/10 bg-[#0a111a]"
+									}`}
+								>
+									<p className="text-[11px] uppercase tracking-[0.28em] text-[#7db7ff]">
+										{message.role}
+									</p>
+									<p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#e5eef8]">
+										{text || "No text content"}
+									</p>
+								</div>
+							);
+						})}
+						{error ? (
+							<div className="rounded-[24px] border border-[#ff7a7a]/20 bg-[#321416] p-4 text-sm leading-6 text-[#ffc9c9]">
+								{error.message}
+							</div>
+						) : null}
+					</div>
+				</div>
+
+				<div className="rounded-[32px] border border-white/10 bg-[#0b121c]/84 p-6">
+					<p className="text-[11px] uppercase tracking-[0.32em] text-[#7db7ff]">
+						Expected artifacts
+					</p>
+					<h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+						Files the agent should create or update
+					</h2>
+					<div className="mt-5 space-y-3">
+						{generatedArtifacts.map((file) => (
+							<div
+								key={file.path}
+								className="rounded-[22px] border border-white/8 bg-[#0f1824] p-4"
+							>
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+									<div>
+										<h3 className="text-base font-medium text-white">
+											{file.title}
+										</h3>
+										<p className="mt-1 text-sm leading-6 text-[#8ea2b8]">
+											{file.description}
+										</p>
+									</div>
+									<code className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[#d8e6f8]">
+										{file.path}
+									</code>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			</section>
+		</>
+	);
+}
