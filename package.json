@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.4.6",
 		"@types/node": "25.0.10",
-		"knip": "^5.83.1",
+		"knip": "^5.87.0",
 		"turbo": "2.8.7",
 		"typescript": "5.9.3",
 		"vitest": "4.0.18"
