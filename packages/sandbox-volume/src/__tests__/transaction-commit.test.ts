@@ -163,7 +163,9 @@ describe("workspace transaction commit", () => {
 			},
 		]);
 		expect(adapter.saveCalls).toHaveLength(1);
-		expect(adapter.saveCalls[0]!.payload.files).toEqual([
+		const saveCall = adapter.saveCalls[0];
+		expect(saveCall).toBeDefined();
+		expect(saveCall?.payload.files).toEqual([
 			{
 				path: "src/index.ts",
 				size: expect.any(Number),
@@ -213,7 +215,9 @@ describe("workspace transaction commit", () => {
 			]),
 		);
 		expect(adapter.saveCalls).toHaveLength(1);
-		expect(adapter.saveCalls[0]!.payload.files).toEqual(
+		const createSaveCall = adapter.saveCalls[0];
+		expect(createSaveCall).toBeDefined();
+		expect(createSaveCall?.payload.files).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					path: "src/index.ts",
@@ -263,7 +267,9 @@ describe("workspace transaction commit", () => {
 			},
 		]);
 		expect(adapter.saveCalls).toHaveLength(1);
-		expect(adapter.saveCalls[0]!.payload.files).toEqual([
+		const deleteSaveCall = adapter.saveCalls[0];
+		expect(deleteSaveCall).toBeDefined();
+		expect(deleteSaveCall?.payload.files).toEqual([
 			{
 				path: "src/index.ts",
 				content: expect.any(Buffer),

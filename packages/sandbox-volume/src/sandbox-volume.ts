@@ -64,42 +64,57 @@ export class SandboxVolume {
 	): Promise<TResult> {
 		const tx = await this.begin(sandbox, options);
 		let callbackError: unknown = null;
+		let callbackResult: TResult | undefined;
 
 		try {
-			const result = await callback(sandbox, tx);
+			callbackResult = await callback(sandbox, tx);
 			await tx.commit();
-			return result;
 		} catch (error) {
 			callbackError = error;
-			throw error;
-		} finally {
-			try {
-				await tx.close();
-			} catch (closeError) {
-				if (callbackError === null) {
-					throw closeError;
-				}
+		}
+
+		try {
+			await tx.close();
+		} catch (closeError) {
+			if (callbackError === null) {
+				callbackError = closeError;
 			}
 		}
+
+		if (callbackError !== null) {
+			throw callbackError;
+		}
+
+		return callbackResult as TResult;
 	}
 
 	async commitAll(sandbox: Sandbox): Promise<WorkspaceCommitResult> {
 		const tx = await this.begin(sandbox);
 		let commitError: unknown = null;
+		let commitResult: WorkspaceCommitResult | undefined;
 
 		try {
-			return await tx.commit();
+			commitResult = await tx.commit();
 		} catch (error) {
 			commitError = error;
-			throw error;
-		} finally {
-			try {
-				await tx.close();
-			} catch (closeError) {
-				if (commitError === null) {
-					throw closeError;
-				}
+		}
+
+		try {
+			await tx.close();
+		} catch (closeError) {
+			if (commitError === null) {
+				commitError = closeError;
 			}
 		}
+
+		if (commitError !== null) {
+			throw commitError;
+		}
+
+		if (commitResult === undefined) {
+			throw new Error("Unexpected state: commit did not return a result.");
+		}
+
+		return commitResult;
 	}
 }

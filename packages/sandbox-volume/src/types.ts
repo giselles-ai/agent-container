@@ -2,19 +2,13 @@ import type { Sandbox } from "@vercel/sandbox";
 import type {
 	LockMode,
 	StorageAdapter,
-	StorageLoadResult,
-	StorageLock,
-	StorageSaveResult,
 	WorkspaceFileEntry,
-	WorkspacePayload,
 } from "./adapters/types";
 import type {
 	WorkspaceDiff,
-	WorkspaceDiffKind,
 	WorkspaceFileChange,
 	WorkspaceFileChangeKind,
 	WorkspaceManifest,
-	WorkspaceManifestEntry,
 } from "./manifest";
 
 export type {
