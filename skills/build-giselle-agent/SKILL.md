@@ -58,6 +58,14 @@ When details are missing, ask only the minimum needed to build the right thing:
 
 If a reasonable default is obvious from the repo context, use it and keep going.
 
+Before generating code, make sure the developer knows how to get the cloud API key:
+
+1. Create an account at `https://studio.giselles.ai`
+2. Open the API key management page in Studio and issue a new API key
+3. Add it to `.env.local` as `GISELLE_AGENT_API_KEY=<your-api-key>`
+
+The default Cloud API is `studio.giselles.ai`, so no extra base URL is needed unless the user is self-hosting.
+
 ### 3. Build from a recipe, not from scratch
 
 Prefer one of the concrete recipes in `reference/build-recipes.md`:

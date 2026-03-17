@@ -46,6 +46,14 @@ Install this repository as a skill:
 npx skills add giselles-ai/agent-container
 ```
 
+Before generating an app, create an account at [studio.giselles.ai](https://studio.giselles.ai), generate an API key, and add it to your project root as:
+
+```env
+GISELLE_AGENT_API_KEY=<your-api-key>
+```
+
+The Cloud API at `studio.giselles.ai` is the default, so you only need additional base URL configuration if you are self-hosting.
+
 Then ask Codex, Claude Code, Cursor, or whatever coding agent you use to build the app with you by using the `build-giselle-agent` skill.
 
 The point is not to manually explain the whole runtime. The point is to tell the agent what kind of product you want, then let the skill ask for the missing details and choose the right build recipe.
