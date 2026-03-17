@@ -1,0 +1,68 @@
+name: Dependency Audit
+
+on:
+  schedule:
+    - cron: "30 2 * * 1"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Run dependency audit
+        id: run-audit
+        continue-on-error: true
+        run: pnpm audit --prod --audit-level=low --json > dependency-audit.json
+
+      - name: Evaluate vulnerabilities
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+
+          const report = JSON.parse(
+            fs.readFileSync("dependency-audit.json", "utf8"),
+          );
+          const vulns = report?.metadata?.vulnerabilities ?? {};
+          const critical = vulns.critical ?? 0;
+          const high = vulns.high ?? 0;
+          const moderate = vulns.moderate ?? 0;
+          const low = vulns.low ?? 0;
+          const info = vulns.info ?? 0;
+          const total = critical + high + moderate + low + info;
+
+          const summary = [
+            `Dependency audit completed with ${total} vulnerabilities found.`,
+            `critical: ${critical}`,
+            `high: ${high}`,
+            `moderate: ${moderate}`,
+            `low: ${low}`,
+            `info: ${info}`,
+          ].join("\n");
+
+          console.log(summary);
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+          }
+          if (critical > 0) {
+            console.error("Critical vulnerabilities found. Failing audit.");
+            process.exit(1);
+          }
+          NODE
