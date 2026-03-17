@@ -21,7 +21,8 @@ The intended evolution path is:
 When the app already writes files but does not expose them well:
 
 - make sure outputs go under `./artifacts/`
-- surface artifact metadata or download links in the UI
+- prefer runtime-discovered `artifact` tool results from streamed chat messages
+- if the user should be able to download agent-created artifacts, use provider-supplied `download_url` from artifact parts when available
 - explain to the user where those files come from
 
 ### 2. Add seeded workspace inputs
@@ -64,6 +65,24 @@ When the user wants web plus Slack or a workflow surface:
 - add download links to a file-writing app
 - switch from `gemini` to `codex` without breaking the app contract
 - add browser-tool visibility to an existing web app
+- simplify artifact download flows by reading runtime artifact events directly
+
+## Migration hint: simplify artifact download flows
+
+If an existing app already has a complicated artifact download layer only to surface
+generated files, first check whether the UI can read artifact parts directly from
+streamed chat messages instead.
+
+Default migration path:
+
+1. Read artifact parts from `useChat()` messages in the UI.
+2. Prefer `download_url` already present in artifact payloads.
+3. Add extra download handling only when product requirements demand extra behavior.
+
+Canonical references:
+
+- `examples/workspace-report-demo/app/chat-panel.tsx`
+- `packages/giselle-provider/src/ndjson-mapper.ts`
 
 ## Sample update prompts
 

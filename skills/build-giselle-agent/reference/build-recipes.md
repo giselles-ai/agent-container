@@ -6,33 +6,45 @@ Choose the closest recipe and adapt it. Avoid inventing a new shape unless neces
 
 Use this when the main story is inspectable files, artifacts, and downloads.
 
-Reference: `examples/workspace-report-demo`
+Principles:
+- discover artifacts from streamed chat messages
+- let follow-up turns revise existing files in the same session
+
+Implementation anchors:
+- artifact extraction and download UI in `reference/snippets.md`
+- workspace/artifact model in `reference/current-capabilities.md`
 
 ### Build this shape when
 
-- the agent should read seeded files
 - the agent should write report-style outputs
 - you want artifact links in the UI
 - you want to demonstrate persistence across turns
 
 ### Core ingredients
 
-- seed files under `./workspace/`
-- have the agent write outputs like `./artifacts/report.md`
-- surface discovered artifacts in the UI
+- files that add to the Agent is under `./workspace/`
+- surface runtime-discovered artifacts from streamed chat messages
+- if the user should be able to download agent-created artifacts, use provider-supplied `download_url` from artifact parts when available
 - keep the same session so a second turn can revise existing artifacts
 
 ### Good prompt to the coding agent
 
 ```text
-Build a Next.js app like examples/workspace-report-demo. Seed a sandbox workspace, let the agent read those files, generate report artifacts under ./artifacts/, and show download links in the UI. Keep the session stable so a follow-up prompt can revise the existing files instead of starting over.
+Build a Next.js app with a visible workspace-to-artifact flow. Seed a sandbox workspace, let the agent read those files, generate report artifacts under ./artifacts/, and show download links in the UI from streamed artifact events. Keep the session stable so a follow-up prompt can revise the existing files instead of starting over.
 ```
 
 ## 2. Agent inbox
 
 Use this when the main story is a real product-style chat surface.
 
-Reference: `examples/agent-inbox`
+Principles:
+- make the chat surface feel like a real product, not a demo-only shell
+- keep session continuity legible
+- preserve the same workspace/artifact model even when the UI looks like a chat app
+
+Implementation anchors:
+- core runtime contract in `reference/build-quickstart.md`
+- update guidance in `reference/update-playbook.md`
 
 ### Build this shape when
 
@@ -51,14 +63,21 @@ Reference: `examples/agent-inbox`
 ### Good prompt to the coding agent
 
 ```text
-Build an OpenClaw-like chat app on Next.js using the Giselle Sandbox Agent stack, similar to examples/agent-inbox. Use a real chat surface with stable sessions, keep the runtime legible, and explain where files or artifacts would live if the agent produces outputs.
+Build an OpenClaw-like chat app on Next.js using the Giselle Sandbox Agent stack. Use a real chat surface with stable sessions, keep the runtime legible, and explain where files or artifacts would live if the agent produces outputs.
 ```
 
 ## 3. Browser-tool app
 
 Use this when the main story is explicit DOM interaction.
 
-Reference: `docs/01-getting-started/02-02-building-spreadsheet-agent.md`
+Principles:
+- the page should expose a deliberate DOM structure the agent can reason about
+- browser-tool behavior should be visible, not hidden
+- tool use should extend the same chat/runtime model rather than becoming a separate system
+
+Implementation anchors:
+- browser-tool route and client patterns in `reference/snippets.md`
+- browser-tool constraints in `reference/current-capabilities.md`
 
 ### Build this shape when
 
@@ -84,7 +103,10 @@ Create a Next.js app with Giselle browser tools. The agent should inspect the pa
 
 Use this when the user wants a local build/run loop or parity with both providers.
 
-Reference: `examples/embedded-browser-agent`
+Principles:
+- local and deployed flows should use the same app contract
+- environment differences should stay explicit in configuration
+- parity matters more than product polish for this recipe
 
 ### Build this shape when
 

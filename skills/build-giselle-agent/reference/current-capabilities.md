@@ -44,11 +44,12 @@ The pattern is:
 - `data-browser-tool-id` on elements the agent should inspect or manipulate
 - a prompt in `agentMd` that describes the page structure precisely
 
-## Current example shapes in the repo
+## Supported product shapes in this skill
 
-- `examples/workspace-report-demo`: seeded workspace files, generated artifacts, download links
-- `examples/agent-inbox`: product-style chat app with auth and optional Slack integration
-- `examples/embedded-browser-agent`: local runner parity and browser-tool oriented flow
+- `workspace-report`: seeded workspace files, generated artifacts, download links, and follow-up revision turns
+- `agent-inbox`: product-style chat surface with stable sessions and optional team-facing extensions
+- `browser-tool`: visible DOM interaction through chat-driven tool use
+- `local parity`: local runner or provider parity with explicit environment configuration
 
 ## Quality bar
 

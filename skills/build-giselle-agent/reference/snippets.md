@@ -142,8 +142,86 @@ export default function Home() {
 }
 ```
 
+## Artifact extraction from streamed messages
+
+Use this pattern for `workspace-report` style apps. It reads `artifact` tool results
+from `useChat()` messages and uses provider-emitted `download_url` when available.
+
+```ts
+type ArtifactPart = {
+  type: "dynamic-tool" | "tool-result";
+  toolName: string;
+  output?: { path?: string; label?: string; download_url?: string };
+  result?: { path?: string; label?: string; download_url?: string };
+};
+
+function isArtifactPart(part: unknown): part is ArtifactPart {
+  return (
+    !!part &&
+    typeof part === "object" &&
+    "toolName" in part &&
+    (part as { toolName?: string }).toolName === "artifact"
+  );
+}
+
+function getArtifactsFromMessages(
+  messages: Array<{ id: string; parts?: readonly unknown[] }>,
+) {
+  return messages.flatMap((message) =>
+    (message.parts ?? [])
+      .filter(isArtifactPart)
+      .map((part) => {
+        const payload = "output" in part ? part.output : part.result;
+        return {
+          messageId: message.id,
+          path: payload?.path ?? "",
+          label: payload?.label ?? payload?.path ?? "artifact",
+          downloadUrl: payload?.download_url,
+        };
+      })
+      .filter((artifact) => artifact.path.length > 0),
+  );
+}
+```
+
+## Artifact download UI
+
+After extracting artifacts from `useChat()` messages, render download links directly
+from each artifact's `downloadUrl`.
+
+```tsx
+const artifacts = getArtifactsFromMessages(messages);
+
+export function ArtifactList() {
+  if (artifacts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <h2>Discovered artifacts</h2>
+      <ul>
+        {artifacts.map((artifact) => {
+          const fileName = artifact.path.split("/").at(-1) ?? artifact.path;
+
+          return (
+            <li key={`${artifact.messageId}:${artifact.path}`}>
+              <span>{artifact.label}</span>
+              {artifact.downloadUrl ? (
+                <a href={artifact.downloadUrl}>Download {fileName}</a>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+```
+
 ## Notes
 
 - Add browser-tool code only when the app needs DOM interaction.
 - Put user-facing outputs in `./artifacts/`.
 - Describe the page structure clearly in `agentMd` when browser tools are used.
+- For `workspace-report`, prefer runtime artifact events over parallel artifact metadata APIs.

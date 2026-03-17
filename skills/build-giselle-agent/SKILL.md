@@ -96,6 +96,16 @@ The app should make these ideas clear when relevant:
 - The runtime is a real sandbox, not an invisible black box.
 - Snapshots preserve continuity after sandbox expiration.
 
+For `workspace-report` style apps, artifact UX should default to runtime-discovered
+artifact events from the chat stream. If the user should be able to download
+agent-created artifacts, read the artifact parts from streamed chat messages and
+prefer provider-emitted `download_url` when present.
+
+Use these files as the canonical implementation reference for artifact download flow:
+
+- `examples/workspace-report-demo/app/chat-panel.tsx`
+- `packages/giselle-provider/src/ndjson-mapper.ts`
+
 If the current request would produce a chat-only experience with no visible file or artifact story, call that out and propose the smallest improvement that fixes it.
 
 ### 6. When browser tools are involved
