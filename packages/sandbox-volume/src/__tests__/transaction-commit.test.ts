@@ -319,4 +319,91 @@ describe("workspace transaction commit", () => {
 		expect(adapter.saveCalls).toHaveLength(0);
 		await tx.close();
 	});
+
+	it("ignores excluded files during scan and commit payload", async () => {
+		const sandbox = createMockSandbox();
+		const initialFiles = [
+			createWorkspaceFile("src/index.ts", "console.log(1)"),
+			createWorkspaceFile("coverage/out.json", '{"keep":false}'),
+		];
+		const adapter = new InMemoryAdapter({
+			manifest: buildManifest(
+				initialFiles.map(({ path, content }) => ({ path, content })),
+				new Date("2026-03-17T00:00:00Z"),
+			),
+			files: initialFiles,
+		});
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/exclude-scan",
+			exclude: ["coverage/**"],
+		});
+		const tx = await volume.begin(sandbox as unknown as Sandbox);
+
+		sandbox.setFileState({
+			"/workspace/src/index.ts": "console.log(2)",
+			"/workspace/coverage/out.json": "mutated",
+		});
+
+		const result = await tx.commit();
+
+		expect(result.committed).toBe(true);
+		expect(result.diff.changes).toEqual([
+			{
+				kind: "update",
+				path: "src/index.ts",
+				hash: hashContent("console.log(2)"),
+				size: expect.any(Number),
+				lastSeenAt: expect.any(Date),
+			},
+		]);
+		expect(adapter.saveCalls).toHaveLength(1);
+		const saveCall = adapter.saveCalls[0];
+		expect(saveCall).toBeDefined();
+		expect(saveCall?.payload.files).toHaveLength(1);
+		expect(saveCall?.payload.files[0]).toMatchObject({
+			path: "src/index.ts",
+			size: expect.any(Number),
+			hash: hashContent("console.log(2)"),
+		});
+		expect(
+			saveCall?.payload.files.some((file) => file.path === "coverage/out.json"),
+		).toBe(false);
+		await tx.close();
+	});
+
+	it("does not emit deletes for newly excluded historical files", async () => {
+		const sandbox = createMockSandbox();
+		const initialFiles = [
+			createWorkspaceFile("src/index.ts", "console.log(1)"),
+			createWorkspaceFile("dist/out.js", "ignored"),
+		];
+		const adapter = new InMemoryAdapter({
+			manifest: buildManifest(
+				initialFiles.map(({ path, content }) => ({ path, content })),
+				new Date("2026-03-17T00:00:00Z"),
+			),
+			files: initialFiles,
+		});
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/exclude-historic",
+			exclude: ["dist/**"],
+		});
+		const tx = await volume.begin(sandbox as unknown as Sandbox);
+
+		sandbox.setFileState({
+			"/workspace/src/index.ts": "console.log(1)",
+		});
+
+		const result = await tx.commit();
+
+		expect(result.committed).toBe(false);
+		expect(result.diff.kind).toBe("no-op");
+		expect(
+			result.diff.changes.every((change) => change.path !== "dist/out.js"),
+		).toBe(true);
+		expect(adapter.saveCalls).toHaveLength(0);
+		await tx.close();
+	});
 });

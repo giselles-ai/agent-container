@@ -30,6 +30,8 @@ const adapter = new InMemoryStorageAdapter();
 const volume = await SandboxVolume.create({
   key: "repos/my-app",
   adapter,
+  include: ["src/**", "package.json"],
+  exclude: [".sandbox/**/*", "dist/**"],
 });
 
 await volume.mount(sandbox, async () => {
@@ -47,6 +49,8 @@ resolves. If the callback throws, it still closes and releases locks but does no
   - `key`: stable workspace identifier (string)
   - `path` (optional): mount path, default `"/workspace"`
   - `defaultLockMode` (optional): `"none" | "exclusive" | "shared"`
+  - `include` (optional): glob include list, defaults to all files
+  - `exclude` (optional): glob exclude list, applied after `include`
 - `volume.begin(sandbox, options?)`
   - options: `{ path?, lock? }`
   - opens a `WorkspaceTransaction`
@@ -63,6 +67,32 @@ Transaction (`WorkspaceTransaction`) methods:
 - `diff()`: returns `{ key, kind, changes }`
 - `commit()`: persists when changes exist (`committed: true`) and returns commit metadata
 - `close()`: idempotent cleanup and optional lock release
+
+## Path filters (`include` / `exclude`)
+
+`SandboxVolume` supports an allow/deny filter for file synchronization:
+
+- `include` is an allow list. If empty or omitted, all paths are eligible.
+- `exclude` is a deny list and always wins when a path matches both.
+- filtering applies during hydration, scan, diff, and commit.
+- only filtered-in paths are included in the persisted manifest.
+
+Example filter set:
+
+```ts
+{
+  include: ["src/**", "package.json"],
+  exclude: ["src/generated/**", "dist/**"],
+}
+```
+
+When using those filters, `notes.md` and `dist/out.js` are not persisted nor tracked.
+
+Known caveat:
+
+- If a workspace was previously saved with broader rules and later narrowed, historical
+  out-of-scope entries are not removed immediately. They remain in storage until a
+  commit with in-scope changes rewrites the manifest.
 
 ## Memory adapter
 
@@ -98,7 +128,6 @@ implement `acquireLock` and `releaseLock`.
 
 The following are not implemented yet:
 
-- include/exclude path filters
 - concrete Blob/S3/Supabase adapters in this package
 - snapshot/branch/share helpers (`fork`, `snapshot`, `share`)
 

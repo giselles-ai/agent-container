@@ -30,7 +30,13 @@ export type {
 } from "./manifest";
 
 export interface StoragePathRules {
+	/**
+	 * Include pattern list in POSIX style. If omitted or empty, all paths are treated as included.
+	 */
 	include?: string[];
+	/**
+	 * Exclude pattern list in POSIX style. Exclusions always win over inclusions.
+	 */
 	exclude?: string[];
 }
 

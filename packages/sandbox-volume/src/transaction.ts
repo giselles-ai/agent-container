@@ -6,7 +6,9 @@ import {
 	diffManifests,
 	hasChanges,
 	type WorkspaceDiff,
+	type WorkspaceManifest,
 } from "./manifest";
+import { filterPathsByRules } from "./path-rules";
 import {
 	collectWorkspaceFiles,
 	hydrateWorkspaceFiles,
@@ -17,6 +19,7 @@ import type {
 	LockMode,
 	StorageAdapter,
 	StorageLock,
+	StoragePathRules,
 	WorkspaceCommitResult,
 	WorkspaceFileEntry,
 	WorkspaceTransaction as WorkspaceTransactionHandle,
@@ -29,6 +32,7 @@ interface WorkspaceTransactionInit {
 	adapter: StorageAdapter;
 	mountPath: string;
 	lock?: LockMode;
+	pathRules?: StoragePathRules | null;
 }
 
 export class WorkspaceTransaction implements WorkspaceTransactionHandle {
@@ -42,6 +46,7 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 	#lock: StorageLock | null = null;
 	#baselineManifest = createEmptyManifest();
 	#baselineFiles: WorkspaceFileEntry[] = [];
+	readonly #pathRules: StoragePathRules | null;
 
 	constructor(input: WorkspaceTransactionInit) {
 		this.#key = input.key;
@@ -49,6 +54,7 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 		this.#adapter = input.adapter;
 		this.#mountPath = normalizeMountPath(input.mountPath);
 		this.#options = { lock: input.lock };
+		this.#pathRules = input.pathRules ?? null;
 	}
 
 	get key(): string {
@@ -98,13 +104,23 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 		try {
 			const loaded = await this.#adapter.loadWorkspace(this.#key);
 			if (loaded) {
-				this.#baselineManifest = loaded.manifest;
-				this.#baselineFiles = [...loaded.files];
+				const filteredManifest = this.#filterManifestByRules(loaded.manifest);
+				const managedPaths = new Set(
+					filteredManifest.paths.map((entry) => entry.path),
+				);
+				this.#baselineManifest = filteredManifest;
+				this.#baselineFiles = loaded.files.filter((file) =>
+					managedPaths.has(file.path),
+				);
 			}
 			await hydrateWorkspaceFiles(
 				this.#sandbox,
 				this.#mountPath,
-				loaded?.files ?? [],
+				loaded?.files.filter((file) =>
+					this.#pathRules
+						? filterPathsByRules([file.path], this.#pathRules).length > 0
+						: true,
+				) ?? [],
 			);
 			this.#opened = true;
 		} catch (error) {
@@ -174,7 +190,11 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 	}
 
 	async #scan(): Promise<WorkspaceFileEntry[]> {
-		const paths = await scanWorkspaceFilePaths(this.#sandbox, this.#mountPath);
+		const paths = await scanWorkspaceFilePaths(
+			this.#sandbox,
+			this.#mountPath,
+			this.#pathRules,
+		);
 		return collectWorkspaceFiles(this.#sandbox, this.#mountPath, paths);
 	}
 
@@ -195,5 +215,23 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 		const lock = this.#lock;
 		this.#lock = null;
 		await this.#adapter.releaseLock?.(lock);
+	}
+
+	#filterManifestByRules(manifest: WorkspaceManifest): WorkspaceManifest {
+		if (!this.#pathRules) {
+			return manifest;
+		}
+
+		const managedPaths = new Set(
+			filterPathsByRules(
+				manifest.paths.map((entry) => entry.path),
+				this.#pathRules,
+			),
+		);
+
+		return {
+			...manifest,
+			paths: manifest.paths.filter((entry) => managedPaths.has(entry.path)),
+		};
 	}
 }

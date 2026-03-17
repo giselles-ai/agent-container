@@ -52,6 +52,10 @@ export class SandboxVolume {
 			adapter: this.adapter,
 			mountPath,
 			lock: options.lock ?? this.#options.defaultLockMode,
+			pathRules: {
+				include: this.#options.include,
+				exclude: this.#options.exclude,
+			},
 		});
 		await tx.open();
 		return tx;

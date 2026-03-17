@@ -1,6 +1,8 @@
 import type { Sandbox } from "@vercel/sandbox";
 import type { WorkspaceFileEntry } from "./adapters/types";
 import { hashContent } from "./manifest";
+import { filterPathsByRules } from "./path-rules";
+import type { StoragePathRules } from "./types";
 
 function toAbsoluteMountPath(mountPath: string): string {
 	if (!mountPath.startsWith("/")) {
@@ -60,6 +62,7 @@ function toRelativeWorkspacePath(
 export async function scanWorkspaceFilePaths(
 	sandbox: Sandbox,
 	mountPath: string,
+	rules?: StoragePathRules | null,
 ): Promise<string[]> {
 	const normalizedMountPath = normalizeMountPath(mountPath);
 
@@ -78,11 +81,13 @@ export async function scanWorkspaceFilePaths(
 		return [];
 	}
 
-	return output
+	const paths = output
 		.split("\0")
 		.filter((path) => path.length > 0)
 		.map((path) => toRelativeWorkspacePath(normalizedMountPath, path))
 		.filter((path) => path.length > 0);
+
+	return filterPathsByRules(paths, rules);
 }
 
 export async function collectWorkspaceFiles(

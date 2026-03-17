@@ -78,9 +78,9 @@ flowchart TD
 
 | Phase | Task File | Status | Description |
 |---|---|---|---|
-| 0 | [phase-0-filter-semantics-and-matcher.md](./phase-0-filter-semantics-and-matcher.md) | 🔲 TODO | Define exact filter semantics and implement reusable path matching |
-| 1 | [phase-1-hydration-and-scan-integration.md](./phase-1-hydration-and-scan-integration.md) | 🔲 TODO | Apply filters during hydration, scan, diff, and commit |
-| 2 | [phase-2-tests-and-docs.md](./phase-2-tests-and-docs.md) | 🔲 TODO | Add edge-case coverage and document the shipped behavior |
+| 0 | [phase-0-filter-semantics-and-matcher.md](./phase-0-filter-semantics-and-matcher.md) | ✅ DONE | Define exact filter semantics and implement reusable path matching |
+| 1 | [phase-1-hydration-and-scan-integration.md](./phase-1-hydration-and-scan-integration.md) | ✅ DONE | Apply filters during hydration, scan, diff, and commit |
+| 2 | [phase-2-tests-and-docs.md](./phase-2-tests-and-docs.md) | ✅ DONE | Add edge-case coverage and document the shipped behavior |
 
 > **How to work on this epic:** Read this file first to understand the full architecture. Then check the status table above. Pick the first `🔲 TODO` task whose dependencies (see dependency graph) are `✅ DONE`. Open that task file and follow its instructions. When done, update the status in this table to `✅ DONE`.
 
