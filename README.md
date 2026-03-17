@@ -1,29 +1,40 @@
-# Giselle Agent SDK
+# Giselle Sandbox Agent
 
-An SDK that lets you run CLI agents such as Gemini CLI and Codex CLI through Vercel AI SDK's `useChat` and `streamText`.
-CLI agent execution is powered by Vercel Sandbox. You can self-host by setting up Vercel Sandbox and Redis, or get started immediately using our hosted Cloud API.
+An OpenClaw-like agent experience on Vercel with explicit workspace, files, and snapshots.
 
-### Installation
+The most reliable onboarding is:
+1. install this repository as a skill
+2. set one API key
+3. let your coding agent scaffold the first app with `build-giselle-agent`
+
+### Recommended onboarding (skill-first)
 
 #### 1. Add skill
-`npx skills add giselles-ai/agent-container`
-
-> [!TODO]
->  `npx skills add giselles-ai/agent`
-
-#### 2. Create Giselle account and create the API KEY
-
-https://studio.giselles.ai
-
-#### 3. Tell the llm to build it for you
-
+```bash
+npx skills add giselles-ai/agent-container
 ```
-claude "This folder is initialized with a basic SpacetimeDB project. Using this as a starting point build a full Discord clone with channels, threads, and real time messaging with React.js"
+
+#### 2. Create your Studio account and API key
+
+1. Open [studio.giselles.ai](https://studio.giselles.ai)
+2. Generate an API key
+3. Add it to `.env.local`:
+```env
+GISELLE_AGENT_API_KEY=<your-api-key>
 ```
+
+#### 3. Ask your coding agent to generate the starter app
+
+```text
+Use the build-giselle-agent skill to build a Vercel-hosted OpenClaw-like sandbox agent app.
+Keep it minimal and inspectable: chat flow, files in ./workspace, and artifact outputs under ./artifacts.
+```
+
+### Manual SDK setup (advanced)
 
 ### Usage
 
-See [./apps/minimum-demo](./apps/minimum-demo) for a complete runnable example.
+See [Getting Started](./docs/01-getting-started/01-01-getting-started.md) for manual SDK wiring.
 
 #### Define Agent
 
@@ -108,7 +119,7 @@ const { status, messages, error, sendMessage, addToolOutput } = useChat({
 });
 
 browserTool.connect(addToolOutput);
-````
+```
 
 ### Features
 

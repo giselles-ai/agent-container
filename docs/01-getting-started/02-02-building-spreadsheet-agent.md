@@ -4,9 +4,9 @@ In this tutorial you'll build a spreadsheet app where an AI agent can **read, re
 
 This is a great way to see browser tools in action: the agent snapshots your page, finds the inputs, and fills them one by one.
 
-For an output-centric example using downloadable `./artifacts/` files, see
-`examples/workspace-report-demo`. It demonstrates file-scanning and download links
-from `/agent-api/files` instead of hardcoded paths.
+For an output-centric pattern using downloadable `./artifacts/` files and
+`/agent-api/files`, use this same artifact convention in your own app and add
+the minimal download wiring for the files your agent generates.
 
 > **Prerequisites:** Make sure you've completed the [Getting Started](./getting-started.md) guide — you should have packages installed and your API key set up.
 
@@ -417,7 +417,8 @@ A small touch that makes a big difference — show a shimmer over the grid while
 }
 ```
 
-Then overlay a shimmer `<div>` on the grid when `isBusy` is true. See the [full source](../apps/minimum-demo/app/page.tsx) for the styled version.
+Then overlay a shimmer `<div>` on the grid when `isBusy` is true. Keep the CSS
+near the grid component so the diff stays local and easy to review.
 
 ---
 
@@ -450,5 +451,3 @@ Here's everything we added on top of a bare Next.js project:
 | `app/chat/route.ts` | API route that streams agent responses with `streamText` and `browserTools` |
 | `app/page.tsx` | Spreadsheet grid with `data-browser-tool-id` on every cell + chat panel with `useChat` and `useBrowserToolHandler` |
 | `app/globals.css` | Shimmer animation keyframe |
-
-The full styled source is in [`apps/minimum-demo`](../apps/minimum-demo).

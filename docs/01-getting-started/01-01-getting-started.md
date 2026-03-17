@@ -5,6 +5,27 @@ By the end of this guide your app will have a CLI agent (Gemini CLI or Codex CLI
 
 ---
 
+## Recommended path: skill-first scaffold
+
+The release lane for this repo starts with `build-giselle-agent` so your app can be shaped quickly, then evolved with reviewable diffs.
+
+Install this repo as a skill:
+
+```bash
+npx skills add giselles-ai/agent-container
+```
+
+Then use your coding agent with a minimal starter prompt:
+
+```text
+Use the build-giselle-agent skill to build a Vercel app with:
+- a chat entrypoint
+- file outputs under ./artifacts
+- clear workspace state so work can be reviewed as files and diffs
+```
+
+The rest of this guide is the manual SDK setup path if you prefer direct wiring.
+
 ## Prerequisites
 
 - Node.js 20+
@@ -13,7 +34,7 @@ By the end of this guide your app will have a CLI agent (Gemini CLI or Codex CLI
 
 ---
 
-## Step 1 — Install packages
+## Step 1 — Install packages (manual setup)
 
 Add the Giselle Agent SDK and Vercel AI SDK to your project:
 
@@ -101,7 +122,7 @@ Downloads come from the Agent API:
 GET /agent-api/files?chat_id=<chat_id>&path=<artifact_path>
 ```
 
-This is what the workspace report demo uses to render downloadable cards in the UI.
+This is the convention to use for file-based outputs so users can retrieve structured results from the UI.
 
 ### Passing environment variables
 

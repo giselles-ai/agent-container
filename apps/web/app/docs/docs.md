@@ -135,6 +135,18 @@ When you use the skill for updates, the recommended flow is:
 
 This keeps the update process understandable. The app does not get silently replaced. You can review the exact file changes first, then decide whether to ship them.
 
+### Concrete path: file-oriented + diff-first workflow
+
+Use this order for the release lane:
+
+1. Start with the first-time onboarding in this section (`npx skills add`, API key, starter build prompt).
+2. Move to file-orientation in:
+   - [docs/01-getting-started/01-01-getting-started.md](https://github.com/route06/giselle-division/blob/main/docs/01-getting-started/01-01-getting-started.md)
+   - [docs/01-getting-started/02-02-building-spreadsheet-agent.md](https://github.com/route06/giselle-division/blob/main/docs/01-getting-started/02-02-building-spreadsheet-agent.md)
+3. Update iteratively through `build-giselle-agent` and only accept changes after reviewing a diff.
+
+This keeps the product story tangible: prompts lead to files in the workspace, and changes stay reviewable as concrete diffs.
+
 ## File and persistence model
 
 If you are building on top of this runtime, explain it in file terms, not only in model terms.
@@ -170,27 +182,19 @@ The important product message is simple:
 
 ## Guides
 
-If you are using Giselle Sandbox Agent as a builder, these are the next guide tracks that matter after the core concepts and first setup.
+If you are using Giselle Sandbox Agent as a builder, use this path:
 
-### Personal Assistant Setup
+### File-oriented track
 
-This guide should walk through building a practical assistant with:
+- [docs/01-getting-started/01-01-getting-started.md](https://github.com/route06/giselle-division/blob/main/docs/01-getting-started/01-01-getting-started.md) for the manual SDK wiring.
+- [docs/01-getting-started/02-02-building-spreadsheet-agent.md](https://github.com/route06/giselle-division/blob/main/docs/01-getting-started/02-02-building-spreadsheet-agent.md) for a file-oriented tutorial and browser tool loop.
 
-- a real workspace
-- reusable tools
-- visible files and artifacts
-- app-rendered UI
-- a persistence story users can trust
+### Diff-first update track
 
-The goal is not to demo chat. The goal is to help builders create an assistant that produces work people can keep.
+For every iteration, keep changes reviewable:
 
-### Builder skill guide
+- ask for one concrete capability improvement
+- ask the skill to show a minimal patch/diff first
+- apply the diff intentionally and validate before the next change
 
-This guide should explain how builders can evolve an already-generated agent using a builder-oriented workflow.
-
-It should cover:
-
-- how to inspect the current workspace
-- how to add capabilities through normal files
-- how to review changes as git diffs
-- how to keep the runtime and product story aligned as the implementation grows
+Use the update templates above to enforce this rhythm.
