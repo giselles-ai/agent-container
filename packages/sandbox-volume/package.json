@@ -1,0 +1,38 @@
+{
+	"name": "@giselles-ai/sandbox-volume",
+	"version": "0.1.27",
+	"type": "module",
+	"sideEffects": false,
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/giselles-ai/agent-container.git",
+		"directory": "packages/sandbox-volume"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "pnpm clean && tsup --config tsup.ts",
+		"clean": "rm -rf dist *.tsbuildinfo",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "pnpm exec vitest run",
+		"format": "pnpm exec biome check --write ."
+	},
+	"dependencies": {
+		"@vercel/sandbox": "1.8.1"
+	},
+	"devDependencies": {
+		"@types/node": "25.3.0",
+		"tsup": "8.5.1",
+		"typescript": "5.9.3",
+		"vitest": "4.0.18"
+	}
+}
