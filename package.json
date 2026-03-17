@@ -19,7 +19,7 @@
 		"cli:release": "node sandbox-agent/scripts/release-cli.mjs"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.4.6",
+		"@biomejs/biome": "2.4.7",
 		"@types/node": "25.0.10",
 		"knip": "^5.83.1",
 		"turbo": "2.8.7",
