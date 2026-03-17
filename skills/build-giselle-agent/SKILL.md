@@ -1,233 +1,130 @@
 ---
 name: build-giselle-agent
 description: >
-  Build AI-agent-powered Next.js apps with Giselle Agent SDK. Use when developers want to
-  (1) add an AI agent to a Next.js app,
-  (2) create a browser-tool-powered agent that interacts with the page,
-  (3) set up Giselle Agent SDK with useChat, streamText, and browser tools,
-  (4) scaffold agent definition, chat route, and UI with data-browser-tool-id.
-  Triggers on "giselle agent", "build agent", "add agent to my app",
-  "AI agent in Next.js", "browser tool agent", "spreadsheet agent".
+  Build and evolve Giselle Sandbox Agent apps on Next.js. Use when developers want
+  to scaffold a new OpenClaw-like agent experience on Vercel, build workspace/artifact
+  flows, add browser-tool interactions, or update an existing agent through reviewable
+  file diffs. Triggers on "giselle sandbox agent", "build agent app", "workspace artifacts",
+  "browser tool agent", "artifact download", and "update agent by diff".
 ---
 
-# Build a Giselle Agent
+# Build and Update Giselle Sandbox Agent
 
-Scaffold an AI-agent-powered Next.js app using Giselle Agent SDK. This skill interviews the developer about their use case, then generates all necessary files.
+Use this skill to help developers ship agent products that are legible, file-oriented, and easy to evolve.
 
-## Critical: Read the bundled reference docs
+The current quality bar is:
 
-Before generating any code, read the reference docs bundled with this skill:
+- OpenClaw-like UX on Vercel
+- visible files, workspace state, and artifacts
+- snapshot-based continuity
+- updates that land as normal file diffs
 
-```
-reference/getting-started.md     — Full setup walkthrough (packages, config, route, UI)
-reference/architecture.md        — How the system works (provider, sandbox, browser tools, relay)
-reference/spreadsheet-agent.md   — Complete example: a spreadsheet agent with browser tools
-```
+## Read in this order
 
-**Always read `reference/getting-started.md` first** — it defines the canonical file structure and API usage.
+Read only what you need.
+
+1. `reference/current-capabilities.md`
+2. `reference/build-quickstart.md`
+3. `reference/build-recipes.md`
+4. `reference/snippets.md`
+5. If the user is modifying an existing app, also read `reference/update-playbook.md`
 
 ## Workflow
 
-### Phase 1: Hearing
+### 1. Determine the job shape
 
-Ask the developer the following questions **one at a time**, waiting for each answer before asking the next. Adapt your follow-up questions based on their answers.
+Figure out whether the user wants one of these:
 
-**Q1 — App overview**
-"What kind of app are you building? (e.g., spreadsheet, form, dashboard, todo list, quiz, configurator…)"
+- a new app
+- an update to an existing agent app
+- a docs or positioning refresh around an existing app
 
-**Q2 — Agent behavior**
-"What should the agent do? Describe the main task in one or two sentences. (e.g., 'Research topics and fill the spreadsheet', 'Help the user fill out a complex form step by step', 'Generate quiz questions and populate the UI')"
+If the user already named an example or product shape, do not ask broad discovery questions again. Move straight to the closest recipe.
 
-**Q3 — Interactive elements**
-"What UI elements should the agent be able to see and interact with? List the key inputs, buttons, or selects. (e.g., 'A grid of text inputs for a 10x6 spreadsheet', 'Name, email, and plan select fields', 'Question text and four answer option inputs')"
+### 2. Intake only what is necessary
 
-**Q4 — Agent type**
-"Which agent runtime? `gemini` (Gemini CLI) or `codex` (Codex CLI)? Default is `gemini`."
+When details are missing, ask only the minimum needed to build the right thing:
 
-**Q5 — Additional constraints** (optional)
-"Any specific tone, rules, or constraints for the agent? (e.g., 'Always respond in Japanese', 'Never modify header cells', 'Keep answers under 50 words'). Skip if none."
+1. App pattern
+   Choices: `workspace-report`, `agent-inbox`, `browser-tool`, or a custom variation
+2. Agent runtime
+   Choices: `codex` or `gemini`
+3. Surface
+   Choices: `web-only` or `web + Slack`
+4. File expectations
+   Clarify whether artifact downloads or visible file lists are required
+5. Scope
+   Clarify whether this is a fresh build or a diff-first update
 
-### Phase 2: Generate
+If a reasonable default is obvious from the repo context, use it and keep going.
 
-After hearing is complete, generate the following files. Adapt each file based on the hearing answers.
+### 3. Build from a recipe, not from scratch
 
-#### 1. Install packages
+Prefer one of the concrete recipes in `reference/build-recipes.md`:
 
-If packages are not already installed, tell the developer to run:
+- `workspace-report`: best when the product story is files, artifacts, and downloads
+- `agent-inbox`: best when the product story is a real chat app surface
+- `browser-tool`: best when the product story is explicit DOM interaction
 
-```bash
-pnpm add @giselles-ai/agent @giselles-ai/browser-tool @giselles-ai/giselle-provider ai @ai-sdk/react
-```
+The recipe should drive the implementation shape. Do not invent a new structure unless the user's request truly does not fit any recipe.
 
-#### 2. API key setup
+### 4. Required implementation pieces
 
-Before generating code, make sure the developer has an API key. Walk them through:
+For any new app, make sure the result includes the core runtime wiring:
 
-1. **Create an account** at [studio.giselles.ai](https://studio.giselles.ai)
-2. **Navigate to API keys** — go to Settings → API Keys (or the API key management page)
-3. **Generate a new API key** — click "Create API Key", give it a name (e.g., the project name), and copy the key
-4. **Create `.env.local`** in the project root:
+- `defineAgent(...)` in `lib/agent.ts`
+- `withGiselleAgent(...)` in `next.config.ts`
+- a chat route that uses `giselle({ agent })` with AI SDK streaming
+- a UI that makes the runtime understandable to the end user
 
-```env
-GISELLE_AGENT_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
-```
+Use `reference/snippets.md` for canonical patterns instead of re-deriving them.
 
-> **Important:** The key starts with `gsk_`. If the developer doesn't have an account yet, they need to sign up first. The Cloud API at `studio.giselles.ai` is the default — no additional URL configuration is needed.
+### 5. Preserve the product story
 
-If the developer already has a key or `.env.local`, confirm and move on.
+The app should make these ideas clear when relevant:
 
-#### 3. `lib/agent.ts` — Agent definition
+- Files created by the agent are real outputs, not just implied chat state.
+- Working inputs belong in the workspace; user-facing deliverables belong in `./artifacts/`.
+- The runtime is a real sandbox, not an invisible black box.
+- Snapshots preserve continuity after sandbox expiration.
 
-Generate the `agentMd` based on the hearing answers. The agent prompt MUST include:
+If the current request would produce a chat-only experience with no visible file or artifact story, call that out and propose the smallest improvement that fixes it.
 
-- **Role description** — Who the agent is, in the context of this specific app.
-- **Page Structure** — What UI elements exist and how they're laid out. Reference the `data-browser-tool-id` naming convention used in the UI.
-- **How to Work** — Step-by-step workflow: understand → plan → snapshot → fill/interact → verify.
-- **Important** — Constraints and rules (always act, don't just describe; keep labels short; etc.).
+### 6. When browser tools are involved
 
-Use `defineAgent()` from `@giselles-ai/agent`:
+If the agent needs to inspect or manipulate the DOM:
 
-```ts
-import { defineAgent } from "@giselles-ai/agent";
+- use `@giselles-ai/browser-tool`
+- wire `useBrowserToolHandler()`
+- add predictable `data-browser-tool-id` values
+- describe those UI structures precisely in `agentMd`
 
-const agentMd = `
-<generated from hearing>
-`;
+Do not add browser-tool complexity to apps that do not need it.
 
-export const agent = defineAgent({
-  agentType: "<gemini or codex>",
-  agentMd,
-});
-```
+### 7. Updating an existing app
 
-**Key principle for agentMd:** The agent runs in a cloud sandbox and cannot see the UI directly. The prompt must describe the page structure precisely — what elements exist, their `data-browser-tool-id` patterns, and what the agent should do with them. Think of it as briefing a remote contractor who can only interact through `getFormSnapshot` and `executeFormActions`.
+When the user asks to evolve an existing agent app:
 
-#### 4. `next.config.ts` — Wrap with plugin
+1. Inspect the current files and summarize the baseline briefly.
+2. Pick the smallest diff that accomplishes the requested change.
+3. Preserve the existing product shape unless the user wants a larger redesign.
+4. Keep workspace/artifact visibility intact while expanding capabilities.
+5. Verify with build, typecheck, and any targeted tests that fit the scope.
 
-If the project already has a `next.config.ts`, wrap the existing export:
+Read `reference/update-playbook.md` before making non-trivial updates.
 
-```ts
-import { withGiselleAgent } from "@giselles-ai/agent/next";
-import type { NextConfig } from "next";
-import { agent } from "./lib/agent";
+### 8. Output contract
 
-const nextConfig: NextConfig = {
-  /* existing config */
-};
+Always return:
 
-export default withGiselleAgent(nextConfig, agent);
-```
-
-#### 5. `app/chat/route.ts` — Chat API route
-
-This is mostly boilerplate. Generate it as-is:
-
-```ts
-import { type BrowserTools, browserTools } from "@giselles-ai/browser-tool";
-import { giselle } from "@giselles-ai/giselle-provider";
-import {
-  consumeStream,
-  convertToModelMessages,
-  type InferUITools,
-  streamText,
-  type UIMessage,
-  validateUIMessages,
-} from "ai";
-import { agent } from "../../lib/agent";
-
-export async function POST(request: Request): Promise<Response> {
-  const body = await request.json();
-  const sessionId = body.id ?? crypto.randomUUID();
-
-  const messages = await validateUIMessages<
-    UIMessage<never, never, InferUITools<BrowserTools>>
-  >({
-    messages: body.messages,
-    tools: browserTools,
-  });
-
-  const result = streamText({
-    model: giselle({ agent }),
-    messages: await convertToModelMessages(messages),
-    tools: browserTools,
-    providerOptions: {
-      giselle: { sessionId },
-    },
-    abortSignal: request.signal,
-  });
-
-  return result.toUIMessageStreamResponse({
-    headers: { "x-giselle-session-id": sessionId },
-    consumeSseStream: consumeStream,
-  });
-}
-```
-
-#### 6. `app/page.tsx` — UI with browser tools
-
-Generate a page that includes:
-
-1. **Interactive elements with `data-browser-tool-id`** — Every element the agent should interact with MUST have this attribute. Use a predictable naming convention (e.g., `header-{i}`, `cell-{row}-{col}`, `field-name`, `submit-btn`).
-2. **`useBrowserToolHandler`** — From `@giselles-ai/browser-tool/react`.
-3. **`useChat`** — From `@ai-sdk/react`, configured with:
-   - `transport: new DefaultChatTransport({ api: "/chat" })`
-   - `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls`
-   - `...browserTool` spread
-4. **`browserTool.connect(addToolOutput)`** — Bridges tool calls to the DOM.
-5. **Chat message rendering** — Show text parts and tool call status with `isToolUIPart`.
-
-```tsx
-"use client";
-
-import { useChat } from "@ai-sdk/react";
-import { useBrowserToolHandler } from "@giselles-ai/browser-tool/react";
-import {
-  DefaultChatTransport,
-  isToolUIPart,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
-import { useState } from "react";
-
-export default function Home() {
-  const browserTool = useBrowserToolHandler();
-
-  const { status, messages, sendMessage, addToolOutput } = useChat({
-    transport: new DefaultChatTransport({ api: "/chat" }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    ...browserTool,
-  });
-
-  browserTool.connect(addToolOutput);
-
-  const isBusy = status === "submitted" || status === "streaming";
-
-  // ... render interactive UI with data-browser-tool-id attributes
-  // ... render chat panel with messages
-}
-```
-
-Adapt the UI structure to match the developer's app description from the hearing. For example:
-- **Spreadsheet app** → grid of `<input>` elements with `cell-{row}-{col}` IDs
-- **Form app** → labeled `<input>` and `<select>` elements with descriptive IDs like `field-name`, `field-email`
-- **Quiz app** → question display + answer `<input>` elements with `question-{i}`, `answer-{i}-{j}` IDs
-
-### Phase 3: Verify
-
-After generating all files, tell the developer to:
-
-1. Run `pnpm dev`
-2. Confirm they see the Giselle Agent build output:
-   ```
-   ✦ Giselle Agent
-   ✓ Authenticated
-   ✓ Building...
-   ✓ Ready
-   ```
-3. Open the app and send a test message to the agent.
+1. Which files changed
+2. Why those changes exist
+3. What verification was run
+4. What the next safe iteration would be
 
 ## Important rules
 
-- **Never skip the hearing phase.** Even if the developer says "just build a spreadsheet agent", ask the questions to confirm details and customize the agentMd.
-- **The agentMd is the most important output.** Spend effort making it specific and actionable. A vague prompt like "You are a helpful assistant" will produce a bad agent. Reference the spreadsheet example in `reference/spreadsheet-agent.md` for the quality bar.
-- **Always use `data-browser-tool-id`.** Elements without this attribute are invisible to the agent. Make sure the naming convention is predictable and documented in the agentMd.
-- **Match the project's existing style.** Check if the project uses Tailwind, CSS modules, or plain CSS. Check the existing `next.config.ts` structure before modifying it.
+- Prefer the repo's current docs and examples over stale memory.
+- Do not default to a spreadsheet app. Choose the recipe that best matches the user's product story.
+- Treat artifact download and file visibility as first-class product features, not optional afterthoughts, when the use case depends on trust and inspectability.
+- Keep `SKILL.md` procedural and lean. Put details in references.

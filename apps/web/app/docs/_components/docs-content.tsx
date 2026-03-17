@@ -66,10 +66,23 @@ export function DocsContent({ content }: { content: string }) {
 						{children}
 					</p>
 				),
+				ol: ({ children }) => (
+					<ol className="space-y-3 pl-5 text-[15px] leading-8 text-muted sm:text-base">
+						{children}
+					</ol>
+				),
 				ul: ({ children }) => (
 					<ul className="space-y-3 pl-5 text-[15px] leading-8 text-muted sm:text-base">
 						{children}
 					</ul>
+				),
+				strong: ({ children }) => (
+					<strong className="font-semibold text-text">{children}</strong>
+				),
+				blockquote: ({ children }) => (
+					<blockquote className="border-l border-brand/50 pl-4 text-[15px] leading-8 text-text/88 sm:text-base">
+						{children}
+					</blockquote>
 				),
 				a: ({ href, children }) => (
 					<Link
