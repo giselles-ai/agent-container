@@ -25,6 +25,13 @@ import type {
 	WorkspaceTransaction as WorkspaceTransactionHandle,
 	WorkspaceTransactionOptions,
 } from "./types";
+import {
+	WorkspaceLockAcquisitionError,
+	WorkspaceLockConflictError,
+	WorkspaceLockError,
+	WorkspaceLockReleaseError,
+	WorkspaceLockStaleError,
+} from "./types";
 
 interface WorkspaceTransactionInit {
 	key: string;
@@ -33,6 +40,10 @@ interface WorkspaceTransactionInit {
 	mountPath: string;
 	lock?: LockMode;
 	pathRules?: StoragePathRules | null;
+}
+
+interface CommitOptions {
+	force?: boolean;
 }
 
 export class WorkspaceTransaction implements WorkspaceTransactionHandle {
@@ -97,8 +108,7 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 					"StorageAdapter requires acquireLock and releaseLock for locking.",
 				);
 			}
-
-			this.#lock = await this.#adapter.acquireLock(this.#key, lockMode);
+			this.#lock = await this.#acquireLock(lockMode);
 		}
 
 		try {
@@ -129,6 +139,45 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 		}
 	}
 
+	async #acquireLock(lockMode: LockMode): Promise<StorageLock> {
+		if (!this.#adapter.acquireLock) {
+			throw new Error(
+				"StorageAdapter requires acquireLock to perform locking.",
+			);
+		}
+
+		try {
+			return await this.#adapter.acquireLock(this.#key, lockMode);
+		} catch (error) {
+			if (
+				error instanceof WorkspaceLockConflictError ||
+				(error instanceof WorkspaceLockError && error.code === "conflict")
+			) {
+				throw error;
+			}
+
+			if (
+				error instanceof WorkspaceLockAcquisitionError ||
+				error instanceof WorkspaceLockStaleError
+			) {
+				throw error;
+			}
+
+			if (error instanceof WorkspaceLockError) {
+				throw new WorkspaceLockAcquisitionError(this.#key, lockMode, error);
+			}
+
+			if (
+				error instanceof Error &&
+				/(already|held|conflict|exists)/i.test(error.message)
+			) {
+				throw new WorkspaceLockConflictError(this.#key, lockMode, error);
+			}
+
+			throw new WorkspaceLockAcquisitionError(this.#key, lockMode, error);
+		}
+	}
+
 	async diff(): Promise<WorkspaceDiff> {
 		await this.open();
 
@@ -145,6 +194,16 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 	}
 
 	async commit(): Promise<WorkspaceCommitResult> {
+		return this.#commitWithOptions();
+	}
+
+	async rewrite(): Promise<WorkspaceCommitResult> {
+		return this.#commitWithOptions({ force: true });
+	}
+
+	async #commitWithOptions(
+		options: CommitOptions = {},
+	): Promise<WorkspaceCommitResult> {
 		await this.open();
 		const scannedFiles = await this.#scan();
 		const manifest = buildManifest(
@@ -154,8 +213,9 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 			})),
 		);
 		const diff = diffManifests(this.#key, this.#baselineManifest, manifest);
+		const shouldPersist = options.force || hasChanges(diff);
 
-		if (!hasChanges(diff)) {
+		if (!shouldPersist) {
 			return {
 				key: this.#key,
 				committed: false,
@@ -214,7 +274,32 @@ export class WorkspaceTransaction implements WorkspaceTransactionHandle {
 
 		const lock = this.#lock;
 		this.#lock = null;
-		await this.#adapter.releaseLock?.(lock);
+		try {
+			await this.#adapter.releaseLock?.(lock);
+		} catch (error) {
+			if (error instanceof WorkspaceLockStaleError) {
+				throw error;
+			}
+
+			if (
+				error instanceof WorkspaceLockReleaseError ||
+				error instanceof WorkspaceLockError
+			) {
+				throw new WorkspaceLockReleaseError(
+					lock.key,
+					lock.mode,
+					lock.leaseId,
+					error,
+				);
+			}
+
+			throw new WorkspaceLockReleaseError(
+				lock.key,
+				lock.mode,
+				lock.leaseId,
+				error,
+			);
+		}
 	}
 
 	#filterManifestByRules(manifest: WorkspaceManifest): WorkspaceManifest {

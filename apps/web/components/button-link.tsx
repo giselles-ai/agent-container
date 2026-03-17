@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ComponentPropsWithoutRef } from "react";
-import { getButtonClassName, type ButtonVariant } from "./styles/button-styles";
+import { type ButtonVariant, getButtonClassName } from "./styles/button-styles";
 
 type ButtonLinkProps = ComponentPropsWithoutRef<typeof Link> & {
 	variant?: ButtonVariant;
@@ -12,9 +12,6 @@ export function ButtonLink({
 	...props
 }: ButtonLinkProps) {
 	return (
-		<Link
-			className={getButtonClassName({ className, variant })}
-			{...props}
-		/>
+		<Link className={getButtonClassName({ className, variant })} {...props} />
 	);
 }

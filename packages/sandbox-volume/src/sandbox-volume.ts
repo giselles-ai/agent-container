@@ -121,4 +121,44 @@ export class SandboxVolume {
 
 		return commitResult;
 	}
+
+	async rewrite(
+		sandbox: Sandbox,
+		options: MountOptions = {},
+	): Promise<WorkspaceCommitResult> {
+		const tx = await this.begin(sandbox, options);
+		let rewriteError: unknown = null;
+		let rewriteResult: WorkspaceCommitResult | undefined;
+
+		try {
+			rewriteResult = await tx.rewrite();
+		} catch (error) {
+			rewriteError = error;
+		}
+
+		try {
+			await tx.close();
+		} catch (closeError) {
+			if (rewriteError === null) {
+				rewriteError = closeError;
+			}
+		}
+
+		if (rewriteError !== null) {
+			throw rewriteError;
+		}
+
+		if (rewriteResult === undefined) {
+			throw new Error("Unexpected state: rewrite did not return a result.");
+		}
+
+		return rewriteResult;
+	}
+
+	async resync(
+		sandbox: Sandbox,
+		options: MountOptions = {},
+	): Promise<WorkspaceCommitResult> {
+		return this.rewrite(sandbox, options);
+	}
 }

@@ -7,6 +7,7 @@ import type {
 } from "../adapters/types";
 import { createEmptyManifest } from "../manifest";
 import { SandboxVolume } from "../sandbox-volume";
+import { WorkspaceLockConflictError, WorkspaceLockStaleError } from "../types";
 
 type MockCommandResult = {
 	exitCode: number;
@@ -118,6 +119,79 @@ class LockingAdapter implements StorageAdapter {
 	}
 }
 
+class AlwaysConflictAdapter implements StorageAdapter {
+	public events: string[] = [];
+
+	async loadWorkspace(): Promise<StorageLoadResult | null> {
+		this.events.push("loadWorkspace");
+		return null;
+	}
+
+	async saveWorkspace(): Promise<{
+		updatedAt: Date;
+		key: string;
+		version: number;
+	}> {
+		this.events.push("saveWorkspace");
+		return {
+			updatedAt: new Date("2026-03-17T00:00:00Z"),
+			key: "repo/mount-conflict",
+			version: 1,
+		};
+	}
+
+	async acquireLock(): Promise<StorageLock> {
+		this.events.push("acquire:exclusive");
+		throw new WorkspaceLockConflictError("repo/mount-conflict", "exclusive");
+	}
+
+	async releaseLock(): Promise<void> {
+		this.events.push("release");
+	}
+}
+
+class StaleReleaseAdapter implements StorageAdapter {
+	public events: string[] = [];
+	private readonly lock: StorageLock = {
+		key: "repo/mount-stale",
+		leaseId: "stale:lease",
+		acquiredAt: new Date("2026-03-17T00:00:00Z"),
+		mode: "exclusive",
+	};
+
+	async loadWorkspace(): Promise<StorageLoadResult | null> {
+		this.events.push("loadWorkspace");
+		return null;
+	}
+
+	async saveWorkspace(): Promise<{
+		updatedAt: Date;
+		key: string;
+		version: number;
+	}> {
+		this.events.push("saveWorkspace");
+		return {
+			updatedAt: new Date("2026-03-17T00:00:00Z"),
+			key: this.lock.key,
+			version: 1,
+		};
+	}
+
+	async acquireLock(): Promise<StorageLock> {
+		this.events.push("acquire:exclusive");
+		return { ...this.lock };
+	}
+
+	async releaseLock(): Promise<void> {
+		this.events.push(`release:${this.lock.leaseId}`);
+		throw new WorkspaceLockStaleError(
+			this.lock.key,
+			this.lock.mode,
+			this.lock.leaseId,
+		);
+	}
+}
+
 describe("mount", () => {
 	it("acquires and releases lock in success path with implicit commit", async () => {
 		const sandbox = createMockSandbox();
@@ -208,5 +282,39 @@ describe("mount", () => {
 			"loadWorkspace",
 			"release:lease:repo/close-idempotent",
 		]);
+	});
+
+	it("propagates conflict as WorkspaceLockConflictError", async () => {
+		const sandbox = createMockSandbox();
+		const adapter = new AlwaysConflictAdapter();
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/mount-conflict",
+			defaultLockMode: "exclusive",
+		});
+
+		await expect(
+			volume.begin(sandbox as unknown as Sandbox),
+		).rejects.toBeInstanceOf(WorkspaceLockConflictError);
+
+		expect(adapter.events).toEqual(["acquire:exclusive"]);
+	});
+
+	it("surfaces stale lock errors from release when callback succeeds", async () => {
+		const sandbox = createMockSandbox();
+		const adapter = new StaleReleaseAdapter();
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/mount-stale",
+			defaultLockMode: "exclusive",
+		});
+
+		await expect(
+			volume.mount(sandbox as unknown as Sandbox, async () => {
+				expect(adapter.events).toEqual(["acquire:exclusive", "loadWorkspace"]);
+			}),
+		).rejects.toBeInstanceOf(WorkspaceLockStaleError);
+
+		expect(adapter.events).toContain("release:stale:lease");
 	});
 });

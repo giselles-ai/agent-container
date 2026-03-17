@@ -56,9 +56,7 @@ export function DocsNav({ entries }: { entries: TocEntry[] }) {
 								className={[
 									"block rounded-lg py-1.5 transition",
 									entry.level === 3 ? "pl-4 text-[13px]" : "pl-0 text-sm",
-									isActive
-										? "text-text"
-										: "text-muted hover:text-text",
+									isActive ? "text-text" : "text-muted hover:text-text",
 								].join(" ")}
 							>
 								{entry.text}

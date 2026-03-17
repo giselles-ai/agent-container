@@ -2,6 +2,11 @@ export {
 	createMemoryStorageAdapter,
 	InMemoryStorageAdapter,
 } from "./adapters/memory";
+
+export {
+	createVercelBlobStorageAdapter,
+	VercelBlobStorageAdapter,
+} from "./adapters/vercel-blob";
 export type {
 	WorkspaceDiff as ManifestDiff,
 	WorkspaceManifestEntry,
@@ -34,8 +39,16 @@ export type {
 	WorkspaceFileChange,
 	WorkspaceFileChangeKind,
 	WorkspaceFileEntry,
+	WorkspaceLockErrorCode,
 	WorkspaceManifest,
 	WorkspacePayload,
 	WorkspaceTransactionOptions,
 	WorkspaceTransactionResult,
+} from "./types";
+export {
+	WorkspaceLockAcquisitionError,
+	WorkspaceLockConflictError,
+	WorkspaceLockError,
+	WorkspaceLockReleaseError,
+	WorkspaceLockStaleError,
 } from "./types";

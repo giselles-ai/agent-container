@@ -140,10 +140,10 @@ export default function HomePage() {
 						</h1>
 
 						<p className="fade-up fade-up-delay-2 mt-5 max-w-3xl leading-7 text-muted">
-							Run agents that chat, use tools, create files, and return UI inside
-							your Vercel app. The point is not only capability. The point is
-							legibility: people can understand the workspace, inspect the output,
-							and trust how the runtime persists.
+							Run agents that chat, use tools, create files, and return UI
+							inside your Vercel app. The point is not only capability. The
+							point is legibility: people can understand the workspace, inspect
+							the output, and trust how the runtime persists.
 						</p>
 
 						<div className="mt-9 flex flex-wrap items-center gap-3">
@@ -172,12 +172,12 @@ export default function HomePage() {
 						</div>
 					</div>
 
-						<div className="panel-strong rounded-sm p-5">
+					<div className="panel-strong rounded-sm p-5">
 						<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
 							Why people trust this
 						</p>
 						<div className="mt-5 space-y-4">
-								<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
+							<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
 								<p className="font-mono text-[11px] uppercase tracking-[0.28em] text-brand">
 									Workspace
 								</p>
@@ -186,7 +186,7 @@ export default function HomePage() {
 									output is inspectable instead of implied.
 								</p>
 							</div>
-								<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
+							<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
 								<p className="font-mono text-[11px] uppercase tracking-[0.28em] text-brand">
 									Sandbox
 								</p>
@@ -195,13 +195,13 @@ export default function HomePage() {
 									about, not an invisible agent black box.
 								</p>
 							</div>
-								<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
+							<div className="rounded-sm border border-white/10 bg-white/[0.03] p-4">
 								<p className="font-mono text-[11px] uppercase tracking-[0.28em] text-brand">
 									Snapshot
 								</p>
 								<p className="mt-2 text-sm leading-7 text-text">
-									Latest state can be restored from snapshots even after the live
-									sandbox expires.
+									Latest state can be restored from snapshots even after the
+									live sandbox expires.
 								</p>
 							</div>
 						</div>
@@ -243,7 +243,7 @@ export default function HomePage() {
 						</div>
 						<div className="grid gap-6 md:grid-cols-3">
 							{trustSignals.map((item) => (
-									<div key={item.title} className="panel rounded-sm p-6">
+								<div key={item.title} className="panel rounded-sm p-6">
 									<h2 className="text-xl font-semibold tracking-[-0.02em] text-text">
 										{item.title}
 									</h2>
@@ -267,7 +267,10 @@ export default function HomePage() {
 						</div>
 						<div className="grid gap-6 md:grid-cols-3">
 							{practicalFlows.map((item) => (
-								<div key={item.title} className="rounded-sm border border-white/10 p-6">
+								<div
+									key={item.title}
+									className="rounded-sm border border-white/10 p-6"
+								>
 									<h2 className="text-xl font-semibold tracking-[-0.02em] text-text">
 										{item.title}
 									</h2>

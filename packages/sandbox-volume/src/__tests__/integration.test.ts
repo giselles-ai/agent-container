@@ -1,8 +1,12 @@
 import type { Sandbox } from "@vercel/sandbox";
 import { describe, expect, it } from "vitest";
-
-import { createMemoryStorageAdapter } from "../adapters/memory";
-import { SandboxVolume } from "../sandbox-volume";
+import {
+	createMemoryStorageAdapter,
+	createVercelBlobStorageAdapter,
+	SandboxVolume,
+	VercelBlobStorageAdapter,
+	WorkspaceLockConflictError,
+} from "../index";
 
 type MockCommandResult = {
 	exitCode: number;
@@ -196,7 +200,7 @@ describe("memory adapter integration", () => {
 		await tx3.close();
 	});
 
-	it("keeps out-of-scope historical entries until a scoped commit rewrites state", async () => {
+	it("keeps out-of-scope historical entries until a scoped rewrite/resync", async () => {
 		const adapter = createMemoryStorageAdapter();
 		const allFilesKey = "repo/filter-caveat";
 		const sourceVolume = await SandboxVolume.create({
@@ -256,5 +260,104 @@ describe("memory adapter integration", () => {
 		]);
 
 		await scopedTx.close();
+
+		const rewrittenSandbox = createMockSandbox();
+		rewrittenSandbox.setFileState({
+			"/workspace/package.json": '{"name":"caveat"}',
+			"/workspace/src/index.ts": "console.log('kept')",
+		});
+		const rewriteResult = await scopedVolume.rewrite(
+			rewrittenSandbox as unknown as Sandbox,
+		);
+		expect(rewriteResult.committed).toBe(true);
+		expect(rewriteResult.diff).toEqual({
+			key: allFilesKey,
+			kind: "no-op",
+			changes: [],
+		});
+
+		const rewrittenState = adapter.store.get(allFilesKey);
+		expect(rewrittenState).toBeDefined();
+		expect(rewrittenState?.files.map((entry) => entry.path).sort()).toEqual([
+			"package.json",
+			"src/index.ts",
+		]);
+
+		const resyncSandbox = createMockSandbox();
+		resyncSandbox.setFileState({
+			"/workspace/package.json": '{"name":"caveat"}',
+			"/workspace/src/index.ts": "console.log('kept')",
+		});
+		const resyncResult = await scopedVolume.resync(
+			resyncSandbox as unknown as Sandbox,
+		);
+		expect(resyncResult.committed).toBe(true);
+	});
+
+	it("is fully usable through package public exports", async () => {
+		const exportedBlobAdapter = createVercelBlobStorageAdapter({
+			token: "test-token",
+		});
+		expect(exportedBlobAdapter).toBeInstanceOf(VercelBlobStorageAdapter);
+
+		const explicitError = new WorkspaceLockConflictError(
+			"repo/public",
+			"exclusive",
+		);
+		expect(explicitError.code).toBe("conflict");
+
+		const adapter = createMemoryStorageAdapter();
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/public-exported",
+			include: ["src/**", "package.json"],
+			exclude: ["src/generated/**"],
+		});
+
+		const sandbox = createMockSandbox();
+		await volume.mount(sandbox as unknown as Sandbox, async () => {
+			sandbox.setFileState({
+				"/workspace/package.json": '{"name":"public"}',
+				"/workspace/src/index.ts": "console.log('public')",
+				"/workspace/src/generated/cache.ts": "ignored",
+			});
+		});
+
+		const verifySandbox = createMockSandbox();
+		const tx = await volume.begin(verifySandbox as unknown as Sandbox);
+		expect(verifySandbox.mkdirCalls).toEqual(["/workspace"]);
+		expect(verifySandbox.writtenFiles.map((file) => file.path).sort()).toEqual(
+			["/workspace/package.json", "/workspace/src/index.ts"].sort(),
+		);
+
+		verifySandbox.setFileState({
+			"/workspace/package.json": '{"name":"public"}',
+			"/workspace/src/index.ts": "console.log('public')",
+		});
+
+		const commit = await tx.commit();
+		expect(commit.committed).toBe(false);
+
+		await tx.close();
+
+		const rewriteSandbox = createMockSandbox();
+		rewriteSandbox.setFileState({
+			"/workspace/package.json": '{"name":"public"}',
+			"/workspace/src/index.ts": "console.log('public')",
+		});
+
+		const rewrite = await volume.rewrite(rewriteSandbox as unknown as Sandbox);
+		expect(rewrite.committed).toBe(true);
+		expect(rewrite.diff.kind).toBe("no-op");
+
+		const commitOnlySandbox = createMockSandbox();
+		commitOnlySandbox.setFileState({
+			"/workspace/package.json": '{"name":"public"}',
+			"/workspace/src/index.ts": "console.log('public')",
+		});
+		const commitAllResult = await volume.commitAll(
+			commitOnlySandbox as unknown as Sandbox,
+		);
+		expect(commitAllResult.committed).toBe(false);
 	});
 });

@@ -29,6 +29,95 @@ export type {
 	WorkspaceManifestEntry,
 } from "./manifest";
 
+export type WorkspaceLockErrorCode =
+	| "acquire"
+	| "conflict"
+	| "release"
+	| "stale";
+
+export interface WorkspaceLockErrorOptions {
+	code: WorkspaceLockErrorCode;
+	key: string;
+	mode?: LockMode;
+	leaseId?: string;
+	cause?: unknown;
+}
+
+export class WorkspaceLockError extends Error {
+	readonly code: WorkspaceLockErrorCode;
+	readonly key: string;
+	readonly mode?: LockMode;
+	readonly leaseId?: string;
+	readonly cause?: unknown;
+
+	constructor(message: string, options: WorkspaceLockErrorOptions) {
+		super(message, { cause: options.cause });
+		this.name = "WorkspaceLockError";
+		this.code = options.code;
+		this.key = options.key;
+		this.mode = options.mode;
+		this.leaseId = options.leaseId;
+		this.cause = options.cause;
+		Object.setPrototypeOf(this, new.target.prototype);
+	}
+}
+
+export class WorkspaceLockConflictError extends WorkspaceLockError {
+	constructor(key: string, mode: LockMode, cause?: unknown) {
+		super(`Workspace lock conflict for "${key}" with ${mode} mode`, {
+			code: "conflict",
+			key,
+			mode,
+			cause,
+		});
+		this.name = "WorkspaceLockConflictError";
+	}
+}
+
+export class WorkspaceLockAcquisitionError extends WorkspaceLockError {
+	constructor(key: string, mode: LockMode, cause?: unknown) {
+		super(`Failed to acquire workspace lock for "${key}" with ${mode} mode`, {
+			code: "acquire",
+			key,
+			mode,
+			cause,
+		});
+		this.name = "WorkspaceLockAcquisitionError";
+	}
+}
+
+export class WorkspaceLockReleaseError extends WorkspaceLockError {
+	constructor(key: string, mode: LockMode, leaseId: string, cause?: unknown) {
+		super(
+			`Failed to release workspace lock for "${key}" (lease ${leaseId}) in ${mode} mode`,
+			{
+				code: "release",
+				key,
+				mode,
+				leaseId,
+				cause,
+			},
+		);
+		this.name = "WorkspaceLockReleaseError";
+	}
+}
+
+export class WorkspaceLockStaleError extends WorkspaceLockError {
+	constructor(key: string, mode: LockMode, leaseId: string, cause?: unknown) {
+		super(
+			`Workspace lock for "${key}" is stale or invalid (lease ${leaseId})`,
+			{
+				code: "stale",
+				key,
+				mode,
+				leaseId,
+				cause,
+			},
+		);
+		this.name = "WorkspaceLockStaleError";
+	}
+}
+
 export interface StoragePathRules {
 	/**
 	 * Include pattern list in POSIX style. If omitted or empty, all paths are treated as included.
@@ -74,6 +163,7 @@ export interface WorkspaceTransaction {
 	open(): Promise<void>;
 	diff(): Promise<WorkspaceDiff>;
 	commit(): Promise<WorkspaceCommitResult>;
+	rewrite(): Promise<WorkspaceCommitResult>;
 	close(): Promise<void>;
 }
 

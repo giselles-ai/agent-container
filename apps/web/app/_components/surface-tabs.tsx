@@ -91,9 +91,7 @@ function Placeholder({
 					</p>
 					<h3 className="mt-3 text-2xl tracking-tight text-white">{title}</h3>
 				</div>
-				<p className="max-w-md text-sm leading-6 text-muted">
-					{description}
-				</p>
+				<p className="max-w-md text-sm leading-6 text-muted">{description}</p>
 			</div>
 		</div>
 	);

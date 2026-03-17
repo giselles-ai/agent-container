@@ -27,6 +27,7 @@
 		"format": "pnpm exec biome check --write ."
 	},
 	"dependencies": {
+		"@vercel/blob": "^2.3.1",
 		"@vercel/sandbox": "1.8.1"
 	},
 	"devDependencies": {

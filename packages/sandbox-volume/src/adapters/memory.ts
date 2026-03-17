@@ -1,4 +1,5 @@
 import type { WorkspaceManifest } from "../manifest";
+import { WorkspaceLockConflictError, WorkspaceLockStaleError } from "../types";
 import type {
 	LockMode,
 	StorageAdapter,
@@ -101,9 +102,7 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 
 	async acquireLock(key: string, mode: LockMode): Promise<StorageLock> {
 		if (this.#locks.has(key)) {
-			throw new Error(
-				`Cannot acquire ${mode} lock for ${key}: lock already exists`,
-			);
+			throw new WorkspaceLockConflictError(key, mode);
 		}
 
 		const lock: StorageLock = {
@@ -119,10 +118,20 @@ export class InMemoryStorageAdapter implements StorageAdapter {
 	async releaseLock(lock: StorageLock): Promise<void> {
 		const current = this.#locks.get(lock.key);
 		if (!current) {
-			return;
+			throw new WorkspaceLockStaleError(
+				lock.key,
+				lock.mode,
+				lock.leaseId,
+				"Missing lock in adapter state",
+			);
 		}
 		if (current.leaseId !== lock.leaseId) {
-			throw new Error(`Invalid lock lease for ${lock.key}`);
+			throw new WorkspaceLockStaleError(
+				lock.key,
+				lock.mode,
+				lock.leaseId,
+				`Mismatched lease id for ${lock.key}: expected ${current.leaseId}`,
+			);
 		}
 
 		this.#locks.delete(lock.key);

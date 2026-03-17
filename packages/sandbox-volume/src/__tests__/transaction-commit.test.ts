@@ -2,12 +2,15 @@ import type { Sandbox } from "@vercel/sandbox";
 import { describe, expect, it } from "vitest";
 
 import type {
+	LockMode,
 	StorageAdapter,
 	StorageLoadResult,
+	StorageLock,
 	WorkspacePayload,
 } from "../adapters/types";
-import { buildManifest, hashContent } from "../manifest";
+import { buildManifest, createEmptyManifest, hashContent } from "../manifest";
 import { SandboxVolume } from "../sandbox-volume";
+import { WorkspaceLockReleaseError, WorkspaceLockStaleError } from "../types";
 
 type MockReadFileArgs = {
 	path: string;
@@ -18,6 +21,11 @@ type MockCommandResult = {
 	stdout: () => Promise<string>;
 };
 
+type CommandHandler = (
+	command: string,
+	args: string[],
+) => Promise<MockCommandResult>;
+
 type MockSandbox = {
 	mkdirCalls: string[];
 	writtenFiles: Array<{ path: string; content: Buffer }>;
@@ -25,6 +33,7 @@ type MockSandbox = {
 	filePaths: string[];
 	fileContents: Map<string, Buffer>;
 	setFileState: (state: Record<string, string>) => void;
+	setCommandHandler: (handler: CommandHandler) => void;
 	mkDir: (path: string) => Promise<void>;
 	writeFiles: (
 		files: Array<{ path: string; content: Buffer }>,
@@ -33,12 +42,27 @@ type MockSandbox = {
 	readFileToBuffer: (file: MockReadFileArgs) => Promise<Buffer | null>;
 };
 
-function createMockSandbox(): MockSandbox {
+function createMockSandbox(commandHandler?: CommandHandler): MockSandbox {
 	const fileContents = new Map<string, Buffer>();
 	const sandboxState: { filePaths: string[] } = { filePaths: [] };
 	const mkdirCalls: string[] = [];
 	const writtenFiles: Array<{ path: string; content: Buffer }> = [];
 	const readCalls: string[] = [];
+	let runCommandHandler =
+		commandHandler ??
+		(async (command: string, args: string[]): Promise<MockCommandResult> => {
+			if (command !== "bash") {
+				throw new Error(`unexpected command: ${command}`);
+			}
+			if (!args || args[0] !== "-lc") {
+				throw new Error("unexpected command args");
+			}
+
+			return {
+				exitCode: 0,
+				stdout: async () => sandboxState.filePaths.join("\0"),
+			};
+		});
 
 	return {
 		mkdirCalls,
@@ -54,6 +78,9 @@ function createMockSandbox(): MockSandbox {
 			});
 			sandboxState.filePaths = [...nextPaths];
 		},
+		setCommandHandler: (handler) => {
+			runCommandHandler = handler;
+		},
 		mkDir: async (path: string) => {
 			mkdirCalls.push(path);
 		},
@@ -61,17 +88,7 @@ function createMockSandbox(): MockSandbox {
 			writtenFiles.push(...files);
 		},
 		runCommand: async (command: string, args: string[]) => {
-			if (command !== "bash") {
-				throw new Error(`unexpected command: ${command}`);
-			}
-			if (!args || args[0] !== "-lc") {
-				throw new Error("unexpected command args");
-			}
-
-			return {
-				exitCode: 0,
-				stdout: async () => sandboxState.filePaths.join("\0"),
-			};
+			return runCommandHandler(command, args);
 		},
 		readFileToBuffer: async ({ path }) => {
 			readCalls.push(path);
@@ -113,6 +130,66 @@ class InMemoryAdapter implements StorageAdapter {
 			version: nextVersion,
 			updatedAt: savedAt,
 		});
+	}
+}
+
+class TransactionLockAdapter implements StorageAdapter {
+	public loadCount = 0;
+	public releaseBehavior: "stale" | "generic";
+	public readonly lock: StorageLock;
+	private released = false;
+
+	constructor(
+		public readonly key: string,
+		releaseBehavior: "stale" | "generic",
+	) {
+		this.releaseBehavior = releaseBehavior;
+		this.lock = {
+			key,
+			leaseId: `lock:${key}`,
+			acquiredAt: new Date("2026-03-17T00:00:00Z"),
+			mode: "exclusive" as LockMode,
+		};
+	}
+
+	loadWorkspace(): Promise<StorageLoadResult | null> {
+		this.loadCount += 1;
+		return Promise.resolve({
+			manifest: createEmptyManifest(),
+			files: [],
+		});
+	}
+
+	saveWorkspace(
+		_key: string,
+		_payload: WorkspacePayload,
+	): Promise<{ updatedAt: Date; key: string; version: number }> {
+		return Promise.resolve({
+			updatedAt: new Date("2026-03-17T00:00:00Z"),
+			key: _key,
+			version: 1,
+		});
+	}
+
+	async acquireLock(): Promise<StorageLock> {
+		return { ...this.lock };
+	}
+
+	async releaseLock(): Promise<void> {
+		if (this.released) {
+			return;
+		}
+		this.released = true;
+
+		if (this.releaseBehavior === "stale") {
+			throw new WorkspaceLockStaleError(
+				this.key,
+				"exclusive",
+				this.lock.leaseId,
+			);
+		}
+
+		throw new Error("adapter release transport failure");
 	}
 }
 
@@ -218,6 +295,79 @@ describe("workspace transaction commit", () => {
 		const createSaveCall = adapter.saveCalls[0];
 		expect(createSaveCall).toBeDefined();
 		expect(createSaveCall?.payload.files).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: "src/index.ts",
+				}),
+				expect.objectContaining({
+					path: "src/new.ts",
+				}),
+			]),
+		);
+		await tx.close();
+	});
+
+	it("falls back to node scanning when bash find is unavailable", async () => {
+		const commandCalls: string[] = [];
+		const sandbox = createMockSandbox(async (command, args) => {
+			commandCalls.push(`${command}:${args[0]}`);
+
+			if (command === "bash") {
+				return {
+					exitCode: 127,
+					stdout: async () => "bash: find: command not found",
+				};
+			}
+
+			if (command === "node" && args[0] === "-e") {
+				return {
+					exitCode: 0,
+					stdout: async () =>
+						"/workspace/src/index.ts\0/workspace/src/new.ts\0",
+				};
+			}
+
+			throw new Error(`unexpected command: ${command}`);
+		});
+
+		const initialFiles = [
+			createWorkspaceFile("src/index.ts", "console.log(1)"),
+		];
+		const adapter = new InMemoryAdapter({
+			manifest: buildManifest(
+				initialFiles.map(({ path, content }) => ({ path, content })),
+				new Date("2026-03-17T00:00:00Z"),
+			),
+			files: initialFiles,
+		});
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/find-fallback",
+		});
+		const tx = await volume.begin(sandbox as unknown as Sandbox);
+
+		sandbox.setFileState({
+			"/workspace/src/index.ts": "console.log(1)",
+			"/workspace/src/new.ts": "created",
+		});
+
+		const result = await tx.commit();
+
+		expect(commandCalls).toEqual(["bash:-lc", "node:-e"]);
+		expect(result.committed).toBe(true);
+		expect(result.diff.changes).toEqual([
+			{
+				kind: "create",
+				path: "src/new.ts",
+				hash: hashContent("created"),
+				size: 7,
+				lastSeenAt: expect.any(Date),
+			},
+		]);
+		expect(adapter.saveCalls).toHaveLength(1);
+		const saveCall = adapter.saveCalls[0];
+		expect(saveCall).toBeDefined();
+		expect(saveCall?.payload.files).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					path: "src/index.ts",
@@ -405,5 +555,36 @@ describe("workspace transaction commit", () => {
 		).toBe(true);
 		expect(adapter.saveCalls).toHaveLength(0);
 		await tx.close();
+	});
+
+	it("returns explicit stale lock error from transaction close", async () => {
+		const sandbox = createMockSandbox();
+		const adapter = new TransactionLockAdapter("repo/tx-stale-close", "stale");
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/tx-stale-close",
+			defaultLockMode: "exclusive",
+		});
+		const tx = await volume.begin(sandbox as unknown as Sandbox);
+
+		await expect(tx.close()).rejects.toBeInstanceOf(WorkspaceLockStaleError);
+		expect(adapter.loadCount).toBe(1);
+	});
+
+	it("returns explicit lock release error from transaction close", async () => {
+		const sandbox = createMockSandbox();
+		const adapter = new TransactionLockAdapter(
+			"repo/tx-release-fail",
+			"generic",
+		);
+		const volume = await SandboxVolume.create({
+			adapter,
+			key: "repo/tx-release-fail",
+			defaultLockMode: "exclusive",
+		});
+		const tx = await volume.begin(sandbox as unknown as Sandbox);
+
+		await expect(tx.close()).rejects.toBeInstanceOf(WorkspaceLockReleaseError);
+		expect(adapter.loadCount).toBe(1);
 	});
 });
