@@ -106,9 +106,9 @@ export default function HomePage() {
 
 						<p className="fade-up fade-up-delay-2 mt-5 max-w-3xl leading-7 text-muted">
 							Build agents that chat, use tools, and return UI inside your
-							Vercel app, with a real workspace people can inspect, update,
-							and trust. Run the same runtime across the web, internal
-							workflows, and Slack.
+							Vercel app, with a real workspace people can inspect, update, and
+							trust. Run the same runtime across the web, internal workflows,
+							and Slack.
 						</p>
 						<div className="mt-9 flex flex-wrap items-center gap-3">
 							<ButtonLink href="/docs" variant="solid">
@@ -157,12 +157,6 @@ export default function HomePage() {
 						<div>
 							<p className="font-mono text-[11px] uppercase tracking-[0.34em] text-muted">
 								Core Capabilities
-							</p>
-						</div>
-						<div className="max-w-3xl">
-							<p className="text-[15px] leading-7 text-muted">
-								Everything you need to build agents that can take on real
-								operational work, not just answer in chat.
 							</p>
 						</div>
 					</div>
