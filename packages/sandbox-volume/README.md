@@ -68,6 +68,17 @@ resolves. If the callback throws, it still closes and releases locks but does no
 For a force-cleanup run after changing path rules, use `rewrite()` (or `resync()`) to
 explicitly re-persist the current scoped snapshot.
 
+## Manual verification
+
+Run the example entrypoint to exercise the public API (`createMemoryStorageAdapter`,
+`mount`, `begin`/`commit`, `commitAll`, and `rewrite`) with a real `@vercel/sandbox` instance.
+
+Note: this requires a Vercel OIDC context in your local environment (for example via `vercel link` and a valid `VERCEL_OIDC_TOKEN` / `.env.local`).
+
+```bash
+pnpm -F @giselles-ai/sandbox-volume example
+```
+
 ## Core API
 
 - `SandboxVolume.create(options)`

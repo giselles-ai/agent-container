@@ -22,6 +22,7 @@
 	"scripts": {
 		"build": "pnpm clean && tsup --config tsup.ts",
 		"clean": "rm -rf dist *.tsbuildinfo",
+		"example": "pnpm run build && node --import tsx examples/index.ts",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"test": "pnpm exec vitest run",
 		"format": "pnpm exec biome check --write ."
@@ -32,6 +33,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "25.3.0",
+		"tsx": "4.21.0",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3",
 		"vitest": "4.0.18"
