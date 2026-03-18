@@ -1,0 +1,20 @@
+{
+	"name": "@giselles-ai/sandbox-policy-builder",
+	"version": "0.1.0",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit",
+		"format": "pnpm exec biome check --write ."
+	},
+	"keywords": [],
+	"license": "Apache-2.0",
+	"packageManager": "pnpm@10.17.0",
+	"devDependencies": {
+		"@vercel/sandbox": "1.8.1",
+		"tsup": "8.5.1",
+		"typescript": "5.9.3"
+	}
+}
