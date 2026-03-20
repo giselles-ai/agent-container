@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "Giselle for Vercel",
+	title: "Giselle Sandbox Agent",
 	description:
 		"Build OpenClaw-like agent experiences on Vercel with Next.js, the AI SDK, and Vercel Sandbox.",
 };
