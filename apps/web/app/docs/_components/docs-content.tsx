@@ -50,7 +50,7 @@ function CodeBlock({ children }: { children: ReactNode }) {
 	const language = extractLanguage(children);
 
 	const handleClick = useCallback(() => {
-		const text = preRef.current?.textContent ?? "";
+		const text = (preRef.current?.textContent ?? "").trim();
 		navigator.clipboard.writeText(text).then(() => {
 			setCopied(true);
 			setTimeout(() => setCopied(false), 1500);
