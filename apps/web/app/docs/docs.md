@@ -52,7 +52,7 @@ Before generating an app, create an account at [studio.giselles.ai](https://stud
 GISELLE_AGENT_API_KEY=<your-api-key>
 ```
 
-The Cloud API at `studio.giselles.ai` is the default, so you only need additional base URL configuration if you are self-hosting.
+The Giselle Agent API key is the only credential you need. Everything else is handled by the Cloud API at `studio.giselles.ai`.
 
 Then ask Codex, Claude Code, Cursor, or whatever coding agent you use to build the app with you by using the `build-giselle-agent` skill.
 

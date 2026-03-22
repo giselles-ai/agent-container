@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Children, isValidElement, type ReactNode } from "react";
+import {
+	Children,
+	isValidElement,
+	type ReactNode,
+	useCallback,
+	useRef,
+	useState,
+} from "react";
 import { Streamdown } from "streamdown";
 
 function slugify(text: string): string {
@@ -29,6 +36,88 @@ function extractText(node: ReactNode): string {
 	return "";
 }
 
+function extractLanguage(children: ReactNode): string {
+	if (isValidElement<{ className?: string }>(children)) {
+		const match = children.props.className?.match(/language-(\w+)/);
+		return match ? match[1] : "";
+	}
+	return "";
+}
+
+function CodeBlock({ children }: { children: ReactNode }) {
+	const preRef = useRef<HTMLPreElement>(null);
+	const [copied, setCopied] = useState(false);
+	const language = extractLanguage(children);
+
+	const handleClick = useCallback(() => {
+		const text = (preRef.current?.textContent ?? "").trim();
+		navigator.clipboard.writeText(text).then(() => {
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1500);
+		});
+	}, []);
+
+	return (
+		<div className="panel-strong overflow-hidden rounded-2xl">
+			<div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
+				<span className="text-sm text-muted/60">{language}</span>
+				<button
+					type="button"
+					onClick={handleClick}
+					aria-label="Copy code"
+					className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted/40 transition-colors hover:text-text"
+				>
+					{copied ? (
+						<svg
+							aria-hidden="true"
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<polyline points="20 6 9 17 4 12" />
+						</svg>
+					) : (
+						<svg
+							aria-hidden="true"
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+							<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+						</svg>
+					)}
+				</button>
+			</div>
+			{language === "text" ? (
+				<pre
+					ref={preRef}
+					className={`px-4 py-4 text-sm text-brand whitespace-pre-wrap break-words leading-7`}
+				>
+					{children}
+				</pre>
+			) : (
+				<pre
+					ref={preRef}
+					className={`px-4 py-4 text-sm text-brand overflow-x-auto`}
+				>
+					{children}
+				</pre>
+			)}
+		</div>
+	);
+}
+
 export function DocsContent({ content }: { content: string }) {
 	return (
 		<Streamdown
@@ -41,23 +130,65 @@ export function DocsContent({ content }: { content: string }) {
 				),
 				h2: ({ children }) => {
 					const text = extractText(children);
+					const id = slugify(text);
 					return (
 						<h2
-							id={slugify(text)}
-							className="scroll-mt-28 pt-8 text-3xl font-semibold tracking-[-0.04em] text-text sm:text-4xl"
+							id={id}
+							className="group/heading scroll-mt-28 pt-8 text-3xl font-semibold tracking-[-0.04em] text-text sm:text-4xl"
 						>
-							{children}
+							<a
+								href={`#${id}`}
+								className="flex cursor-pointer items-center gap-2"
+							>
+								{children}
+								<svg
+									aria-hidden="true"
+									width="22"
+									height="22"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="shrink-0 text-text opacity-0 transition-opacity group-hover/heading:opacity-100"
+								>
+									<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+									<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+								</svg>
+							</a>
 						</h2>
 					);
 				},
 				h3: ({ children }) => {
 					const text = extractText(children);
+					const id = slugify(text);
 					return (
 						<h3
-							id={slugify(text)}
-							className="scroll-mt-28 pt-4 text-xl font-semibold tracking-[-0.03em] text-text sm:text-2xl"
+							id={id}
+							className="group/heading scroll-mt-28 pt-4 text-xl font-semibold tracking-[-0.03em] text-text sm:text-2xl"
 						>
-							{children}
+							<a
+								href={`#${id}`}
+								className="flex cursor-pointer items-center gap-2"
+							>
+								{children}
+								<svg
+									aria-hidden="true"
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="shrink-0 text-text opacity-0 transition-opacity group-hover/heading:opacity-100"
+								>
+									<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+									<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+								</svg>
+							</a>
 						</h3>
 					);
 				},
@@ -95,11 +226,7 @@ export function DocsContent({ content }: { content: string }) {
 						{children}
 					</Link>
 				),
-				pre: ({ children }) => (
-					<pre className="panel-strong overflow-x-auto rounded-2xl px-4 py-4 text-sm text-brand">
-						{children}
-					</pre>
-				),
+				pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 				code: ({ className, children }) => {
 					const childArray = Children.toArray(children);
 					const isBlock =
