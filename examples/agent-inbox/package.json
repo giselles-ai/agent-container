@@ -19,7 +19,7 @@
 		"@giselles-ai/browser-tool": "workspace:",
 		"@giselles-ai/giselle-provider": "workspace:",
 		"@json-render/core": "0.13.0",
-		"@json-render/react": "0.13.0",
+		"@json-render/react": "0.14.0",
 		"chat": "4.20.1",
 		"@libsql/client": "0.17.0",
 		"@streamdown/code": "^1.1.0",
